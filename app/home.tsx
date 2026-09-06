@@ -5,10 +5,12 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { buildHomeSummary } from "@/src/application/homeSummary";
 import { loadAppSnapshot, type AppSnapshot } from "@/src/application/appSnapshot";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
+import { LocalTransactionCorrections } from "@/src/application/transactionCorrections";
 import { formatTry } from "@/src/domain/money";
 import { type FarmTransaction } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
-import { BigButton, Card, PageTitle, Screen } from "@/src/ui/components";
+import { dateInputFromIso } from "@/src/mobile/date";
+import { BigButton, Card, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
 
@@ -16,6 +18,8 @@ export default function HomeScreen() {
   const sqlite = useSQLiteContext();
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
   const [error, setError] = useState<string>();
+  const [lastDeleted, setLastDeleted] = useState<FarmTransaction | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -38,6 +42,30 @@ export default function HomeScreen() {
   }, [refresh]));
 
   const summary = snapshot ? buildHomeSummary(snapshot.summary) : null;
+
+  const restoreLastDeleted = async () => {
+    if (snapshot === null || lastDeleted === null || restoring) return;
+    setRestoring(true);
+    setError(undefined);
+    try {
+      const restored = await new LocalTransactionCorrections(mobileDatabase(sqlite)).restoreTransaction({
+        farmId: snapshot.identity.farmId,
+        transactionId: lastDeleted.id,
+        nowIso: new Date().toISOString()
+      });
+      if (!restored) {
+        setLastDeleted(null);
+        setError("Bu kayıt geri alınamadı. Defterini yenileyip tekrar dene.");
+        return;
+      }
+      setLastDeleted(null);
+      await refresh();
+    } catch {
+      setError("Kaydı geri alamadık. Diğer kayıtların güvende.");
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   const askDelete = (item: FarmTransaction) => {
     if (snapshot === null) return;
@@ -62,6 +90,7 @@ export default function HomeScreen() {
                   setError("Bu kayıt zaten silinmiş veya bulunamadı.");
                   return;
                 }
+                setLastDeleted(item);
                 await refresh();
               })
               .catch(() => setError("Kaydı silemedik. Kayıtların güvende."));
@@ -92,6 +121,18 @@ export default function HomeScreen() {
         </Card>
       ) : null}
 
+      {lastDeleted !== null ? (
+        <Card>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.undoTitle}>Kayıt silindi.</Text>
+          <Text style={styles.undoCopy}>{lastDeleted.category} · {formatTry(lastDeleted.amountKurus)}</Text>
+          <SecondaryButton
+            label={restoring ? "Geri alınıyor…" : "Geri al"}
+            disabled={restoring}
+            onPress={() => void restoreLastDeleted()}
+          />
+        </Card>
+      ) : null}
+
       {snapshot ? (
         <>
           <Text style={styles.question}>Bugün para girdi mi, çıktı mı?</Text>
@@ -107,7 +148,7 @@ export default function HomeScreen() {
             <View style={styles.transactionRow} key={item.id}>
               <View style={styles.transactionCopy}>
                 <Text style={styles.transactionCategory}>{item.category}</Text>
-                <Text style={styles.transactionDate}>{item.occurredOn}</Text>
+                <Text style={styles.transactionDate}>{dateInputFromIso(item.occurredOn)}</Text>
               </View>
               <View style={styles.transactionActions}>
                 <Text style={item.kind === "income" ? styles.incomeText : styles.expenseText}>
@@ -128,7 +169,7 @@ export default function HomeScreen() {
         </Card>
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
     </Screen>
   );
 }
@@ -155,5 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   deleteText: { color: theme.color.expense, fontSize: 15, fontWeight: "800" },
+  undoTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
+  undoCopy: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700" },
   error: { color: theme.color.expense, fontSize: 16, fontWeight: "700" }
 });
