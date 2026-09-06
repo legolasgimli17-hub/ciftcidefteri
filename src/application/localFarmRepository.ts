@@ -74,37 +74,50 @@ export class LocalFarmRepository {
     const nowIso = validateTimestamp(input.nowIso);
     const t = input.transaction;
 
-    if (t.cropCode !== undefined) {
-      const crop = await this.db.first<{ count: number }>(
+    await this.db.transaction(async (tx) => {
+      const farm = await tx.first<{ count: number }>(
         `SELECT COUNT(*) AS count
-           FROM farm_crops
-          WHERE farm_id = ? AND crop_code = ? AND deleted_at IS NULL`,
-        [farmId, t.cropCode]
+           FROM farms f
+           JOIN farmer_profiles p ON p.id = f.owner_local_id
+          WHERE f.id = ? AND f.deleted_at IS NULL AND p.deleted_at IS NULL`,
+        [farmId]
       );
-      if ((crop?.count ?? 0) !== 1) {
-        throw new Error("Bu ürün çiftliğinde kayıtlı değil.");
+      if ((farm?.count ?? 0) !== 1) {
+        throw new Error("Bu çiftlik aktif değil. Kayıt eklenmedi.");
       }
-    }
 
-    await this.db.run(
-      `INSERT INTO transactions
-        (id, farm_id, kind, amount_kurus, occurred_on, category, crop_code, note,
-         is_tax_exempt_support, created_at, updated_at, sync_state)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')`,
-      [
-        t.id,
-        farmId,
-        t.kind,
-        t.amountKurus,
-        t.occurredOn,
-        t.category,
-        t.cropCode ?? null,
-        t.note ?? null,
-        t.isTaxExemptSupport ? 1 : 0,
-        nowIso,
-        nowIso
-      ]
-    );
+      if (t.cropCode !== undefined) {
+        const crop = await tx.first<{ count: number }>(
+          `SELECT COUNT(*) AS count
+             FROM farm_crops
+            WHERE farm_id = ? AND crop_code = ? AND deleted_at IS NULL`,
+          [farmId, t.cropCode]
+        );
+        if ((crop?.count ?? 0) !== 1) {
+          throw new Error("Bu ürün çiftliğinde kayıtlı değil.");
+        }
+      }
+
+      await tx.run(
+        `INSERT INTO transactions
+          (id, farm_id, kind, amount_kurus, occurred_on, category, crop_code, note,
+           is_tax_exempt_support, created_at, updated_at, sync_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')`,
+        [
+          t.id,
+          farmId,
+          t.kind,
+          t.amountKurus,
+          t.occurredOn,
+          t.category,
+          t.cropCode ?? null,
+          t.note ?? null,
+          t.isTaxExemptSupport ? 1 : 0,
+          nowIso,
+          nowIso
+        ]
+      );
+    });
   }
 
   public async listTransactions(farmIdRaw: string): Promise<readonly FarmTransaction[]> {
@@ -158,15 +171,23 @@ async function prepareInitialSetup(tx: SqlExecutor, nowIso: string): Promise<voi
   );
   if ((activeProfiles?.count ?? 0) === 0) return;
 
-  const financialRows = await tx.first<{ count: number }>(
-    `SELECT COUNT(*) AS count
-       FROM transactions t
-       JOIN farms f ON f.id = t.farm_id AND f.deleted_at IS NULL
-       JOIN farmer_profiles p ON p.id = f.owner_local_id AND p.deleted_at IS NULL
-      WHERE t.deleted_at IS NULL`
+  const userRows = await tx.first<{ count: number }>(
+    `SELECT
+       (SELECT COUNT(*)
+          FROM transactions t
+          JOIN farms f ON f.id = t.farm_id AND f.deleted_at IS NULL
+          JOIN farmer_profiles p ON p.id = f.owner_local_id AND p.deleted_at IS NULL
+         WHERE t.deleted_at IS NULL)
+       +
+       (SELECT COUNT(*)
+          FROM parcels r
+          JOIN farms f ON f.id = r.farm_id AND f.deleted_at IS NULL
+          JOIN farmer_profiles p ON p.id = f.owner_local_id AND p.deleted_at IS NULL
+         WHERE r.deleted_at IS NULL)
+       AS count`
   );
-  if ((financialRows?.count ?? 0) > 0) {
-    throw new Error("Eksik kurulumda finans kaydı bulundu. Otomatik düzeltme yapılmadı.");
+  if ((userRows?.count ?? 0) > 0) {
+    throw new Error("Eksik kurulumda kayıtlı veri bulundu. Otomatik düzeltme yapılmadı.");
   }
 
   await tx.run(
