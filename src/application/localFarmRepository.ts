@@ -5,6 +5,7 @@ import { type FarmerProfile } from "../domain/profile";
 import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
 import { createFarmTransaction, type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase, type SqlExecutor } from "../storage/sql";
+import { parseSqlBoolean } from "../storage/sqlBoolean";
 
 interface TransactionRow {
   id: string;
@@ -165,6 +166,7 @@ function mapTransactionRow(row: TransactionRow): FarmTransaction {
     throw new Error("Yerel veride geçersiz işlem türü bulundu.");
   }
   const cropCode = row.crop_code === null ? undefined : parseCropCode(row.crop_code);
+  const isTaxExemptSupport = parseSqlBoolean(row.is_tax_exempt_support, "Destekleme bilgisi");
   return createFarmTransaction({
     id: row.id,
     kind: row.kind,
@@ -173,7 +175,7 @@ function mapTransactionRow(row: TransactionRow): FarmTransaction {
     category: row.category,
     ...(cropCode === undefined ? {} : { cropCode }),
     ...(row.note === null ? {} : { note: row.note }),
-    isTaxExemptSupport: row.is_tax_exempt_support === 1
+    isTaxExemptSupport
   });
 }
 
