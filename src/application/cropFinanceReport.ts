@@ -82,7 +82,10 @@ export async function loadCropFinanceReport(db: SqlDatabase): Promise<CropFinanc
     byCrop.set(cropCode, amounts);
   }
 
-  const rows: CropFinanceRow[] = identity.cropCodes.map((cropCode) => ({
+  const selectedCropCodes = [...identity.cropCodes]
+    .sort((left, right) => cropTemplates[left].label.localeCompare(cropTemplates[right].label, "tr"));
+
+  const rows: CropFinanceRow[] = selectedCropCodes.map((cropCode) => ({
     key: `crop:${cropCode}`,
     label: cropTemplates[cropCode].label,
     cropCode,
