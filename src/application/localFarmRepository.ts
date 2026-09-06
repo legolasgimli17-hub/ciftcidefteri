@@ -46,6 +46,7 @@ export class LocalFarmRepository {
     const nowIso = validateTimestamp(input.nowIso);
 
     await this.db.transaction(async (tx) => {
+      await prepareInitialSetup(tx, nowIso);
       await insertProfile(tx, input.profile, nowIso);
       await tx.run(
         `INSERT INTO farms
@@ -138,6 +139,49 @@ export class LocalFarmRepository {
     );
     return result.changes === 1;
   }
+}
+
+async function prepareInitialSetup(tx: SqlExecutor, nowIso: string): Promise<void> {
+  const complete = await tx.first<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM farmer_profiles p
+       JOIN farms f ON f.owner_local_id = p.id AND f.deleted_at IS NULL
+       JOIN farm_crops c ON c.farm_id = f.id AND c.deleted_at IS NULL
+      WHERE p.deleted_at IS NULL`
+  );
+  if ((complete?.count ?? 0) > 0) {
+    throw new Error("Kurulum zaten tamamlanmış. İkinci çiftlik kaydı oluşturulmadı.");
+  }
+
+  const activeProfiles = await tx.first<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM farmer_profiles WHERE deleted_at IS NULL"
+  );
+  if ((activeProfiles?.count ?? 0) === 0) return;
+
+  const financialRows = await tx.first<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM transactions t
+       JOIN farms f ON f.id = t.farm_id AND f.deleted_at IS NULL
+       JOIN farmer_profiles p ON p.id = f.owner_local_id AND p.deleted_at IS NULL
+      WHERE t.deleted_at IS NULL`
+  );
+  if ((financialRows?.count ?? 0) > 0) {
+    throw new Error("Eksik kurulumda finans kaydı bulundu. Otomatik düzeltme yapılmadı.");
+  }
+
+  await tx.run(
+    `UPDATE farms
+        SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
+      WHERE deleted_at IS NULL
+        AND owner_local_id IN (SELECT id FROM farmer_profiles WHERE deleted_at IS NULL)`,
+    [nowIso, nowIso]
+  );
+  await tx.run(
+    `UPDATE farmer_profiles
+        SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
+      WHERE deleted_at IS NULL`,
+    [nowIso, nowIso]
+  );
 }
 
 async function insertProfile(tx: SqlExecutor, profile: FarmerProfile, nowIso: string): Promise<void> {
