@@ -14,13 +14,15 @@
     "test": "npm run clean && npm run build:test && node --test dist-tests/tests/*.test.js",
     "security:static": "node scripts/static-security-check.mjs",
     "security:mobile-config": "node scripts/mobile-security-config-check.mjs",
+    "security:dependencies": "node scripts/dependency-runtime-check.mjs",
     "ux:language": "node scripts/ux-language-check.mjs",
-    "check:core": "npm run typecheck:core && npm test && npm run schema:drift && npm run security:static && npm run security:mobile-config && npm run ux:language",
+    "check:core": "npm run typecheck:core && npm test && npm run schema:drift && npm run security:static && npm run security:mobile-config && npm run security:dependencies && npm run ux:language",
     "check": "npm run check:core",
     "ci:deps": "npm audit --audit-level=high",
     "schema:drift": "node scripts/schema-drift-check.mjs"
   },
   "dependencies": {
+    "decode-uri-component-safe": "npm:decode-uri-component@0.5.0",
     "expo": "~57.0.17",
     "expo-constants": "~57.0.17",
     "expo-crypto": "~57.0.2",
@@ -39,6 +41,11 @@
   "devDependencies": {
     "@types/react": "^19.2.0",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "query-string": {
+      "decode-uri-component": "file:vendor/decode-uri-component-bridge"
+    }
   },
   "engines": {
     "node": ">=22.13.0"
