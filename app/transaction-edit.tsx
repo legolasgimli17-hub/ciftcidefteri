@@ -106,11 +106,17 @@ export default function TransactionEditScreen() {
     setError(undefined);
     try {
       transactionAmountFromInput(amountText);
-      isoDateFromTurkishInput(dateText);
-      setStep("scope");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Tutarı ve tarihi kontrol et.");
+    } catch {
+      setError("Tutarı kontrol et.");
+      return;
     }
+    try {
+      isoDateFromTurkishInput(dateText);
+    } catch {
+      setError("Tarihi GG.AA.YYYY olarak kontrol et.");
+      return;
+    }
+    setStep("scope");
   };
 
   const save = async (category: string) => {
@@ -140,8 +146,8 @@ export default function TransactionEditScreen() {
       }
       setOriginal(updatedTransaction);
       setStep("done");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Kaydı düzeltemedik. Tekrar dene.");
+    } catch {
+      setError("Kaydı şu an düzeltemedik. Defterdeki kayıtların güvende. Tekrar dene.");
     } finally {
       savingRef.current = false;
       setSaving(false);
