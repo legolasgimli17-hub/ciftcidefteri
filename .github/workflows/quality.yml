@@ -1,0 +1,36 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Expo dependency compatibility
+        run: npx expo install --check
+      - name: Core quality gates
+        run: npm run check:core
+      - name: Full app typecheck
+        run: npx tsc -p tsconfig.json --noEmit
+      - name: Expo project health
+        run: npx expo-doctor@latest
+      - name: Dependency audit
+        run: npm audit --audit-level=high
