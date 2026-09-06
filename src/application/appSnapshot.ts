@@ -4,6 +4,7 @@ import { createFarmerProfile, type FarmerProfile } from "../domain/profile";
 import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
 import { type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase } from "../storage/sql";
+import { parseNullableSqlBoolean } from "../storage/sqlBoolean";
 import { LocalFarmRepository } from "./localFarmRepository";
 
 export interface FarmIdentity {
@@ -58,6 +59,7 @@ export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | 
   );
 
   const cropCodes = crops.map((item) => parseCropCode(item.crop_code));
+  const isCksRegistered = parseNullableSqlBoolean(row.is_cks_registered, "ÇKS bilgisi");
   const profile = createFarmerProfile({
     id: row.profile_id,
     name: row.name,
@@ -67,7 +69,7 @@ export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | 
     village: row.village,
     totalAreaSquareMeters: squareMetersFromStoredValue(row.total_area_square_meters),
     cropCodes,
-    ...(row.is_cks_registered === null ? {} : { isCksRegistered: row.is_cks_registered === 1 })
+    ...(isCksRegistered === undefined ? {} : { isCksRegistered })
   });
 
   return {
