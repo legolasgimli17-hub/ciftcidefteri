@@ -44,7 +44,7 @@
   },
   "overrides": {
     "query-string": {
-      "decode-uri-component": "file:vendor/decode-uri-component-bridge"
+      "decode-uri-component": "file:../../vendor/decode-uri-component-bridge"
     }
   },
   "engines": {
