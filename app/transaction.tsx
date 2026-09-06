@@ -1,11 +1,12 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import { stepAfterAmount, transactionAmountFromInput, transactionKindFromRoute } from "@/src/application/transactionFlow";
 import { buildTransactionFromDraft } from "@/src/application/transactionDraft";
+import { previousCreateTransactionStep, type CreateTransactionStep } from "@/src/application/wizardBack";
 import {
   commonExpenseCategories,
   commonIncomeCategories,
@@ -19,7 +20,7 @@ import { createLocalId } from "@/src/mobile/id";
 import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 
-type Step = "amount" | "crop" | "category" | "done";
+type Step = CreateTransactionStep;
 
 export default function TransactionScreen() {
   const params = useLocalSearchParams<{ kind?: string }>();
@@ -47,6 +48,22 @@ export default function TransactionScreen() {
       });
     return () => { active = false; };
   }, [sqlite]);
+
+  useFocusEffect(useCallback(() => {
+    const onBack = () => {
+      if (savingRef.current) return true;
+      const action = previousCreateTransactionStep(step, identity?.cropCodes.length ?? 1);
+      if (action === "exit") return false;
+      if (action === "home") {
+        router.replace("/home");
+        return true;
+      }
+      setStep(action);
+      return true;
+    };
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBack);
+    return () => subscription.remove();
+  }, [identity?.cropCodes.length, step]));
 
   const categories = useMemo(() => {
     if (kind === null) return [];
