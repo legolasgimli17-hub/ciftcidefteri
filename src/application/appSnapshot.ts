@@ -1,6 +1,6 @@
 import { parseCropCode, type CropCode } from "../domain/crops";
 import { squareMetersFromStoredValue } from "../domain/landArea";
-import { type FarmerProfile } from "../domain/profile";
+import { createFarmerProfile, type FarmerProfile } from "../domain/profile";
 import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
 import { type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase } from "../storage/sql";
@@ -52,7 +52,8 @@ export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | 
     [row.farm_id]
   );
 
-  const profile: FarmerProfile = {
+  const cropCodes = crops.map((item) => parseCropCode(item.crop_code));
+  const profile = createFarmerProfile({
     id: row.profile_id,
     name: row.name,
     phone: row.phone,
@@ -60,9 +61,9 @@ export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | 
     district: row.district,
     village: row.village,
     totalAreaSquareMeters: squareMetersFromStoredValue(row.total_area_square_meters),
-    cropCodes: crops.map((item) => parseCropCode(item.crop_code)),
+    cropCodes,
     ...(row.is_cks_registered === null ? {} : { isCksRegistered: row.is_cks_registered === 1 })
-  };
+  });
 
   return {
     farmId: row.farm_id,
