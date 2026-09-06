@@ -36,12 +36,6 @@ for (const root of roots) walk(root);
 let failed = false;
 for (const file of files) {
   const sourceText = fs.readFileSync(file, "utf8");
-
-  if (isAppFile(file) && sourceText.includes(".message")) {
-    failed = true;
-    console.error(`Kullanıcı hata sınırı ihlali: ${file} -> ham Error.message kullanılamaz.`);
-  }
-
   const sourceFile = ts.createSourceFile(
     file,
     sourceText,
@@ -50,13 +44,30 @@ for (const file of files) {
     file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   );
 
-  visit(sourceFile, sourceFile, file);
+  visit(sourceFile, sourceFile, file, new Set());
 }
 
 if (failed) process.exit(1);
 console.log(`UX language gate: ${files.length} dosya temiz; ham hata sızıntısı ve teknik jargon yok.`);
 
-function visit(node, sourceFile, file) {
+function visit(node, sourceFile, file, caughtNames) {
+  let nextCaughtNames = caughtNames;
+  if (ts.isCatchClause(node) && node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) {
+    nextCaughtNames = new Set(caughtNames);
+    nextCaughtNames.add(node.variableDeclaration.name.text);
+  }
+
+  if (
+    isAppFile(file) &&
+    ts.isPropertyAccessExpression(node) &&
+    node.name.text === "message" &&
+    ts.isIdentifier(node.expression) &&
+    nextCaughtNames.has(node.expression.text)
+  ) {
+    failed = true;
+    console.error(`Kullanıcı hata sınırı ihlali: ${file} -> yakalanmış Error.message ekrana taşınamaz.`);
+  }
+
   if (ts.isStringLiteralLike(node) && !isModuleSpecifier(node)) {
     inspectUserText(node.text, file);
   } else if (ts.isJsxText(node)) {
@@ -65,7 +76,8 @@ function visit(node, sourceFile, file) {
     inspectUserText(node.head.text, file);
     for (const span of node.templateSpans) inspectUserText(span.literal.text, file);
   }
-  ts.forEachChild(node, (child) => visit(child, sourceFile, file));
+
+  ts.forEachChild(node, (child) => visit(child, sourceFile, file, nextCaughtNames));
 }
 
 function inspectUserText(value, file) {
