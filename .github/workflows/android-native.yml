@@ -1,0 +1,77 @@
+name: android-native
+
+on:
+  pull_request:
+    paths:
+      - "app.json"
+      - "package.json"
+      - "package-lock.json"
+      - "src/mobile/**"
+      - "src/storage/**"
+      - "scripts/verify-android-prebuild.mjs"
+      - ".github/workflows/android-native.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app.json"
+      - "package.json"
+      - "package-lock.json"
+      - "src/mobile/**"
+      - "src/storage/**"
+      - "scripts/verify-android-prebuild.mjs"
+      - ".github/workflows/android-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: true
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install dependencies and create lockfile
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verify Expo dependency compatibility
+        run: npx expo install --check
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --clean --no-install
+      - name: Verify generated Android security policy
+        run: node scripts/verify-android-prebuild.mjs
+      - name: Build SQLCipher-enabled debug APK
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify APK output
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload debug APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ciftci-defteri-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload generated dependency lockfile
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: generated-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
