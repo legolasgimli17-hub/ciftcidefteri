@@ -4,8 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
-import { stepAfterAmount } from "@/src/application/transactionFlow";
+import { stepAfterAmount, transactionAmountFromInput, transactionKindFromRoute } from "@/src/application/transactionFlow";
 import { buildTransactionFromDraft } from "@/src/application/transactionDraft";
+import {
+  commonExpenseCategories,
+  commonIncomeCategories,
+  isTaxExemptPublicAgriculturalSupport
+} from "@/src/domain/categories";
 import { cropTemplates, expenseSuggestionsFor, type CropCode } from "@/src/domain/crops";
 import { type TransactionKind } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
@@ -16,13 +21,10 @@ import { theme } from "@/src/ui/theme";
 
 type Step = "amount" | "crop" | "category" | "done";
 
-const commonIncomeCategories = ["Ürün satışı", "Destekleme", "Diğer gelir"] as const;
-const commonExpenseCategories = ["Mazot", "Gübre", "İlaç", "İşçilik", "Diğer gider"] as const;
-
 export default function TransactionScreen() {
   const params = useLocalSearchParams<{ kind?: string }>();
   const sqlite = useSQLiteContext();
-  const kind: TransactionKind = params.kind === "income" ? "income" : "expense";
+  const kind: TransactionKind | null = transactionKindFromRoute(params.kind);
   const [identity, setIdentity] = useState<FarmIdentity | null>(null);
   const [step, setStep] = useState<Step>("amount");
   const [amountText, setAmountText] = useState("");
@@ -46,6 +48,7 @@ export default function TransactionScreen() {
   }, [sqlite]);
 
   const categories = useMemo(() => {
+    if (kind === null) return [];
     if (kind === "income") return commonIncomeCategories;
     const cropSpecific = cropCode ? expenseSuggestionsFor(cropCode) : [];
     return [...new Set([...cropSpecific, ...commonExpenseCategories])];
@@ -53,8 +56,14 @@ export default function TransactionScreen() {
 
   const afterAmount = () => {
     setError(undefined);
-    if (!/[0-9]/.test(amountText)) {
-      setError("Tutarı yaz.");
+    if (kind === null) {
+      setError("İşlem türü anlaşılmadı. Defterden yeniden başla.");
+      return;
+    }
+    try {
+      transactionAmountFromInput(amountText);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Tutarı kontrol et.");
       return;
     }
     if (identity === null) {
@@ -66,6 +75,10 @@ export default function TransactionScreen() {
 
   const save = async (category: string) => {
     if (savingRef.current) return;
+    if (kind === null) {
+      setError("İşlem türü anlaşılmadı. Defterden yeniden başla.");
+      return;
+    }
     if (identity === null) {
       setError("Çiftlik bilgini okuyamadık.");
       return;
@@ -74,14 +87,14 @@ export default function TransactionScreen() {
     setSaving(true);
     setError(undefined);
     try {
-      const isSupport = kind === "income" && category === "Destekleme";
+      const isTaxExemptSupport = isTaxExemptPublicAgriculturalSupport(kind, category);
       const transaction = buildTransactionFromDraft({
         kind,
         amountText,
         occurredOn: todayIsoLocal(),
         category,
         ...(cropCode === undefined ? {} : { cropCode }),
-        ...(isSupport ? { isTaxExemptSupport: true } : {})
+        ...(isTaxExemptSupport ? { isTaxExemptSupport: true } : {})
       }, {
         nextTransactionId: () => createLocalId("txn")
       });
@@ -95,6 +108,16 @@ export default function TransactionScreen() {
       setSaving(false);
     }
   };
+
+  if (kind === null) {
+    return (
+      <Screen>
+        <PageTitle hint="Defterden yeniden kayıt aç.">Kayıt açılamadı</PageTitle>
+        <ErrorNote message="İşlem türü anlaşılmadı." />
+        <BigButton label="Deftere dön" icon="←" onPress={() => router.replace("/home")} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>

@@ -27,7 +27,7 @@ export function Screen({ children }: PropsWithChildren) {
 export function PageTitle({ children, hint }: PropsWithChildren<{ readonly hint?: string }>) {
   return (
     <View style={styles.titleBlock}>
-      <Text style={styles.title}>{children}</Text>
+      <Text accessibilityRole="header" style={styles.title}>{children}</Text>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
@@ -45,6 +45,7 @@ export function BigButton(props: {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={props.label}
+      accessibilityState={{ disabled: props.disabled === true }}
       disabled={props.disabled}
       onPress={props.onPress}
       style={({ pressed }: PressableStateCallbackType) => [
@@ -72,6 +73,7 @@ export function SecondaryButton(props: {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={props.label}
+      accessibilityState={{ disabled: props.disabled === true }}
       disabled={props.disabled}
       onPress={props.onPress}
       style={({ pressed }: PressableStateCallbackType) => [
@@ -86,13 +88,15 @@ export function SecondaryButton(props: {
 }
 
 export function Field(props: TextInputProps & { readonly label: string }) {
+  const { label, ...inputProps } = props;
   return (
     <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{props.label}</Text>
+      <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        {...props}
+        {...inputProps}
+        accessibilityLabel={inputProps.accessibilityLabel ?? label}
         placeholderTextColor={theme.color.textMuted}
-        style={[styles.field, props.style]}
+        style={[styles.field, inputProps.style]}
       />
     </View>
   );
@@ -108,6 +112,7 @@ export function ChoiceCard(props: {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={props.label}
       accessibilityState={{ selected: props.selected === true }}
       onPress={props.onPress}
       style={({ pressed }: PressableStateCallbackType) => [
@@ -124,7 +129,11 @@ export function ChoiceCard(props: {
 }
 
 export function ErrorNote({ message }: { readonly message: string | undefined }) {
-  return message ? <Text style={styles.error}>{message}</Text> : null;
+  return message ? (
+    <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
+      {message}
+    </Text>
+  ) : null;
 }
 
 export function Card({ children }: PropsWithChildren) {

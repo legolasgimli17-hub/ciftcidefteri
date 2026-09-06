@@ -1,12 +1,11 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+import { createRetryableSingleFlight } from "../storage/retryableSingleFlight";
 
 const DATABASE_KEY_NAME = "ciftcidefteri.database.key.v1";
 const DATABASE_KEY_SERVICE = "app.ciftcidefteri.database";
 const DATABASE_KEY_BYTES = 32;
 const DATABASE_KEY_HEX_LENGTH = DATABASE_KEY_BYTES * 2;
-
-let keyPromise: Promise<string> | null = null;
 
 export function assertDatabaseKeyHex(value: string): string {
   if (value.length !== DATABASE_KEY_HEX_LENGTH || !/^[0-9a-f]+$/i.test(value)) {
@@ -20,10 +19,7 @@ export function sqlCipherKeyPragma(keyHex: string): string {
   return `PRAGMA key = "x'${safeHex}'";`;
 }
 
-export function getOrCreateDatabaseKeyHex(): Promise<string> {
-  keyPromise ??= loadOrCreateDatabaseKeyHex();
-  return keyPromise;
-}
+export const getOrCreateDatabaseKeyHex = createRetryableSingleFlight(loadOrCreateDatabaseKeyHex);
 
 async function loadOrCreateDatabaseKeyHex(): Promise<string> {
   if (!(await SecureStore.isAvailableAsync())) {

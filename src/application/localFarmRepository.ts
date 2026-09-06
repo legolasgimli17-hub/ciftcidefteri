@@ -1,9 +1,11 @@
 import { parseCropCode, type CropCode } from "../domain/crops";
+import { assertIsoUtcTimestamp } from "../domain/date";
 import { moneyFromKurus } from "../domain/money";
 import { type FarmerProfile } from "../domain/profile";
 import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
 import { createFarmTransaction, type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase, type SqlExecutor } from "../storage/sql";
+import { parseSqlBoolean } from "../storage/sqlBoolean";
 
 interface TransactionRow {
   id: string;
@@ -20,10 +22,17 @@ export class LocalFarmRepository {
   public constructor(private readonly db: SqlDatabase) {}
 
   public async hasCompletedOnboarding(): Promise<boolean> {
-    const row = await this.db.first<{ count: number }>(
-      "SELECT COUNT(*) AS count FROM farmer_profiles WHERE deleted_at IS NULL"
+    const row = await this.db.first<{ complete: number }>(
+      `SELECT EXISTS(
+         SELECT 1
+           FROM farmer_profiles p
+           JOIN farms f ON f.owner_local_id = p.id AND f.deleted_at IS NULL
+           JOIN farm_crops c ON c.farm_id = f.id AND c.deleted_at IS NULL
+          WHERE p.deleted_at IS NULL
+          LIMIT 1
+       ) AS complete`
     );
-    return (row?.count ?? 0) > 0;
+    return Number(row?.complete ?? 0) === 1;
   }
 
   public async saveInitialFarm(input: {
@@ -37,6 +46,7 @@ export class LocalFarmRepository {
     const nowIso = validateTimestamp(input.nowIso);
 
     await this.db.transaction(async (tx) => {
+      await prepareInitialSetup(tx, nowIso);
       await insertProfile(tx, input.profile, nowIso);
       await tx.run(
         `INSERT INTO farms
@@ -64,41 +74,46 @@ export class LocalFarmRepository {
     const nowIso = validateTimestamp(input.nowIso);
     const t = input.transaction;
 
-    if (t.cropCode !== undefined) {
-      const crop = await this.db.first<{ count: number }>(
-        `SELECT COUNT(*) AS count
-           FROM farm_crops
-          WHERE farm_id = ? AND crop_code = ? AND deleted_at IS NULL`,
-        [farmId, t.cropCode]
-      );
-      if ((crop?.count ?? 0) !== 1) {
-        throw new Error("Bu ürün çiftliğinde kayıtlı değil.");
-      }
-    }
+    await this.db.transaction(async (tx) => {
+      await assertActiveFarm(tx, farmId);
 
-    await this.db.run(
-      `INSERT INTO transactions
-        (id, farm_id, kind, amount_kurus, occurred_on, category, crop_code, note,
-         is_tax_exempt_support, created_at, updated_at, sync_state)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')`,
-      [
-        t.id,
-        farmId,
-        t.kind,
-        t.amountKurus,
-        t.occurredOn,
-        t.category,
-        t.cropCode ?? null,
-        t.note ?? null,
-        t.isTaxExemptSupport ? 1 : 0,
-        nowIso,
-        nowIso
-      ]
-    );
+      if (t.cropCode !== undefined) {
+        const crop = await tx.first<{ count: number }>(
+          `SELECT COUNT(*) AS count
+             FROM farm_crops
+            WHERE farm_id = ? AND crop_code = ? AND deleted_at IS NULL`,
+          [farmId, t.cropCode]
+        );
+        if ((crop?.count ?? 0) !== 1) {
+          throw new Error("Bu ürün çiftliğinde kayıtlı değil.");
+        }
+      }
+
+      await tx.run(
+        `INSERT INTO transactions
+          (id, farm_id, kind, amount_kurus, occurred_on, category, crop_code, note,
+           is_tax_exempt_support, created_at, updated_at, sync_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')`,
+        [
+          t.id,
+          farmId,
+          t.kind,
+          t.amountKurus,
+          t.occurredOn,
+          t.category,
+          t.cropCode ?? null,
+          t.note ?? null,
+          t.isTaxExemptSupport ? 1 : 0,
+          nowIso,
+          nowIso
+        ]
+      );
+    });
   }
 
   public async listTransactions(farmIdRaw: string): Promise<readonly FarmTransaction[]> {
     const farmId = validateId(farmIdRaw, "Çiftlik kimliği");
+    await assertActiveFarm(this.db, farmId);
     const rows = await this.db.all<TransactionRow>(
       `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note, is_tax_exempt_support
        FROM transactions
@@ -121,14 +136,82 @@ export class LocalFarmRepository {
     const farmId = validateId(input.farmId, "Çiftlik kimliği");
     const transactionId = validateId(input.transactionId, "İşlem kimliği");
     const nowIso = validateTimestamp(input.nowIso);
-    const result = await this.db.run(
-      `UPDATE transactions
-       SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
-       WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
-      [nowIso, nowIso, transactionId, farmId]
-    );
-    return result.changes === 1;
+
+    return await this.db.transaction(async (tx) => {
+      await assertActiveFarm(tx, farmId);
+      const result = await tx.run(
+        `UPDATE transactions
+         SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
+         WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [nowIso, nowIso, transactionId, farmId]
+      );
+      return result.changes === 1;
+    });
   }
+}
+
+async function assertActiveFarm(database: SqlExecutor, farmId: string): Promise<void> {
+  const farm = await database.first<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM farms f
+       JOIN farmer_profiles p ON p.id = f.owner_local_id
+      WHERE f.id = ? AND f.deleted_at IS NULL AND p.deleted_at IS NULL`,
+    [farmId]
+  );
+  if ((farm?.count ?? 0) !== 1) {
+    throw new Error("Bu çiftlik aktif değil. İşlem yapılmadı.");
+  }
+}
+
+async function prepareInitialSetup(tx: SqlExecutor, nowIso: string): Promise<void> {
+  const complete = await tx.first<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM farmer_profiles p
+       JOIN farms f ON f.owner_local_id = p.id AND f.deleted_at IS NULL
+       JOIN farm_crops c ON c.farm_id = f.id AND c.deleted_at IS NULL
+      WHERE p.deleted_at IS NULL`
+  );
+  if ((complete?.count ?? 0) > 0) {
+    throw new Error("Kurulum zaten tamamlanmış. İkinci çiftlik kaydı oluşturulmadı.");
+  }
+
+  const activeProfiles = await tx.first<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM farmer_profiles WHERE deleted_at IS NULL"
+  );
+  if ((activeProfiles?.count ?? 0) === 0) return;
+
+  const userRows = await tx.first<{ count: number }>(
+    `SELECT
+       (SELECT COUNT(*)
+          FROM transactions t
+          JOIN farms f ON f.id = t.farm_id AND f.deleted_at IS NULL
+          JOIN farmer_profiles p ON p.id = f.owner_local_id AND p.deleted_at IS NULL
+         WHERE t.deleted_at IS NULL)
+       +
+       (SELECT COUNT(*)
+          FROM parcels r
+          JOIN farms f ON f.id = r.farm_id AND f.deleted_at IS NULL
+          JOIN farmer_profiles p ON p.id = f.owner_local_id AND p.deleted_at IS NULL
+         WHERE r.deleted_at IS NULL)
+       AS count`
+  );
+  if ((userRows?.count ?? 0) > 0) {
+    throw new Error("Eksik kurulumda kayıtlı veri bulundu. Otomatik düzeltme yapılmadı.");
+  }
+
+  await tx.run(
+    `UPDATE farms
+        SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
+      WHERE deleted_at IS NULL
+        AND owner_local_id IN (SELECT id FROM farmer_profiles WHERE deleted_at IS NULL)`,
+    [nowIso, nowIso]
+  );
+  await tx.run(
+    `UPDATE farmer_profiles
+        SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
+      WHERE deleted_at IS NULL`,
+    [nowIso, nowIso]
+  );
 }
 
 async function insertProfile(tx: SqlExecutor, profile: FarmerProfile, nowIso: string): Promise<void> {
@@ -157,6 +240,7 @@ function mapTransactionRow(row: TransactionRow): FarmTransaction {
     throw new Error("Yerel veride geçersiz işlem türü bulundu.");
   }
   const cropCode = row.crop_code === null ? undefined : parseCropCode(row.crop_code);
+  const isTaxExemptSupport = parseSqlBoolean(row.is_tax_exempt_support, "Destekleme bilgisi");
   return createFarmTransaction({
     id: row.id,
     kind: row.kind,
@@ -165,7 +249,7 @@ function mapTransactionRow(row: TransactionRow): FarmTransaction {
     category: row.category,
     ...(cropCode === undefined ? {} : { cropCode }),
     ...(row.note === null ? {} : { note: row.note }),
-    isTaxExemptSupport: row.is_tax_exempt_support === 1
+    isTaxExemptSupport
   });
 }
 
@@ -186,8 +270,6 @@ function normalizeText(value: string, field: string, min: number, max: number): 
 }
 
 function validateTimestamp(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) {
-    throw new Error("Zaman damgası geçersiz.");
-  }
+  assertIsoUtcTimestamp(value);
   return value;
 }

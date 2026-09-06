@@ -7,6 +7,7 @@ const { DatabaseSync } = require("node:sqlite");
 
 function createDb(): any {
   const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON;");
   const schemaPath = path.resolve("src/storage/schema.sql");
   db.exec(fs.readFileSync(schemaPath, "utf8"));
   return db;

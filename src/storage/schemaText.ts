@@ -1,9 +1,6 @@
 export const SCHEMA_VERSION = 1;
 
 export const INITIAL_SCHEMA_SQL = String.raw`
-PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL;
-
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL

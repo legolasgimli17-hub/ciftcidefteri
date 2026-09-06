@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { DatabaseSync } = require("node:sqlite");
 
-import { migrateDatabase, validateMigrationPlan } from "../src/storage/migrations";
+import { migrateDatabase, runMigrations, validateMigrationPlan } from "../src/storage/migrations";
 import { SCHEMA_VERSION } from "../src/storage/schemaText";
 import { type SqlDatabase, type SqlExecutor, type SqlPrimitive, type SqlRunResult } from "../src/storage/sql";
 
@@ -88,4 +88,25 @@ test("migration zincirindeki sürüm boşluğu release'i engeller", () => {
     () => validateMigrationPlan([{ version: 2, sql: "SELECT 1;", transactional: true }], 1),
     /sırası bozuk/
   );
+});
+
+test("başarısız transactional migration yarım tablo ve sürüm bırakmaz", async () => {
+  const db = new NodeMigrationDatabase();
+  await assert.rejects(
+    () => runMigrations(
+      db,
+      [{
+        version: 1,
+        transactional: true,
+        sql: "CREATE TABLE partial_table (id INTEGER); THIS IS NOT VALID SQL;"
+      }],
+      1
+    )
+  );
+  assert.equal(db.tableExists("partial_table"), false);
+  assert.equal(
+    await db.first<{ value: string }>("SELECT value FROM app_meta WHERE key='schema_version'"),
+    null
+  );
+  db.close();
 });

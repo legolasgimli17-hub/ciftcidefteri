@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { buildProfileFromOnboarding, toggleCrop, type OnboardingDraft } from "@/src/application/onboardingDraft";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import { cropCodes, cropTemplates, type CropCode } from "@/src/domain/crops";
+import { squareMetersFromUserInput } from "@/src/domain/landArea";
 import { mobileDatabase } from "@/src/mobile/database";
 import { createLocalId } from "@/src/mobile/id";
 import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
@@ -158,8 +159,10 @@ export default function OnboardingScreen() {
           <Field label="Arazi" keyboardType="decimal-pad" value={draft.areaText} onChangeText={(areaText: string) => setDraft({ ...draft, areaText })} placeholder="Örnek: 120" />
           <ErrorNote message={error} />
           <BigButton label="Devam" icon="→" onPress={() => {
-            if (!/[0-9]/.test(draft.areaText)) {
-              setError("Arazi büyüklüğünü yaz.");
+            try {
+              squareMetersFromUserInput(draft.areaText, draft.areaUnit);
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : "Arazi büyüklüğünü kontrol et.");
               return;
             }
             next("crops");
