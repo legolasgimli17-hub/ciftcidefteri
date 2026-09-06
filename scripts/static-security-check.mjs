@@ -30,14 +30,20 @@ for (const file of files) {
     console.error(`Security/data gate: finans alanında REAL bulundu -> ${file}`);
   }
 
-  if (/^(app|src)[\\/]/.test(file) && /\bconsole\.(?:log|debug|info)\s*\(/.test(text)) {
+  const productionCode = /^(app|src)[\\/]/.test(file);
+  if (productionCode && /\bconsole\.(?:log|debug|info|warn|error|trace)\s*\(/.test(text)) {
     failed = true;
-    console.error(`Security/privacy gate: production kodunda console log bulundu -> ${file}`);
+    console.error(`Security/privacy gate: production kodunda console çıktısı bulundu -> ${file}`);
   }
 
-  if (/^(app|src)[\\/]/.test(file) && /@react-native-async-storage\/async-storage/.test(text)) {
+  if (productionCode && /@react-native-async-storage\/async-storage/.test(text)) {
     failed = true;
     console.error(`Security/storage gate: hassas veri için AsyncStorage bağımlılığı bulundu -> ${file}`);
+  }
+
+  if (productionCode && /(?:execAsync|\.exec)\s*\(\s*`[\s\S]*?\$\{/.test(text)) {
+    failed = true;
+    console.error(`Security/SQL gate: exec çağrısında template interpolation bulundu -> ${file}`);
   }
 }
 if (failed) process.exit(1);
