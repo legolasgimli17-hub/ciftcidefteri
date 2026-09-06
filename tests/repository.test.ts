@@ -15,6 +15,7 @@ class NodeSqliteAdapter implements SqlDatabase {
   private readonly db = new DatabaseSync(":memory:");
 
   public constructor() {
+    this.db.exec("PRAGMA foreign_keys = ON;");
     this.db.exec(fs.readFileSync(path.resolve("src/storage/schema.sql"), "utf8"));
   }
 
@@ -48,9 +49,9 @@ class NodeSqliteAdapter implements SqlDatabase {
   public close(): void { this.db.close(); }
 }
 
-function buildProfile() {
+function buildProfile(id = "profile-0001") {
   return createFarmerProfile({
-    id: "profile-0001",
+    id,
     name: "Mehmet Kaya",
     phone: "05321234567",
     province: "Diyarbakır",
@@ -62,6 +63,7 @@ function buildProfile() {
 }
 
 const NOW = "2026-09-06T12:00:00.000Z";
+const LATER = "2026-09-06T12:30:00.000Z";
 
 test("onboarding tek transaction ile profil + çiftlik + ürünleri kaydeder", async () => {
   const db = new NodeSqliteAdapter();
@@ -84,6 +86,94 @@ test("onboarding ortada bozulursa hiçbir yarım profil bırakmaz", async () => 
   db.close();
 });
 
+test("tamamlanmış onboarding ikinci aktif çiftlik oluşturamaz", async () => {
+  const db = new NodeSqliteAdapter();
+  const repo = new LocalFarmRepository(db);
+  await repo.saveInitialFarm({ profile: buildProfile(), farmId: "farm-0000001", farmName: "Benim Tarlam", nowIso: NOW });
+
+  await assert.rejects(
+    () => repo.saveInitialFarm({ profile: buildProfile("profile-0002"), farmId: "farm-0000002", farmName: "İkinci Tarla", nowIso: LATER }),
+    /zaten tamamlanmış/
+  );
+
+  const farms = await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farms WHERE deleted_at IS NULL");
+  const profiles = await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farmer_profiles WHERE deleted_at IS NULL");
+  assert.equal(farms?.count, 1);
+  assert.equal(profiles?.count, 1);
+  db.close();
+});
+
+test("kullanıcı kaydı olmayan yarım onboarding güvenli soft-repair edilir", async () => {
+  const db = new NodeSqliteAdapter();
+  const repo = new LocalFarmRepository(db);
+  await db.run(
+    `INSERT INTO farmer_profiles
+      (id,name,phone,province,district,village,total_area_square_meters,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    ["profile-old-01", "Eski Profil", "+905321234567", "Diyarbakır", "Bismil", "Örnek", 100000, NOW, NOW]
+  );
+
+  await repo.saveInitialFarm({
+    profile: buildProfile("profile-0002"),
+    farmId: "farm-0000002",
+    farmName: "Benim Tarlam",
+    nowIso: LATER
+  });
+
+  const oldProfile = await db.first<{ deleted_at: string | null; sync_state: string }>(
+    "SELECT deleted_at, sync_state FROM farmer_profiles WHERE id = ?",
+    ["profile-old-01"]
+  );
+  assert.equal(oldProfile?.deleted_at, LATER);
+  assert.equal(oldProfile?.sync_state, "pending");
+  assert.equal(await repo.hasCompletedOnboarding(), true);
+  db.close();
+});
+
+test("yarım onboarding altında aktif parcel varsa otomatik repair veri saklamaz", async () => {
+  const db = new NodeSqliteAdapter();
+  const repo = new LocalFarmRepository(db);
+  await db.run(
+    `INSERT INTO farmer_profiles
+      (id,name,phone,province,district,village,total_area_square_meters,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    ["profile-old-01", "Eski Profil", "+905321234567", "Diyarbakır", "Bismil", "Örnek", 100000, NOW, NOW]
+  );
+  await db.run(
+    `INSERT INTO farms (id,owner_local_id,display_name,created_at,updated_at)
+     VALUES (?,?,?,?,?)`,
+    ["farm-old-0001", "profile-old-01", "Eski Tarla", NOW, NOW]
+  );
+  await db.run(
+    `INSERT INTO farm_crops (farm_id,crop_code,created_at,deleted_at)
+     VALUES (?,?,?,?)`,
+    ["farm-old-0001", "cotton", NOW, NOW]
+  );
+  await db.run(
+    `INSERT INTO parcels
+      (id,farm_id,name,area_square_meters,crop_code,season_year,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    ["parcel-old-01", "farm-old-0001", "Alt Tarla", 1000, "cotton", 2026, NOW, NOW]
+  );
+
+  await assert.rejects(
+    () => repo.saveInitialFarm({ profile: buildProfile("profile-0002"), farmId: "farm-0000002", farmName: "Yeni Tarla", nowIso: LATER }),
+    /kayıtlı veri bulundu/
+  );
+
+  const oldProfile = await db.first<{ deleted_at: string | null }>(
+    "SELECT deleted_at FROM farmer_profiles WHERE id = ?",
+    ["profile-old-01"]
+  );
+  const parcel = await db.first<{ deleted_at: string | null }>(
+    "SELECT deleted_at FROM parcels WHERE id = ?",
+    ["parcel-old-01"]
+  );
+  assert.equal(oldProfile?.deleted_at, null);
+  assert.equal(parcel?.deleted_at, null);
+  db.close();
+});
+
 test("gelir/gider kaydı repository üzerinden saklanır ve özetlenir", async () => {
   const db = new NodeSqliteAdapter();
   const repo = new LocalFarmRepository(db);
@@ -100,6 +190,27 @@ test("gelir/gider kaydı repository üzerinden saklanır ve özetlenir", async (
   assert.equal(summary.income, 200_000);
   assert.equal(summary.expense, 50_000);
   assert.equal(summary.net, 150_000);
+  db.close();
+});
+
+test("soft-delete edilmiş çiftliğe yeni finans kaydı yazılamaz", async () => {
+  const db = new NodeSqliteAdapter();
+  const repo = new LocalFarmRepository(db);
+  await repo.saveInitialFarm({ profile: buildProfile(), farmId: "farm-0000001", farmName: "Benim Tarlam", nowIso: NOW });
+  await db.run(
+    "UPDATE farms SET deleted_at = ?, updated_at = ?, sync_state = 'pending' WHERE id = ?",
+    [LATER, LATER, "farm-0000001"]
+  );
+
+  const tx = createFarmTransaction({
+    id: "txn-after-delete", kind: "expense", amountKurus: 10_000, occurredOn: "2026-09-06", category: "Mazot"
+  });
+  await assert.rejects(
+    () => repo.addTransaction({ farmId: "farm-0000001", transaction: tx, nowIso: LATER }),
+    /aktif değil/
+  );
+  const count = await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM transactions");
+  assert.equal(count?.count, 0);
   db.close();
 });
 
