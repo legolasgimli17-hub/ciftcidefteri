@@ -1,6 +1,6 @@
 {
   "name": "ciftci-defteri",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Offline-first, ürün-duyarlı çiftçi gelir/gider uygulaması.",
   "main": "expo-router/entry",
@@ -13,25 +13,27 @@
     "build:test": "tsc -p tsconfig.test.json",
     "test": "npm run clean && npm run build:test && node --test dist-tests/tests/*.test.js",
     "security:static": "node scripts/static-security-check.mjs",
+    "security:mobile-config": "node scripts/mobile-security-config-check.mjs",
     "ux:language": "node scripts/ux-language-check.mjs",
-    "check:core": "npm run typecheck:core && npm test && npm run schema:drift && npm run security:static && npm run ux:language",
+    "check:core": "npm run typecheck:core && npm test && npm run schema:drift && npm run security:static && npm run security:mobile-config && npm run ux:language",
     "check": "npm run check:core",
     "ci:deps": "npm audit --audit-level=high",
     "schema:drift": "node scripts/schema-drift-check.mjs"
   },
   "dependencies": {
     "expo": "~57.0.17",
+    "expo-constants": "~57.0.17",
     "expo-crypto": "~57.0.2",
+    "expo-dev-client": "~57.0.18",
+    "expo-linking": "~57.0.9",
     "expo-router": "~57.0.19",
+    "expo-secure-store": "~57.0.3",
     "expo-sqlite": "~57.0.2",
+    "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "expo-constants": "~57.0.17",
-    "expo-linking": "~57.0.9",
-    "expo-status-bar": "~57.0.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "expo-dev-client": "~57.0.18"
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
