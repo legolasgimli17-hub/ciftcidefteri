@@ -82,9 +82,14 @@ export default function TransactionScreen() {
     }
     try {
       transactionAmountFromInput(amountText);
+    } catch {
+      setError("Tutarı kontrol et.");
+      return;
+    }
+    try {
       isoDateFromTurkishInput(dateText);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Tutarı ve tarihi kontrol et.");
+    } catch {
+      setError("Tarihi GG.AA.YYYY olarak kontrol et.");
       return;
     }
     if (identity === null) {
@@ -122,8 +127,8 @@ export default function TransactionScreen() {
       const repo = new LocalFarmRepository(mobileDatabase(sqlite));
       await repo.addTransaction({ farmId: identity.farmId, transaction, nowIso: new Date().toISOString() });
       setStep("done");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Kaydedemedik. Tekrar dene.");
+    } catch {
+      setError("Kaydı şu an kaydedemedik. Bilgilerin güvende. Tekrar dene.");
     } finally {
       savingRef.current = false;
       setSaving(false);
