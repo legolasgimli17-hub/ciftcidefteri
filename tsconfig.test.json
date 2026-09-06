@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.core.json",
+  "compilerOptions": {
+    "outDir": "dist-tests",
+    "rootDir": ".",
+    "noEmit": false
+  },
+  "include": [
+    "src/domain/**/*.ts",
+    "src/application/localFarmRepository.ts",
+    "src/application/transactionDraft.ts",
+    "src/application/onboardingDraft.ts",
+    "src/application/homeSummary.ts",
+    "src/storage/sql.ts",
+    "tests/**/*.ts",
+    "src/ui/policy.ts",
+    "src/application/transactionFlow.ts"
+  ]
+}
