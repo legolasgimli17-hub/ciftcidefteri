@@ -19,7 +19,14 @@ export default function HomeScreen() {
 
   const refresh = useCallback(async () => {
     try {
-      setSnapshot(await loadAppSnapshot(mobileDatabase(sqlite)));
+      const loaded = await loadAppSnapshot(mobileDatabase(sqlite));
+      if (loaded === null) {
+        setSnapshot(null);
+        setError(undefined);
+        router.replace("/onboarding");
+        return;
+      }
+      setSnapshot(loaded);
       setError(undefined);
     } catch {
       setError("Defterini şu an okuyamadık. Kayıtların silinmedi.");
@@ -50,7 +57,13 @@ export default function HomeScreen() {
                 transactionId: item.id,
                 nowIso: new Date().toISOString()
               })
-              .then(() => refresh())
+              .then(async (deleted) => {
+                if (!deleted) {
+                  setError("Bu kayıt zaten silinmiş veya bulunamadı.");
+                  return;
+                }
+                await refresh();
+              })
               .catch(() => setError("Kaydı silemedik. Kayıtların güvende."));
           }
         }
@@ -79,9 +92,13 @@ export default function HomeScreen() {
         </Card>
       ) : null}
 
-      <Text style={styles.question}>Bugün para girdi mi, çıktı mı?</Text>
-      <BigButton label="Para girdi" icon="↓" kind="income" onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })} />
-      <BigButton label="Para çıktı" icon="↑" kind="expense" onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })} />
+      {snapshot ? (
+        <>
+          <Text style={styles.question}>Bugün para girdi mi, çıktı mı?</Text>
+          <BigButton label="Para girdi" icon="↓" kind="income" onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })} />
+          <BigButton label="Para çıktı" icon="↑" kind="expense" onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })} />
+        </>
+      ) : null}
 
       {snapshot && snapshot.transactions.length > 0 ? (
         <Card>
