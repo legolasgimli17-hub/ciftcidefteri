@@ -10,6 +10,7 @@ import { type FarmTransaction } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
 import { BigButton, Card, PageTitle, Screen } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
+import { uxPolicy } from "@/src/ui/policy";
 
 export default function HomeScreen() {
   const sqlite = useSQLiteContext();
@@ -99,7 +100,8 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${item.category} kaydını sil`}
                   onPress={() => askDelete(item)}
-                  hitSlop={10}
+                  hitSlop={6}
+                  style={styles.deleteButton}
                 >
                   <Text style={styles.deleteText}>Sil</Text>
                 </Pressable>
@@ -129,6 +131,12 @@ const styles = StyleSheet.create({
   transactionCategory: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
   transactionDate: { color: theme.color.textMuted, fontSize: 14, marginTop: 3 },
   transactionActions: { alignItems: "flex-end", gap: 6 },
-  deleteText: { color: theme.color.expense, fontSize: 15, fontWeight: "800", paddingVertical: 6 },
+  deleteButton: {
+    minWidth: uxPolicy.minimumTouchTargetPx,
+    minHeight: uxPolicy.minimumTouchTargetPx,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  deleteText: { color: theme.color.expense, fontSize: 15, fontWeight: "800" },
   error: { color: theme.color.expense, fontSize: 16, fontWeight: "700" }
 });
