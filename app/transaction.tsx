@@ -4,10 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
-import { stepAfterAmount, transactionKindFromRoute } from "@/src/application/transactionFlow";
+import { stepAfterAmount, transactionAmountFromInput, transactionKindFromRoute } from "@/src/application/transactionFlow";
 import { buildTransactionFromDraft } from "@/src/application/transactionDraft";
 import { cropTemplates, expenseSuggestionsFor, type CropCode } from "@/src/domain/crops";
-import { moneyFromUserInput } from "@/src/domain/money";
 import { type TransactionKind } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
 import { todayIsoLocal } from "@/src/mobile/date";
@@ -60,7 +59,7 @@ export default function TransactionScreen() {
       return;
     }
     try {
-      moneyFromUserInput(amountText);
+      transactionAmountFromInput(amountText);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Tutarı kontrol et.");
       return;
