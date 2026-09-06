@@ -100,10 +100,10 @@ export default function HomeScreen() {
         </>
       ) : null}
 
-      {snapshot && snapshot.transactions.length > 0 ? (
+      {snapshot && snapshot.recentTransactions.length > 0 ? (
         <Card>
           <Text style={styles.cardTitle}>Son kayıtlar</Text>
-          {snapshot.transactions.slice(0, 4).map((item: FarmTransaction) => (
+          {snapshot.recentTransactions.map((item: FarmTransaction) => (
             <View style={styles.transactionRow} key={item.id}>
               <View style={styles.transactionCopy}>
                 <Text style={styles.transactionCategory}>{item.category}</Text>

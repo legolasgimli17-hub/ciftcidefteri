@@ -2,7 +2,7 @@ import { parseCropCode, type CropCode } from "../domain/crops";
 import { assertIsoUtcTimestamp } from "../domain/date";
 import { moneyFromKurus } from "../domain/money";
 import { type FarmerProfile } from "../domain/profile";
-import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
+import { createProfitLossSummary, type ProfitLossSummary } from "../domain/profitLoss";
 import { createFarmTransaction, type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase, type SqlExecutor } from "../storage/sql";
 import { parseSqlBoolean } from "../storage/sqlBoolean";
@@ -17,6 +17,18 @@ interface TransactionRow {
   note: string | null;
   is_tax_exempt_support: number;
 }
+
+interface ProfitLossAggregateRow {
+  income_kurus: number;
+  expense_kurus: number;
+  tax_exempt_support_kurus: number;
+  invalid_kind_count: number;
+  invalid_amount_count: number;
+  invalid_support_boolean_count: number;
+  invalid_support_scope_count: number;
+}
+
+const MAX_RECENT_TRANSACTION_LIMIT = 50;
 
 export class LocalFarmRepository {
   public constructor(private readonly db: SqlDatabase) {}
@@ -116,16 +128,76 @@ export class LocalFarmRepository {
     await assertActiveFarm(this.db, farmId);
     const rows = await this.db.all<TransactionRow>(
       `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note, is_tax_exempt_support
-       FROM transactions
-       WHERE farm_id = ? AND deleted_at IS NULL
-       ORDER BY occurred_on DESC, created_at DESC`,
+         FROM transactions
+        WHERE farm_id = ? AND deleted_at IS NULL
+        ORDER BY occurred_on DESC, created_at DESC`,
       [farmId]
     );
     return rows.map(mapTransactionRow);
   }
 
-  public async profitLoss(farmId: string): Promise<ProfitLossSummary> {
-    return summarizeProfitLoss(await this.listTransactions(farmId));
+  public async listRecentTransactions(
+    farmIdRaw: string,
+    limitRaw = 4
+  ): Promise<readonly FarmTransaction[]> {
+    const farmId = validateId(farmIdRaw, "Çiftlik kimliği");
+    const limit = validateRecentLimit(limitRaw);
+    await assertActiveFarm(this.db, farmId);
+    const rows = await this.db.all<TransactionRow>(
+      `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note, is_tax_exempt_support
+         FROM transactions
+        WHERE farm_id = ? AND deleted_at IS NULL
+        ORDER BY occurred_on DESC, created_at DESC
+        LIMIT ?`,
+      [farmId, limit]
+    );
+    return rows.map(mapTransactionRow);
+  }
+
+  public async profitLoss(farmIdRaw: string): Promise<ProfitLossSummary> {
+    const farmId = validateId(farmIdRaw, "Çiftlik kimliği");
+    await assertActiveFarm(this.db, farmId);
+    const row = await this.db.first<ProfitLossAggregateRow>(
+      `SELECT
+         COALESCE(SUM(CASE WHEN kind = 'income' THEN amount_kurus ELSE 0 END), 0) AS income_kurus,
+         COALESCE(SUM(CASE WHEN kind = 'expense' THEN amount_kurus ELSE 0 END), 0) AS expense_kurus,
+         COALESCE(SUM(CASE
+           WHEN kind = 'income' AND is_tax_exempt_support = 1 THEN amount_kurus ELSE 0 END), 0)
+           AS tax_exempt_support_kurus,
+         COALESCE(SUM(CASE
+           WHEN kind IS NULL OR kind NOT IN ('income','expense') THEN 1 ELSE 0 END), 0)
+           AS invalid_kind_count,
+         COALESCE(SUM(CASE
+           WHEN typeof(amount_kurus) <> 'integer' OR amount_kurus <= 0 THEN 1 ELSE 0 END), 0)
+           AS invalid_amount_count,
+         COALESCE(SUM(CASE
+           WHEN is_tax_exempt_support IS NULL OR is_tax_exempt_support NOT IN (0,1) THEN 1 ELSE 0 END), 0)
+           AS invalid_support_boolean_count,
+         COALESCE(SUM(CASE
+           WHEN is_tax_exempt_support = 1 AND kind <> 'income' THEN 1 ELSE 0 END), 0)
+           AS invalid_support_scope_count
+       FROM transactions
+       WHERE farm_id = ? AND deleted_at IS NULL`,
+      [farmId]
+    );
+
+    if (row === null) {
+      throw new Error("Kâr/zarar özeti okunamadı.");
+    }
+    if (
+      row.invalid_kind_count !== 0 ||
+      row.invalid_amount_count !== 0 ||
+      row.invalid_support_boolean_count !== 0 ||
+      row.invalid_support_scope_count !== 0
+    ) {
+      throw new Error("Yerel finans verisinde geçersiz kayıt bulundu. Özet gösterilmedi.");
+    }
+
+    return createProfitLossSummary({
+      incomeKurus: moneyFromKurus(row.income_kurus),
+      expenseKurus: moneyFromKurus(row.expense_kurus),
+      taxExemptSupportIncomeKurus: moneyFromKurus(row.tax_exempt_support_kurus)
+    });
   }
 
   public async softDeleteTransaction(input: {
@@ -251,6 +323,13 @@ function mapTransactionRow(row: TransactionRow): FarmTransaction {
     ...(row.note === null ? {} : { note: row.note }),
     isTaxExemptSupport
   });
+}
+
+function validateRecentLimit(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_RECENT_TRANSACTION_LIMIT) {
+    throw new Error(`Son kayıt sayısı 1-${MAX_RECENT_TRANSACTION_LIMIT} arasında olmalı.`);
+  }
+  return value;
 }
 
 function validateId(value: string, field: string): string {
