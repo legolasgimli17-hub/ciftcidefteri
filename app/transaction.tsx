@@ -14,7 +14,7 @@ import {
 import { cropTemplates, expenseSuggestionsFor, type CropCode } from "@/src/domain/crops";
 import { type TransactionKind } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
-import { todayIsoLocal } from "@/src/mobile/date";
+import { dateInputFromIso, isoDateFromTurkishInput, todayIsoLocal } from "@/src/mobile/date";
 import { createLocalId } from "@/src/mobile/id";
 import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
@@ -28,6 +28,7 @@ export default function TransactionScreen() {
   const [identity, setIdentity] = useState<FarmIdentity | null>(null);
   const [step, setStep] = useState<Step>("amount");
   const [amountText, setAmountText] = useState("");
+  const [dateText, setDateText] = useState(() => dateInputFromIso(todayIsoLocal()));
   const [cropCode, setCropCode] = useState<CropCode>();
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -54,6 +55,8 @@ export default function TransactionScreen() {
     return [...new Set([...cropSpecific, ...commonExpenseCategories])];
   }, [cropCode, kind]);
 
+  const singleCrop = identity?.cropCodes.length === 1 ? identity.cropCodes[0] : undefined;
+
   const afterAmount = () => {
     setError(undefined);
     if (kind === null) {
@@ -62,8 +65,9 @@ export default function TransactionScreen() {
     }
     try {
       transactionAmountFromInput(amountText);
+      isoDateFromTurkishInput(dateText);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Tutarı kontrol et.");
+      setError(cause instanceof Error ? cause.message : "Tutarı ve tarihi kontrol et.");
       return;
     }
     if (identity === null) {
@@ -91,7 +95,7 @@ export default function TransactionScreen() {
       const transaction = buildTransactionFromDraft({
         kind,
         amountText,
-        occurredOn: todayIsoLocal(),
+        occurredOn: isoDateFromTurkishInput(dateText),
         category,
         ...(cropCode === undefined ? {} : { cropCode }),
         ...(isTaxExemptSupport ? { isTaxExemptSupport: true } : {})
@@ -123,10 +127,11 @@ export default function TransactionScreen() {
     <Screen>
       {step === "amount" ? (
         <>
-          <PageTitle hint={kind === "income" ? "Bugün gelen parayı yaz." : "Bugün çıkan parayı yaz."}>
+          <PageTitle hint="Tarih bugün hazır. Gerekirse değiştirebilirsin.">
             Ne kadar {kind === "income" ? "girdi" : "çıktı"}?
           </PageTitle>
           <Field label="Tutar" keyboardType="decimal-pad" value={amountText} onChangeText={setAmountText} placeholder="0,00 TL" autoFocus />
+          <Field label="Tarih" keyboardType="numeric" value={dateText} onChangeText={setDateText} placeholder="GG.AA.YYYY" />
           <ErrorNote message={error} />
           <BigButton label="Devam" icon="→" kind={kind} onPress={afterAmount} />
           <SecondaryButton label="Vazgeç" onPress={() => router.back()} />
@@ -135,7 +140,13 @@ export default function TransactionScreen() {
 
       {step === "crop" ? (
         <>
-          <PageTitle hint="Bu kayıt hangi ürüne ait?">Hangi ürün?</PageTitle>
+          <PageTitle hint="Bir ürüne bağlı değilse Genel'i seç.">Hangi ürün?</PageTitle>
+          <ChoiceCard
+            icon="📒"
+            label="Genel"
+            selected={cropCode === undefined}
+            onPress={() => { setCropCode(undefined); setStep("category"); }}
+          />
           {identity?.cropCodes.map((crop: CropCode) => (
             <ChoiceCard key={crop} icon="🌱" label={cropTemplates[crop].label} selected={cropCode === crop} onPress={() => { setCropCode(crop); setStep("category"); }} />
           ))}
@@ -145,7 +156,26 @@ export default function TransactionScreen() {
 
       {step === "category" ? (
         <>
-          <PageTitle hint="En yakın olanı seç.">{kind === "income" ? "Para nereden geldi?" : "Neye harcadın?"}</PageTitle>
+          <PageTitle hint={cropCode === undefined ? "Bu kayıt belirli bir ürüne bağlanmayacak." : "En yakın olanı seç."}>
+            {kind === "income" ? "Para nereden geldi?" : "Neye harcadın?"}
+          </PageTitle>
+          {singleCrop !== undefined ? (
+            <View style={styles.scopeBlock}>
+              <Text style={styles.scopeLabel}>Bu kayıt neyle ilgili?</Text>
+              <ChoiceCard
+                icon="🌱"
+                label={cropTemplates[singleCrop].label}
+                selected={cropCode === singleCrop}
+                onPress={() => setCropCode(singleCrop)}
+              />
+              <ChoiceCard
+                icon="📒"
+                label="Genel"
+                selected={cropCode === undefined}
+                onPress={() => setCropCode(undefined)}
+              />
+            </View>
+          ) : null}
           {categories.map((category: string) => (
             <ChoiceCard key={category} icon={kind === "income" ? "↓" : "↑"} label={category} onPress={() => void save(category)} />
           ))}
@@ -173,5 +203,7 @@ export default function TransactionScreen() {
 const styles = StyleSheet.create({
   saving: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700", textAlign: "center" },
   done: { flex: 1, justifyContent: "center", gap: theme.spacing.md },
-  doneIcon: { fontSize: 64, color: theme.color.income, fontWeight: "900", textAlign: "center" }
+  doneIcon: { fontSize: 64, color: theme.color.income, fontWeight: "900", textAlign: "center" },
+  scopeBlock: { gap: theme.spacing.sm },
+  scopeLabel: { color: theme.color.text, fontSize: 17, fontWeight: "800" }
 });
