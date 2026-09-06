@@ -33,18 +33,23 @@ interface IdentityRow {
 }
 
 export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | null> {
-  const row = await db.first<IdentityRow>(
+  const rows = await db.all<IdentityRow>(
     `SELECT p.id AS profile_id, p.name, p.phone, p.province, p.district, p.village,
             p.total_area_square_meters, p.is_cks_registered,
             f.id AS farm_id, f.display_name AS farm_name
        FROM farmer_profiles p
        JOIN farms f ON f.owner_local_id = p.id
       WHERE p.deleted_at IS NULL AND f.deleted_at IS NULL
-      ORDER BY p.created_at ASC
-      LIMIT 1`
+      ORDER BY p.created_at ASC, f.created_at ASC
+      LIMIT 2`
   );
-  if (row === null) return null;
+  if (rows.length === 0) return null;
+  if (rows.length > 1) {
+    throw new Error("Yerel veride birden fazla aktif çiftlik bulundu. Yanlış defter açılmadı.");
+  }
 
+  const row = rows[0];
+  if (row === undefined) return null;
   const crops = await db.all<{ crop_code: string }>(
     `SELECT crop_code FROM farm_crops
       WHERE farm_id = ? AND deleted_at IS NULL
