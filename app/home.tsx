@@ -125,6 +125,10 @@ export default function HomeScreen() {
         </Card>
       ) : null}
 
+      {snapshot ? (
+        <SecondaryButton label="Ürünlere göre bak" onPress={() => router.push("/report")} />
+      ) : null}
+
       {lastDeleted !== null ? (
         <Card>
           <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.undoTitle}>Kayıt silindi.</Text>
