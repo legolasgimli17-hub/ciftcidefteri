@@ -68,14 +68,22 @@ export default function OnboardingScreen() {
 
   const finish = async (isCksRegistered?: boolean) => {
     if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
     setError(undefined);
+
+    let profile: ReturnType<typeof buildProfileFromOnboarding>;
     try {
-      const profile = buildProfileFromOnboarding({
+      profile = buildProfileFromOnboarding({
         id: createLocalId("profile"),
         draft: { ...draft, ...(isCksRegistered === undefined ? {} : { isCksRegistered }) }
       });
+    } catch {
+      setError("Bilgilerini kontrol et. Eksik veya hatalı bir alan var.");
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+    try {
       const repository = new LocalFarmRepository(mobileDatabase(sqlite));
       await repository.saveInitialFarm({
         profile,
@@ -84,8 +92,8 @@ export default function OnboardingScreen() {
         nowIso: new Date().toISOString()
       });
       router.replace("/home");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Bilgileri kaydedemedik. Tekrar dene.");
+    } catch {
+      setError("Bilgilerini şu an kaydedemedik. Tekrar dene.");
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -165,8 +173,8 @@ export default function OnboardingScreen() {
           <BigButton label="Devam" icon="→" onPress={() => {
             try {
               squareMetersFromUserInput(draft.areaText, draft.areaUnit);
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : "Arazi büyüklüğünü kontrol et.");
+            } catch {
+              setError("Arazi büyüklüğünü kontrol et.");
               return;
             }
             next("crops");
