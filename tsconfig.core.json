@@ -10,6 +10,7 @@
     "src/application/**/*.ts",
     "src/storage/sql.ts",
     "src/storage/schemaText.ts",
+    "src/storage/migrations.ts",
     "src/ui/policy.ts",
     "src/application/transactionFlow.ts"
   ],

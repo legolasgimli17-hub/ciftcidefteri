@@ -12,6 +12,8 @@
     "src/application/onboardingDraft.ts",
     "src/application/homeSummary.ts",
     "src/storage/sql.ts",
+    "src/storage/schemaText.ts",
+    "src/storage/migrations.ts",
     "tests/**/*.ts",
     "src/ui/policy.ts",
     "src/application/transactionFlow.ts"

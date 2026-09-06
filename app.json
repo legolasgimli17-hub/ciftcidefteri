@@ -2,24 +2,32 @@
   "expo": {
     "name": "Çiftçi Defteri",
     "slug": "ciftci-defteri",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "ciftcidefteri",
     "android": {
       "package": "app.ciftcidefteri.mobile",
-      "versionCode": 3
+      "versionCode": 4,
+      "allowBackup": false
     },
     "ios": {
       "bundleIdentifier": "app.ciftcidefteri.mobile",
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "plugins": [
       "expo-router",
       [
         "expo-sqlite",
         {
-          "enableFTS": false
+          "enableFTS": false,
+          "useSQLCipher": true
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
         }
       ]
     ],

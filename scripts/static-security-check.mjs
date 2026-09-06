@@ -10,7 +10,8 @@ const rules = [
   { name: "private key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
   { name: "eval", pattern: /\beval\s*\(/ },
   { name: "new Function", pattern: /\bnew\s+Function\s*\(/ },
-  { name: "hardcoded JWT", pattern: /eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{10,}/ }
+  { name: "hardcoded JWT", pattern: /eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{10,}/ },
+  { name: "hardcoded SQLCipher raw key", pattern: /PRAGMA\s+key\s*=.*x'[0-9a-f]{64}'/i }
 ];
 
 let failed = false;
@@ -23,9 +24,20 @@ for (const file of files) {
       console.error(`Security gate: ${rule.name} bulundu -> ${file}`);
     }
   }
+
   if (/amount_[a-z_]*\s+REAL/i.test(text) || /money_[a-z_]*\s+REAL/i.test(text)) {
     failed = true;
     console.error(`Security/data gate: finans alanında REAL bulundu -> ${file}`);
+  }
+
+  if (/^(app|src)[\\/]/.test(file) && /\bconsole\.(?:log|debug|info)\s*\(/.test(text)) {
+    failed = true;
+    console.error(`Security/privacy gate: production kodunda console log bulundu -> ${file}`);
+  }
+
+  if (/^(app|src)[\\/]/.test(file) && /@react-native-async-storage\/async-storage/.test(text)) {
+    failed = true;
+    console.error(`Security/storage gate: hassas veri için AsyncStorage bağımlılığı bulundu -> ${file}`);
   }
 }
 if (failed) process.exit(1);
