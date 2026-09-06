@@ -1,6 +1,3 @@
-PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL;
-
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
