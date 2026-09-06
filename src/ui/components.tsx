@@ -63,6 +63,28 @@ export function BigButton(props: {
   );
 }
 
+export function SecondaryButton(props: {
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.label}
+      disabled={props.disabled}
+      onPress={props.onPress}
+      style={({ pressed }: PressableStateCallbackType) => [
+        styles.secondaryButton,
+        pressed && !props.disabled && styles.pressed,
+        props.disabled && styles.disabled
+      ]}
+    >
+      <Text style={styles.secondaryButtonText}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
 export function Field(props: TextInputProps & { readonly label: string }) {
   return (
     <View style={styles.fieldWrap}>
@@ -140,6 +162,17 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   bigButtonIcon: { fontSize: 22 },
   bigButtonText: { color: "#FFFFFF", fontSize: theme.type.button, fontWeight: "800" },
+  secondaryButton: {
+    minHeight: uxPolicy.standardControlHeightPx,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    borderColor: theme.color.border,
+    backgroundColor: theme.color.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18
+  },
+  secondaryButtonText: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
   fieldWrap: { gap: 8 },
   fieldLabel: { color: theme.color.text, fontSize: 16, fontWeight: "700" },
   field: {

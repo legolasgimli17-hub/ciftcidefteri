@@ -11,7 +11,7 @@ import { type TransactionKind } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
 import { todayIsoLocal } from "@/src/mobile/date";
 import { createLocalId } from "@/src/mobile/id";
-import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen } from "@/src/ui/components";
+import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 
 type Step = "amount" | "crop" | "category" | "done";
@@ -106,6 +106,7 @@ export default function TransactionScreen() {
           <Field label="Tutar" keyboardType="decimal-pad" value={amountText} onChangeText={setAmountText} placeholder="0,00 TL" autoFocus />
           <ErrorNote message={error} />
           <BigButton label="Devam" icon="→" kind={kind} onPress={afterAmount} />
+          <SecondaryButton label="Vazgeç" onPress={() => router.back()} />
         </>
       ) : null}
 
@@ -115,6 +116,7 @@ export default function TransactionScreen() {
           {identity?.cropCodes.map((crop: CropCode) => (
             <ChoiceCard key={crop} icon="🌱" label={cropTemplates[crop].label} selected={cropCode === crop} onPress={() => { setCropCode(crop); setStep("category"); }} />
           ))}
+          <SecondaryButton label="Geri" onPress={() => setStep("amount")} />
         </>
       ) : null}
 
@@ -126,6 +128,11 @@ export default function TransactionScreen() {
           ))}
           <ErrorNote message={error} />
           {saving ? <Text style={styles.saving}>Kaydediliyor…</Text> : null}
+          <SecondaryButton
+            label="Geri"
+            disabled={saving}
+            onPress={() => setStep(identity && identity.cropCodes.length > 1 ? "crop" : "amount")}
+          />
         </>
       ) : null}
 

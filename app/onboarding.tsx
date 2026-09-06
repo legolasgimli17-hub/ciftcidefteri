@@ -7,7 +7,7 @@ import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import { cropCodes, cropTemplates, type CropCode } from "@/src/domain/crops";
 import { mobileDatabase } from "@/src/mobile/database";
 import { createLocalId } from "@/src/mobile/id";
-import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen } from "@/src/ui/components";
+import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 
 const cropIcons: Record<CropCode, string> = {
@@ -21,6 +21,15 @@ const cropIcons: Record<CropCode, string> = {
 };
 
 type Step = "welcome" | "name" | "phone" | "place" | "area" | "crops" | "cks";
+
+const previousStep: Partial<Record<Step, Step>> = {
+  name: "welcome",
+  phone: "name",
+  place: "phone",
+  area: "place",
+  crops: "area",
+  cks: "crops"
+};
 
 const initialDraft: OnboardingDraft = {
   name: "",
@@ -113,7 +122,7 @@ export default function OnboardingScreen() {
 
       {step === "phone" ? (
         <>
-          <PageTitle hint="Hesabını daha sonra geri almak için kullanılabilir.">Telefon numaran?</PageTitle>
+          <PageTitle hint="Bu bilgi yalnızca cihazındaki defterde tutulur.">Telefon numaran?</PageTitle>
           <Field
             label="Telefon"
             keyboardType="phone-pad"
@@ -183,6 +192,17 @@ export default function OnboardingScreen() {
           <BigButton label="Bilmiyorum / geç" icon="→" kind="neutral" onPress={() => void finish()} disabled={saving} />
           <ErrorNote message={error} />
         </>
+      ) : null}
+
+      {step !== "welcome" && previousStep[step] ? (
+        <SecondaryButton
+          label="Geri"
+          disabled={saving}
+          onPress={() => {
+            const target = previousStep[step];
+            if (target) next(target);
+          }}
+        />
       ) : null}
     </Screen>
   );
