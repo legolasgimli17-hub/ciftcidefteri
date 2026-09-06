@@ -1,4 +1,5 @@
 import { parseCropCode, type CropCode } from "../domain/crops";
+import { assertIsoUtcTimestamp } from "../domain/date";
 import { moneyFromKurus } from "../domain/money";
 import { type FarmerProfile } from "../domain/profile";
 import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
@@ -20,10 +21,17 @@ export class LocalFarmRepository {
   public constructor(private readonly db: SqlDatabase) {}
 
   public async hasCompletedOnboarding(): Promise<boolean> {
-    const row = await this.db.first<{ count: number }>(
-      "SELECT COUNT(*) AS count FROM farmer_profiles WHERE deleted_at IS NULL"
+    const row = await this.db.first<{ complete: number }>(
+      `SELECT EXISTS(
+         SELECT 1
+           FROM farmer_profiles p
+           JOIN farms f ON f.owner_local_id = p.id AND f.deleted_at IS NULL
+           JOIN farm_crops c ON c.farm_id = f.id AND c.deleted_at IS NULL
+          WHERE p.deleted_at IS NULL
+          LIMIT 1
+       ) AS complete`
     );
-    return (row?.count ?? 0) > 0;
+    return Number(row?.complete ?? 0) === 1;
   }
 
   public async saveInitialFarm(input: {
@@ -186,8 +194,6 @@ function normalizeText(value: string, field: string, min: number, max: number): 
 }
 
 function validateTimestamp(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) {
-    throw new Error("Zaman damgası geçersiz.");
-  }
+  assertIsoUtcTimestamp(value);
   return value;
 }
