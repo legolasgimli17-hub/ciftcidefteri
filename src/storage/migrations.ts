@@ -17,7 +17,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   {
     version: 1,
     sql: INITIAL_SCHEMA_SQL,
-    transactional: false
+    transactional: true
   }
 ];
 
@@ -65,8 +65,6 @@ export async function runMigrations(
         await writeSchemaVersion(tx, migration.version);
       });
     } else {
-      // İlk kurulum WAL/foreign_keys PRAGMA'larını içerdiği için SQLite transaction'ı dışında çalışır.
-      // Şema idempotenttir; sürüm kaydı ayrı transaction ile atomik yazılır ve başarısız kurulum sonraki açılışta yeniden denenir.
       await database.exec(migration.sql);
       await database.transaction(async tx => {
         await writeSchemaVersion(tx, migration.version);
