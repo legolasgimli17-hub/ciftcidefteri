@@ -1,0 +1,14 @@
+node_modules/
+dist-tests/
+.expo/
+android/
+ios/
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+npm-debug.log*
+.DS_Store
