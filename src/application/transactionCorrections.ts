@@ -5,7 +5,7 @@ import { createFarmTransaction, type FarmTransaction } from "../domain/transacti
 import { type SqlDatabase, type SqlExecutor } from "../storage/sql";
 import { parseSqlBoolean } from "../storage/sqlBoolean";
 
-interface DeletedTransactionRow {
+interface TransactionRow {
   id: string;
   kind: string;
   amount_kurus: number;
@@ -19,6 +19,60 @@ interface DeletedTransactionRow {
 export class LocalTransactionCorrections {
   public constructor(private readonly db: SqlDatabase) {}
 
+  public async getActiveTransaction(input: {
+    readonly farmId: string;
+    readonly transactionId: string;
+  }): Promise<FarmTransaction | null> {
+    const farmId = validateId(input.farmId, "Çiftlik kimliği");
+    const transactionId = validateId(input.transactionId, "İşlem kimliği");
+    await assertActiveFarm(this.db, farmId, "Kayıt açılamadı.");
+    const row = await this.db.first<TransactionRow>(
+      `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note, is_tax_exempt_support
+         FROM transactions
+        WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+      [transactionId, farmId]
+    );
+    return row === null ? null : validateStoredTransaction(row);
+  }
+
+  public async updateTransaction(input: {
+    readonly farmId: string;
+    readonly transaction: FarmTransaction;
+    readonly nowIso: string;
+  }): Promise<boolean> {
+    const farmId = validateId(input.farmId, "Çiftlik kimliği");
+    const transactionId = validateId(input.transaction.id, "İşlem kimliği");
+    assertIsoUtcTimestamp(input.nowIso);
+    const transaction = input.transaction;
+
+    return await this.db.transaction(async (tx) => {
+      await assertActiveFarm(tx, farmId, "Kayıt değiştirilmedi.");
+      if (transaction.cropCode !== undefined) {
+        await assertActiveCrop(tx, farmId, transaction.cropCode, "Kayıt değiştirilmedi.");
+      }
+
+      const result = await tx.run(
+        `UPDATE transactions
+            SET kind = ?, amount_kurus = ?, occurred_on = ?, category = ?, crop_code = ?,
+                note = ?, is_tax_exempt_support = ?, updated_at = ?, sync_state = 'pending'
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [
+          transaction.kind,
+          transaction.amountKurus,
+          transaction.occurredOn,
+          transaction.category,
+          transaction.cropCode ?? null,
+          transaction.note ?? null,
+          transaction.isTaxExemptSupport ? 1 : 0,
+          input.nowIso,
+          transactionId,
+          farmId
+        ]
+      );
+      return result.changes === 1;
+    });
+  }
+
   public async restoreTransaction(input: {
     readonly farmId: string;
     readonly transactionId: string;
@@ -29,8 +83,8 @@ export class LocalTransactionCorrections {
     assertIsoUtcTimestamp(input.nowIso);
 
     return await this.db.transaction(async (tx) => {
-      await assertActiveFarm(tx, farmId);
-      const row = await tx.first<DeletedTransactionRow>(
+      await assertActiveFarm(tx, farmId, "Kayıt geri alınmadı.");
+      const row = await tx.first<TransactionRow>(
         `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note, is_tax_exempt_support
            FROM transactions
           WHERE id = ? AND farm_id = ? AND deleted_at IS NOT NULL`,
@@ -38,9 +92,9 @@ export class LocalTransactionCorrections {
       );
       if (row === null) return false;
 
-      const transaction = validateDeletedTransaction(row);
+      const transaction = validateStoredTransaction(row);
       if (transaction.cropCode !== undefined) {
-        await assertActiveCrop(tx, farmId, transaction.cropCode);
+        await assertActiveCrop(tx, farmId, transaction.cropCode, "Kayıt geri alınmadı.");
       }
 
       const result = await tx.run(
@@ -54,7 +108,7 @@ export class LocalTransactionCorrections {
   }
 }
 
-async function assertActiveFarm(database: SqlExecutor, farmId: string): Promise<void> {
+async function assertActiveFarm(database: SqlExecutor, farmId: string, suffix: string): Promise<void> {
   const farm = await database.first<{ count: number }>(
     `SELECT COUNT(*) AS count
        FROM farms f
@@ -63,11 +117,16 @@ async function assertActiveFarm(database: SqlExecutor, farmId: string): Promise<
     [farmId]
   );
   if ((farm?.count ?? 0) !== 1) {
-    throw new Error("Bu çiftlik aktif değil. Kayıt geri alınmadı.");
+    throw new Error(`Bu çiftlik aktif değil. ${suffix}`);
   }
 }
 
-async function assertActiveCrop(database: SqlExecutor, farmId: string, cropCode: CropCode): Promise<void> {
+async function assertActiveCrop(
+  database: SqlExecutor,
+  farmId: string,
+  cropCode: CropCode,
+  suffix: string
+): Promise<void> {
   const crop = await database.first<{ count: number }>(
     `SELECT COUNT(*) AS count
        FROM farm_crops
@@ -75,13 +134,13 @@ async function assertActiveCrop(database: SqlExecutor, farmId: string, cropCode:
     [farmId, cropCode]
   );
   if ((crop?.count ?? 0) !== 1) {
-    throw new Error("Bu ürün artık çiftliğinde kayıtlı değil. Kayıt geri alınmadı.");
+    throw new Error(`Bu ürün artık çiftliğinde kayıtlı değil. ${suffix}`);
   }
 }
 
-function validateDeletedTransaction(row: DeletedTransactionRow): FarmTransaction {
+function validateStoredTransaction(row: TransactionRow): FarmTransaction {
   if (row.kind !== "income" && row.kind !== "expense") {
-    throw new Error("Silinen kaydın türü geçersiz. Kayıt geri alınmadı.");
+    throw new Error("Kayıt türü geçersiz. İşlem yapılmadı.");
   }
   const cropCode = row.crop_code === null ? undefined : parseCropCode(row.crop_code);
   const isTaxExemptSupport = parseSqlBoolean(row.is_tax_exempt_support, "Destekleme bilgisi");
