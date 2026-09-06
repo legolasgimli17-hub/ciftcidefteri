@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
 
+import { loadFarmIdentity } from "../src/application/appSnapshot";
 import { LocalFarmRepository } from "../src/application/localFarmRepository";
 import { assertIsoUtcTimestamp } from "../src/domain/date";
 import { createRetryableSingleFlight } from "../src/storage/retryableSingleFlight";
@@ -104,5 +105,35 @@ test("onboarding yalnız profil ile tamamlanmış sayılmaz; aktif çiftlik ve �
   );
   assert.equal(await repository.hasCompletedOnboarding(), false);
 
+  db.close();
+});
+
+test("birden fazla aktif çiftlik varsa yanlış defter sessizce seçilmez", async () => {
+  const db = new NodeSqliteAdapter();
+  const now = "2026-09-06T12:00:00.000Z";
+
+  for (const [profileId, farmId, name] of [
+    ["profile-0001", "farm-0000001", "Birinci"],
+    ["profile-0002", "farm-0000002", "İkinci"]
+  ] as const) {
+    await db.run(
+      `INSERT INTO farmer_profiles
+        (id,name,phone,province,district,village,total_area_square_meters,created_at,updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [profileId, `${name} Çiftçi`, "+905321234567", "Diyarbakır", "Bismil", "Örnek", 100000, now, now]
+    );
+    await db.run(
+      `INSERT INTO farms (id,owner_local_id,display_name,created_at,updated_at)
+       VALUES (?,?,?,?,?)`,
+      [farmId, profileId, `${name} Çiftlik`, now, now]
+    );
+    await db.run(
+      `INSERT INTO farm_crops (farm_id,crop_code,created_at)
+       VALUES (?,?,?)`,
+      [farmId, "cotton", now]
+    );
+  }
+
+  await assert.rejects(() => loadFarmIdentity(db), /birden fazla aktif çiftlik/);
   db.close();
 });
