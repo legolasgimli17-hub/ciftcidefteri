@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
@@ -7,6 +7,28 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { DATABASE_NAME, initializeDatabase } from "@/src/mobile/database";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  return (
+    <SafeAreaProvider>
+      <RecoveryScreen
+        title="Bir şey ters gitti"
+        message="Kayıtların güvende. Bu ekranı yeniden açmayı deneyebilirsin."
+        onRetry={() => void retry()}
+      />
+    </SafeAreaProvider>
+  );
+}
+
+function ScreenErrorBoundary({ retry }: ErrorBoundaryProps) {
+  return (
+    <RecoveryScreen
+      title="Bu ekran açılamadı"
+      message="Kayıtların güvende. Yeniden deneyebilirsin."
+      onRetry={() => void retry()}
+    />
+  );
+}
 
 export default function RootLayout() {
   const [providerKey, setProviderKey] = useState(0);
@@ -20,22 +42,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       {databaseError ? (
-        <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-          <View style={styles.errorScreen}>
-            <Text accessibilityRole="header" style={styles.title}>Defter açılamadı</Text>
-            <Text accessibilityLiveRegion="polite" style={styles.message}>
-              Kayıtlarını silmeden yeniden deneyebilirsin.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Defteri yeniden açmayı dene"
-              onPress={retryDatabase}
-              style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.retryText}>Tekrar dene</Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
+        <RecoveryScreen
+          title="Defter açılamadı"
+          message="Kayıtlarını silmeden yeniden deneyebilirsin."
+          onRetry={retryDatabase}
+        />
       ) : (
         <SQLiteProvider
           key={`database-provider-${providerKey}`}
@@ -45,6 +56,7 @@ export default function RootLayout() {
         >
           <StatusBar style="dark" />
           <Stack
+            unstable_screenErrorBoundary={ScreenErrorBoundary}
             screenOptions={{
               headerShown: false,
               animation: "fade"
@@ -53,6 +65,31 @@ export default function RootLayout() {
         </SQLiteProvider>
       )}
     </SafeAreaProvider>
+  );
+}
+
+function RecoveryScreen(props: {
+  readonly title: string;
+  readonly message: string;
+  readonly onRetry: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <View style={styles.errorScreen}>
+        <Text accessibilityRole="header" style={styles.title}>{props.title}</Text>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.message}>
+          {props.message}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ekranı yeniden açmayı dene"
+          onPress={props.onRetry}
+          style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.retryText}>Tekrar dene</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
   );
 }
 
