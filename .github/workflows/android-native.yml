@@ -9,6 +9,7 @@ on:
       - "src/mobile/**"
       - "src/storage/**"
       - "scripts/verify-android-prebuild.mjs"
+      - "scripts/verify-android-merged-manifest.mjs"
       - ".github/workflows/android-native.yml"
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - "src/mobile/**"
       - "src/storage/**"
       - "scripts/verify-android-prebuild.mjs"
+      - "scripts/verify-android-merged-manifest.mjs"
       - ".github/workflows/android-native.yml"
   workflow_dispatch:
 
@@ -36,6 +38,7 @@ jobs:
     timeout-minutes: 35
     env:
       CI: true
+      NODE_ENV: development
       GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,9 +60,11 @@ jobs:
         run: npx expo prebuild --platform android --clean --no-install
       - name: Verify generated Android security policy
         run: node scripts/verify-android-prebuild.mjs
-      - name: Build SQLCipher-enabled debug APK
+      - name: Build SQLCipher-enabled debug APK for physical ABIs
         working-directory: android
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+      - name: Verify merged Android permission policy
+        run: node scripts/verify-android-merged-manifest.mjs
       - name: Verify APK output
         run: test -s android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload debug APK
