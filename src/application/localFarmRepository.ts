@@ -75,16 +75,7 @@ export class LocalFarmRepository {
     const t = input.transaction;
 
     await this.db.transaction(async (tx) => {
-      const farm = await tx.first<{ count: number }>(
-        `SELECT COUNT(*) AS count
-           FROM farms f
-           JOIN farmer_profiles p ON p.id = f.owner_local_id
-          WHERE f.id = ? AND f.deleted_at IS NULL AND p.deleted_at IS NULL`,
-        [farmId]
-      );
-      if ((farm?.count ?? 0) !== 1) {
-        throw new Error("Bu çiftlik aktif değil. Kayıt eklenmedi.");
-      }
+      await assertActiveFarm(tx, farmId);
 
       if (t.cropCode !== undefined) {
         const crop = await tx.first<{ count: number }>(
@@ -122,6 +113,7 @@ export class LocalFarmRepository {
 
   public async listTransactions(farmIdRaw: string): Promise<readonly FarmTransaction[]> {
     const farmId = validateId(farmIdRaw, "Çiftlik kimliği");
+    await assertActiveFarm(this.db, farmId);
     const rows = await this.db.all<TransactionRow>(
       `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note, is_tax_exempt_support
        FROM transactions
@@ -144,13 +136,30 @@ export class LocalFarmRepository {
     const farmId = validateId(input.farmId, "Çiftlik kimliği");
     const transactionId = validateId(input.transactionId, "İşlem kimliği");
     const nowIso = validateTimestamp(input.nowIso);
-    const result = await this.db.run(
-      `UPDATE transactions
-       SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
-       WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
-      [nowIso, nowIso, transactionId, farmId]
-    );
-    return result.changes === 1;
+
+    return await this.db.transaction(async (tx) => {
+      await assertActiveFarm(tx, farmId);
+      const result = await tx.run(
+        `UPDATE transactions
+         SET deleted_at = ?, updated_at = ?, sync_state = 'pending'
+         WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [nowIso, nowIso, transactionId, farmId]
+      );
+      return result.changes === 1;
+    });
+  }
+}
+
+async function assertActiveFarm(database: SqlExecutor, farmId: string): Promise<void> {
+  const farm = await database.first<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM farms f
+       JOIN farmer_profiles p ON p.id = f.owner_local_id
+      WHERE f.id = ? AND f.deleted_at IS NULL AND p.deleted_at IS NULL`,
+    [farmId]
+  );
+  if ((farm?.count ?? 0) !== 1) {
+    throw new Error("Bu çiftlik aktif değil. İşlem yapılmadı.");
   }
 }
 
