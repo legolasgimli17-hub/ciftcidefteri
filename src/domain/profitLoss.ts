@@ -8,6 +8,32 @@ export interface ProfitLossSummary {
   readonly taxExemptSupportIncome: MoneyKurus;
 }
 
+export interface ProfitLossTotalsInput {
+  readonly incomeKurus: number;
+  readonly expenseKurus: number;
+  readonly taxExemptSupportIncomeKurus: number;
+}
+
+export function createProfitLossSummary(input: ProfitLossTotalsInput): ProfitLossSummary {
+  const income = moneyFromKurus(input.incomeKurus);
+  const expense = moneyFromKurus(input.expenseKurus);
+  const taxExemptSupportIncome = moneyFromKurus(input.taxExemptSupportIncomeKurus);
+
+  if (income < 0 || expense < 0 || taxExemptSupportIncome < 0) {
+    throw new Error("Kâr/zarar toplamlarında negatif değer olamaz.");
+  }
+  if (taxExemptSupportIncome > income) {
+    throw new Error("Destekleme geliri toplam gelirden büyük olamaz.");
+  }
+
+  return {
+    income,
+    expense,
+    net: subtractMoney(income, expense),
+    taxExemptSupportIncome
+  };
+}
+
 export function summarizeProfitLoss(transactions: readonly FarmTransaction[]): ProfitLossSummary {
   let income = moneyFromKurus(0);
   let expense = moneyFromKurus(0);
@@ -24,10 +50,9 @@ export function summarizeProfitLoss(transactions: readonly FarmTransaction[]): P
     }
   }
 
-  return {
-    income,
-    expense,
-    net: subtractMoney(income, expense),
-    taxExemptSupportIncome
-  };
+  return createProfitLossSummary({
+    incomeKurus: income,
+    expenseKurus: expense,
+    taxExemptSupportIncomeKurus: taxExemptSupportIncome
+  });
 }

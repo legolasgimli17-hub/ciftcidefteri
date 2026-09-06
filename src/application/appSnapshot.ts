@@ -1,7 +1,7 @@
 import { parseCropCode, type CropCode } from "../domain/crops";
 import { squareMetersFromStoredValue } from "../domain/landArea";
 import { createFarmerProfile, type FarmerProfile } from "../domain/profile";
-import { summarizeProfitLoss, type ProfitLossSummary } from "../domain/profitLoss";
+import { type ProfitLossSummary } from "../domain/profitLoss";
 import { type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase } from "../storage/sql";
 import { parseNullableSqlBoolean } from "../storage/sqlBoolean";
@@ -17,7 +17,7 @@ export interface FarmIdentity {
 export interface AppSnapshot {
   readonly identity: FarmIdentity;
   readonly summary: ProfitLossSummary;
-  readonly transactions: readonly FarmTransaction[];
+  readonly recentTransactions: readonly FarmTransaction[];
 }
 
 interface IdentityRow {
@@ -32,6 +32,8 @@ interface IdentityRow {
   farm_id: string;
   farm_name: string;
 }
+
+const HOME_RECENT_TRANSACTION_LIMIT = 4;
 
 export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | null> {
   const rows = await db.all<IdentityRow>(
@@ -83,8 +85,13 @@ export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | 
 export async function loadAppSnapshot(db: SqlDatabase): Promise<AppSnapshot | null> {
   const identity = await loadFarmIdentity(db);
   if (identity === null) return null;
+
   const repository = new LocalFarmRepository(db);
-  const transactions = await repository.listTransactions(identity.farmId);
-  const summary = summarizeProfitLoss(transactions);
-  return { identity, transactions, summary };
+  const summary = await repository.profitLoss(identity.farmId);
+  const recentTransactions = await repository.listRecentTransactions(
+    identity.farmId,
+    HOME_RECENT_TRANSACTION_LIMIT
+  );
+
+  return { identity, summary, recentTransactions };
 }
