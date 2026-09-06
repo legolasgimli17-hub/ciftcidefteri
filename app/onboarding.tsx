@@ -1,9 +1,10 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 import { buildProfileFromOnboarding, toggleCrop, type OnboardingDraft } from "@/src/application/onboardingDraft";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
+import { previousOnboardingStep, type OnboardingStep } from "@/src/application/wizardBack";
 import { cropCodes, cropTemplates, type CropCode } from "@/src/domain/crops";
 import { squareMetersFromUserInput } from "@/src/domain/landArea";
 import { mobileDatabase } from "@/src/mobile/database";
@@ -21,16 +22,7 @@ const cropIcons: Record<CropCode, string> = {
   other: "➕"
 };
 
-type Step = "welcome" | "name" | "phone" | "place" | "area" | "crops" | "cks";
-
-const previousStep: Partial<Record<Step, Step>> = {
-  name: "welcome",
-  phone: "name",
-  place: "phone",
-  area: "place",
-  crops: "area",
-  cks: "crops"
-};
+type Step = OnboardingStep;
 
 const initialDraft: OnboardingDraft = {
   name: "",
@@ -61,6 +53,18 @@ export default function OnboardingScreen() {
     setError(undefined);
     setStep(target);
   };
+
+  useFocusEffect(useCallback(() => {
+    const onBack = () => {
+      if (savingRef.current) return true;
+      const target = previousOnboardingStep(step);
+      if (target === "exit") return false;
+      next(target);
+      return true;
+    };
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBack);
+    return () => subscription.remove();
+  }, [step]));
 
   const finish = async (isCksRegistered?: boolean) => {
     if (savingRef.current) return;
@@ -197,13 +201,13 @@ export default function OnboardingScreen() {
         </>
       ) : null}
 
-      {step !== "welcome" && previousStep[step] ? (
+      {step !== "welcome" ? (
         <SecondaryButton
           label="Geri"
           disabled={saving}
           onPress={() => {
-            const target = previousStep[step];
-            if (target) next(target);
+            const target = previousOnboardingStep(step);
+            if (target !== "exit") next(target);
           }}
         />
       ) : null}

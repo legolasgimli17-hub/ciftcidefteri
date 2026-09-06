@@ -1,10 +1,11 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { LocalTransactionCorrections } from "@/src/application/transactionCorrections";
 import { transactionAmountFromInput } from "@/src/application/transactionFlow";
+import { previousEditTransactionStep, type EditTransactionStep } from "@/src/application/wizardBack";
 import {
   commonExpenseCategories,
   commonIncomeCategories,
@@ -17,7 +18,7 @@ import { dateInputFromIso, isoDateFromTurkishInput } from "@/src/mobile/date";
 import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 
-type Step = "details" | "scope" | "category" | "done";
+type Step = EditTransactionStep;
 
 export default function TransactionEditScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -75,6 +76,22 @@ export default function TransactionEditScreen() {
     void load();
     return () => { active = false; };
   }, [params.id, sqlite]);
+
+  useFocusEffect(useCallback(() => {
+    const onBack = () => {
+      if (savingRef.current) return true;
+      const action = previousEditTransactionStep(step);
+      if (action === "exit") return false;
+      if (action === "home") {
+        router.replace("/home");
+        return true;
+      }
+      setStep(action);
+      return true;
+    };
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBack);
+    return () => subscription.remove();
+  }, [step]));
 
   const categories = useMemo(() => {
     if (original === null) return [];
