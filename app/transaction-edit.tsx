@@ -19,9 +19,10 @@ import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryBu
 import { theme } from "@/src/ui/theme";
 
 type Step = EditTransactionStep;
+type ReturnPath = "/home" | "/transactions";
 
 export default function TransactionEditScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; returnTo?: string }>();
   const sqlite = useSQLiteContext();
   const [identity, setIdentity] = useState<FarmIdentity | null>(null);
   const [original, setOriginal] = useState<FarmTransaction | null>(null);
@@ -33,6 +34,7 @@ export default function TransactionEditScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const returnPath: ReturnPath = params.returnTo === "transactions" ? "/transactions" : "/home";
 
   useEffect(() => {
     let active = true;
@@ -83,7 +85,7 @@ export default function TransactionEditScreen() {
       const action = previousEditTransactionStep(step);
       if (action === "exit") return false;
       if (action === "home") {
-        router.replace("/home");
+        router.replace(returnPath);
         return true;
       }
       setStep(action);
@@ -91,7 +93,7 @@ export default function TransactionEditScreen() {
     };
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBack);
     return () => subscription.remove();
-  }, [step]));
+  }, [returnPath, step]));
 
   const categories = useMemo(() => {
     if (original === null) return [];
@@ -167,7 +169,7 @@ export default function TransactionEditScreen() {
       <Screen>
         <PageTitle hint="Deftere dönüp kaydı yeniden seç.">Kayıt açılamadı</PageTitle>
         <ErrorNote message={error ?? "Düzeltilecek kayıt bulunamadı."} />
-        <BigButton label="Deftere dön" icon="←" onPress={() => router.replace("/home")} />
+        <BigButton label="Deftere dön" icon="←" onPress={() => router.replace(returnPath)} />
       </Screen>
     );
   }
@@ -183,7 +185,7 @@ export default function TransactionEditScreen() {
           <Field label="Tarih" keyboardType="numeric" value={dateText} onChangeText={setDateText} placeholder="GG.AA.YYYY" />
           <ErrorNote message={error} />
           <BigButton label="Devam" icon="→" kind={original.kind} onPress={afterDetails} />
-          <SecondaryButton label="Vazgeç" onPress={() => router.back()} />
+          <SecondaryButton label="Vazgeç" onPress={() => router.replace(returnPath)} />
         </>
       ) : null}
 
@@ -228,7 +230,7 @@ export default function TransactionEditScreen() {
         <View style={styles.done}>
           <Text style={styles.doneIcon}>✓</Text>
           <PageTitle hint="Değişiklik telefonundaki deftere kaydedildi.">Düzeltildi</PageTitle>
-          <BigButton label="Deftere dön" icon="←" onPress={() => router.replace("/home")} />
+          <BigButton label="Deftere dön" icon="←" onPress={() => router.replace(returnPath)} />
         </View>
       ) : null}
     </Screen>
