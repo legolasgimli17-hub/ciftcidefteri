@@ -173,8 +173,20 @@ export default function HomeScreen() {
       {snapshot ? (
         <>
           <Text style={styles.question}>Bugün para girdi mi, çıktı mı?</Text>
-          <BigButton label="Para girdi" icon="↓" kind="income" onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })} />
-          <BigButton label="Para çıktı" icon="↑" kind="expense" onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })} />
+          <BigButton
+            label="Para girdi"
+            icon="↓"
+            kind="income"
+            disabled={homeActionBusy}
+            onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })}
+          />
+          <BigButton
+            label="Para çıktı"
+            icon="↑"
+            kind="expense"
+            disabled={homeActionBusy}
+            onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })}
+          />
         </>
       ) : null}
 
