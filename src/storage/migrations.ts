@@ -1,4 +1,8 @@
-import { INITIAL_SCHEMA_SQL, SCHEMA_VERSION } from "./schemaText";
+import {
+  INITIAL_SCHEMA_SQL,
+  SCHEMA_VERSION,
+  TRANSACTION_HISTORY_INDEX_SQL
+} from "./schemaText";
 import { type SqlDatabase, type SqlExecutor } from "./sql";
 
 export interface DatabaseMigration {
@@ -17,6 +21,11 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   {
     version: 1,
     sql: INITIAL_SCHEMA_SQL,
+    transactional: true
+  },
+  {
+    version: 2,
+    sql: TRANSACTION_HISTORY_INDEX_SQL,
     transactional: true
   }
 ];

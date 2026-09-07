@@ -3,7 +3,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { DatabaseSync } = require("node:sqlite");
 
-import { migrateDatabase, runMigrations, validateMigrationPlan } from "../src/storage/migrations";
+import {
+  DATABASE_MIGRATIONS,
+  migrateDatabase,
+  runMigrations,
+  validateMigrationPlan
+} from "../src/storage/migrations";
 import { SCHEMA_VERSION } from "../src/storage/schemaText";
 import { type SqlDatabase, type SqlExecutor, type SqlPrimitive, type SqlRunResult } from "../src/storage/sql";
 
@@ -49,6 +54,10 @@ class NodeMigrationDatabase implements SqlDatabase {
     return Boolean(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name));
   }
 
+  public indexExists(name: string): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?").get(name));
+  }
+
   public close(): void {
     this.db.close();
   }
@@ -59,6 +68,18 @@ test("migration runner boş veritabanını güncel şemaya getirir", async () =>
   const version = await migrateDatabase(db);
   assert.equal(version, SCHEMA_VERSION);
   assert.equal(db.tableExists("transactions"), true);
+  assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  db.close();
+});
+
+test("mevcut v1 veritabanı veri şemasını yeniden kurmadan v2 indeksine yükselir", async () => {
+  const db = new NodeMigrationDatabase();
+  assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 1), 1), 1);
+  assert.equal(db.indexExists("idx_transactions_active_history"), false);
+
+  assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
+  assert.equal(db.tableExists("transactions"), true);
+  assert.equal(db.indexExists("idx_transactions_active_history"), true);
   db.close();
 });
 
@@ -66,6 +87,7 @@ test("migration runner tekrar çalıştırıldığında idempotent kalır", asyn
   const db = new NodeMigrationDatabase();
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
+  assert.equal(db.indexExists("idx_transactions_active_history"), true);
   db.close();
 });
 

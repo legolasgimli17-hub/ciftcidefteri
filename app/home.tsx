@@ -240,6 +240,11 @@ export default function HomeScreen() {
               </View>
             );
           })}
+          <SecondaryButton
+            label="Tüm kayıtları gör"
+            disabled={homeActionBusy}
+            onPress={() => router.push("/transactions")}
+          />
         </Card>
       ) : null}
 

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const INITIAL_SCHEMA_SQL = String.raw`
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -79,4 +79,10 @@ CREATE INDEX IF NOT EXISTS idx_transactions_parcel_date
   ON transactions(parcel_id, occurred_on DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_farm_crop_date
   ON transactions(farm_id, crop_code, occurred_on DESC);
+`;
+
+export const TRANSACTION_HISTORY_INDEX_SQL = String.raw`
+CREATE INDEX IF NOT EXISTS idx_transactions_active_history
+  ON transactions(farm_id, occurred_on DESC, created_at DESC, id DESC)
+  WHERE deleted_at IS NULL;
 `;
