@@ -5,11 +5,15 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AppLockGate } from "@/src/mobile/AppLockGate";
+import { initializeCrashReporting, reportCrash } from "@/src/mobile/crashReporting";
 import { DATABASE_NAME, initializeDatabase } from "@/src/mobile/database";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
 
-export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+initializeCrashReporting();
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  reportCrash(error, "root_error_boundary");
   return (
     <SafeAreaProvider>
       <RecoveryScreen
@@ -21,7 +25,8 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   );
 }
 
-function ScreenErrorBoundary({ retry }: ErrorBoundaryProps) {
+function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  reportCrash(error, "screen_error_boundary");
   return (
     <RecoveryScreen
       title="Bu ekran açılamadı"
@@ -55,7 +60,10 @@ export default function RootLayout() {
             key={`database-provider-${providerKey}`}
             databaseName={DATABASE_NAME}
             onInit={initializeDatabase}
-            onError={() => setDatabaseError(true)}
+            onError={(error) => {
+              reportCrash(error, "database_init_error");
+              setDatabaseError(true);
+            }}
           >
             <Stack
               unstable_screenErrorBoundary={ScreenErrorBoundary}
