@@ -1,6 +1,8 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { isSafeCrashCode, sanitizeCrashEvent } from "../src/domain/crashPrivacy.js";
+declare function require(name: string): any;
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+import { isSafeCrashCode, sanitizeCrashEvent } from "../src/domain/crashPrivacy";
 
 test("crash scrubber removes user, request, breadcrumbs and free-form financial data", () => {
   const event = sanitizeCrashEvent({
