@@ -86,11 +86,7 @@ export class LocalTransactionHistory {
 
     return {
       items,
-      nextCursor: {
-        occurredOn: lastRow.occurred_on,
-        createdAt: lastRow.created_at,
-        id: lastRow.id
-      }
+      nextCursor: cursorFromStoredRow(lastRow)
     };
   }
 }
@@ -124,6 +120,16 @@ function mapHistoryRow(row: TransactionHistoryRow): FarmTransaction {
     ...(row.note === null ? {} : { note: row.note }),
     isTaxExemptSupport
   });
+}
+
+function cursorFromStoredRow(row: TransactionHistoryRow): TransactionHistoryCursor {
+  assertIsoCalendarDate(row.occurred_on);
+  assertIsoUtcTimestamp(row.created_at);
+  return {
+    occurredOn: row.occurred_on,
+    createdAt: row.created_at,
+    id: validateId(row.id, "Kayıt imleci")
+  };
 }
 
 function validateCursor(cursor: TransactionHistoryCursor): TransactionHistoryCursor {
