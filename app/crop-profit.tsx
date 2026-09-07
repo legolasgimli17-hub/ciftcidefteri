@@ -47,7 +47,7 @@ export default function CropProfitScreen() {
       <View style={styles.list}>
         {items.map((item, index) => (
           <View key={item.cropCode} style={[styles.row, index > 0 && styles.divider]}>
-            <CropArtwork cropCode={item.cropCode} size={58} />
+            <CropArtwork cropCode={item.cropCode} compact />
             <View style={styles.copy}>
               <Text accessibilityRole="header" style={styles.name}>{item.cropLabel}</Text>
               <Text style={styles.meta}>
