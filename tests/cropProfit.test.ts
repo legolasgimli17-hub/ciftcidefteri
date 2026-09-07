@@ -116,8 +116,9 @@ test("ürün özeti her ürünü ayrı toplar ve Genel kaydı ürüne yazmaz", a
 
   const cotton = summaries.find((item) => item.cropCode === "cotton");
   const corn = summaries.find((item) => item.cropCode === "corn");
-  assert.ok(cotton);
-  assert.ok(corn);
+  if (cotton === undefined || corn === undefined) {
+    throw new Error("Pamuk ve mısır ürün özetleri oluşmalı.");
+  }
   assert.equal(cotton.cropLabel, "Pamuk");
   assert.equal(cotton.summary.income, 300_000);
   assert.equal(cotton.summary.expense, 120_000);
