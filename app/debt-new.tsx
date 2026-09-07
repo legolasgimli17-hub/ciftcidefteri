@@ -11,7 +11,7 @@ import {
   debtSourceLabel,
   type DebtSourceKind
 } from "@/src/domain/debt";
-import { moneyFromUserInput } from "@/src/domain/money";
+import { moneyFromUserInput, type MoneyKurus } from "@/src/domain/money";
 import { mobileDatabase } from "@/src/mobile/database";
 import { createLocalId } from "@/src/mobile/id";
 import { dateInputFromIso, isoDateFromTurkishInput, todayIsoLocal } from "@/src/mobile/date";
@@ -72,38 +72,81 @@ export default function DebtNewScreen() {
     if (savingRef.current || identity === null) return;
     setError(undefined);
 
-    let debt: ReturnType<typeof createFarmDebt>;
-    let parsedInstallments: ReturnType<typeof createDebtInstallment>[];
+    const creditor = creditorName.trim().replace(/\s+/g, " ");
+    if (creditor.length < 2) {
+      setError("Borcu kimden veya hangi kurumdan aldığını yaz.");
+      return;
+    }
+    if (sourceKind === "coop_in_kind" && inKindDescription.trim().length < 2) {
+      setError("Mal olarak ne aldığını yaz. Örnek: gübre, tohum veya mazot.");
+      return;
+    }
+
+    let totalKurus: MoneyKurus;
     try {
-      const totalKurus = moneyFromUserInput(totalText);
-      const openedOn = isoDateFromTurkishInput(openedText);
+      totalKurus = moneyFromUserInput(totalText);
+    } catch {
+      setError("Toplam borç tutarını kontrol et.");
+      return;
+    }
+
+    let openedOn: string;
+    try {
+      openedOn = isoDateFromTurkishInput(openedText);
+    } catch {
+      setError("Borcu aldığın tarihi GG.AA.YYYY şeklinde kontrol et.");
+      return;
+    }
+
+    let debt: ReturnType<typeof createFarmDebt>;
+    try {
       debt = createFarmDebt({
         id: createLocalId("debt"),
         sourceKind,
-        creditorName,
+        creditorName: creditor,
         totalKurus,
         openedOn,
         ...(sourceKind === "coop_in_kind" ? { inKindDescription } : {}),
         ...(note.trim().length === 0 ? {} : { note })
       });
+    } catch {
+      setError("Borç kaynağı ve açıklama bilgilerini kontrol et.");
+      return;
+    }
 
-      parsedInstallments = installments.map((item) => {
-        const amountKurus = installments.length === 1 && item.amountText.trim().length === 0
-          ? totalKurus
-          : moneyFromUserInput(item.amountText);
-        return createDebtInstallment({
-          id: item.key,
-          dueOn: isoDateFromTurkishInput(item.dueText),
-          amountKurus
-        });
-      });
-
-      const installmentTotal = parsedInstallments.reduce((sum, item) => sum + item.amountKurus, 0);
-      if (installmentTotal !== totalKurus) {
-        throw new Error("Ödeme planının toplamı toplam borçla aynı olmalı.");
+    const parsedInstallments: ReturnType<typeof createDebtInstallment>[] = [];
+    for (const [index, item] of installments.entries()) {
+      let dueOn: string;
+      try {
+        dueOn = isoDateFromTurkishInput(item.dueText);
+      } catch {
+        setError(`${index + 1}. ödeme tarihini GG.AA.YYYY şeklinde kontrol et.`);
+        return;
       }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Borç bilgilerini kontrol et.");
+
+      let amountKurus: MoneyKurus;
+      if (installments.length === 1 && item.amountText.trim().length === 0) {
+        amountKurus = totalKurus;
+      } else {
+        try {
+          amountKurus = moneyFromUserInput(item.amountText);
+        } catch {
+          setError(`${index + 1}. ödeme tutarını kontrol et.`);
+          return;
+        }
+      }
+
+      try {
+        parsedInstallments.push(createDebtInstallment({ id: item.key, dueOn, amountKurus }));
+      } catch {
+        setError(`${index + 1}. ödeme bilgilerini kontrol et.`);
+        return;
+      }
+    }
+
+    const installmentTotal = parsedInstallments.reduce((sum, item) => sum + item.amountKurus, 0);
+    if (installmentTotal !== totalKurus) {
+      setError("Ödeme planının toplamı toplam borçla aynı olmalı.");
       return;
     }
 
