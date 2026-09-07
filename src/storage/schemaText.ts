@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 1;
 
-export const INITIAL_SCHEMA_SQL = String.raw`
+export const CURRENT_SCHEMA_SQL = String.raw`
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
