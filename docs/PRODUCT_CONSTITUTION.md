@@ -16,7 +16,24 @@ Türkiye'deki çiftçinin tarihli gelir-gider defterini, ürün maliyetini, orta
 8. İnternetsiz temel kullanım
 9. Güven veren, tarımı görsel olarak hissettiren ama finansal bilgiyi gölgelemeyen mobil arayüz
 
-Faz 1 sağlamlaşmadan banka entegrasyonu, kredi yönetimi, OCR, hava durumu veya AI katmanı ana akışa eklenmez.
+## Faz 2 sınırı — finansal derinlik
+Faz 2 firstprompt sırasını korur ve üç katmanda ilerler:
+1. Kredi / borç takibi: nakdi ve ayni borç ayrımı, toplam borç, taksit planı, ödeme hareketleri, kalan borç ve sıradaki ödeme
+2. Manuel banka hareketleri: kullanıcı bankadaki hareketi kendi girer; açık bankacılık entegrasyonu bu fazın parçası değildir
+3. Basit stok / envanter: eldeki ürün veya girdi miktarı, giriş-çıkış hareketleri ve kalan miktar
+
+Faz 2 günlük Defter ekranını büyütmez. Borç, banka ve stok ayrı tek görevli ekranlarda yaşar; kullanıcı istemedikçe ana akışta görünmez.
+
+OCR, açık bankacılık, destekleme otomasyonu, hava durumu ve AI Faz 2 kapsamına girmez.
+
+## Borç muhasebesi kapısı
+- Kredi veya borç almak kâr-zarar hesabında gelir sayılmaz.
+- Borç anaparası ödemek kâr-zarar hesabında gider sayılmaz.
+- Borç bakiyesi elle tutulan ikinci bir sayı değildir; toplam borç eksi geçerli ödeme hareketlerinden türetilir.
+- Nakdi borç ile ayni borç ayrı tür olarak tutulur. Ayni borçta çiftçinin ne aldığı günlük dille kaydedilir (ör. gübre, tohum, mazot).
+- Taksit planı borcun toplamıyla kuruş seviyesinde tam eşleşmelidir; yuvarlama veya toplam kaybı kabul edilmez.
+- Ödeme kalan borcu aşamaz. Bozuk veya tutarsız veri varsa yanlış bakiye göstermek yerine hesap gösterilmez.
+- Kullanıcı dili “Kredi anapara bakiyesi” değil “Ne kadar borcun kaldı?” gibi gündelik Türkçe olmalıdır.
 
 ## Her ekran için kapı
 - İlk bakışta ne yapılacağı anlaşılmalı.
@@ -46,4 +63,4 @@ Faz 1 sağlamlaşmadan banka entegrasyonu, kredi yönetimi, OCR, hava durumu vey
 - Özet veya bakiye kaynağı bozuksa sistem sessizce yanlış finansal sonuç göstermez; fail-closed davranır.
 
 ## Ücretsiz kullanım
-Çekirdek çiftçi defteri para duvarına konmaz. Temel gelir-gider, ürün, ortaklık ve kâr-zarar takibi herkes için ücretsiz kalır.
+Çekirdek çiftçi defteri para duvarına konmaz. Temel gelir-gider, ürün, ortaklık, borç ve kâr-zarar takibi herkes için ücretsiz kalır.
