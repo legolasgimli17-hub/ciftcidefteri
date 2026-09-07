@@ -37,6 +37,39 @@ export function PageTitle({ children, hint }: PropsWithChildren<{ readonly hint?
   );
 }
 
+export function TopNav(props: {
+  readonly active: "ledger" | "crops" | "partners";
+  readonly onLedger: () => void;
+  readonly onCrops: () => void;
+  readonly onPartners: () => void;
+}) {
+  const items = [
+    { key: "ledger" as const, label: "Defter", onPress: props.onLedger },
+    { key: "crops" as const, label: "Ürünler", onPress: props.onCrops },
+    { key: "partners" as const, label: "Ortaklar", onPress: props.onPartners }
+  ];
+
+  return (
+    <View accessibilityRole="tablist" style={styles.topNav}>
+      {items.map((item) => {
+        const active = props.active === item.key;
+        return (
+          <Pressable
+            key={item.key}
+            accessibilityRole="tab"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected: active }}
+            onPress={item.onPress}
+            style={({ pressed }) => [styles.topNavItem, active && styles.topNavItemActive, pressed && styles.topNavPressed]}
+          >
+            <Text style={[styles.topNavText, active && styles.topNavTextActive]}>{item.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function SectionTitle(props: {
   readonly children: ReactNode;
   readonly detail?: string;
@@ -74,9 +107,7 @@ export function BigButton(props: {
         props.disabled && styles.disabled
       ]}
     >
-      <View style={styles.buttonIconWrap}>
-        <Text style={styles.bigButtonIcon}>{props.icon}</Text>
-      </View>
+      <Text style={styles.bigButtonIcon}>{props.icon}</Text>
       <Text style={styles.bigButtonText}>{props.label}</Text>
     </Pressable>
   );
@@ -216,69 +247,79 @@ const styles = StyleSheet.create({
   screen: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: 52,
+    paddingTop: 18,
+    paddingBottom: 48,
     backgroundColor: theme.color.background,
     gap: theme.spacing.md
   },
-  titleBlock: { gap: 7, marginBottom: 6 },
+  titleBlock: { gap: 5, marginBottom: 2 },
   title: {
     color: theme.color.text,
     fontSize: theme.type.title,
     fontWeight: "900",
-    lineHeight: 37,
-    letterSpacing: -0.7
+    lineHeight: 36,
+    letterSpacing: -0.8
   },
-  hint: { color: theme.color.textMuted, fontSize: 16, lineHeight: 23, fontWeight: "600" },
+  hint: { color: theme.color.textMuted, fontSize: 15, lineHeight: 21, fontWeight: "600" },
+  topNav: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.color.surfaceMuted,
+    borderRadius: theme.radius.md,
+    padding: 4,
+    gap: 3
+  },
+  topNavItem: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  topNavItemActive: { backgroundColor: theme.color.surface },
+  topNavPressed: { opacity: 0.75 },
+  topNavText: { color: theme.color.textMuted, fontSize: 14, fontWeight: "800" },
+  topNavTextActive: { color: theme.color.text },
   sectionTitleRow: {
-    minHeight: 32,
+    minHeight: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    marginTop: 4
+    marginTop: 10
   },
   sectionTitle: { color: theme.color.text, fontSize: theme.type.section, fontWeight: "900", letterSpacing: -0.2 },
-  sectionDetail: { color: theme.color.textMuted, fontSize: theme.type.caption, fontWeight: "800" },
+  sectionDetail: { color: theme.color.textMuted, fontSize: theme.type.caption, fontWeight: "700" },
   bigButton: {
-    minHeight: 64,
+    minHeight: 58,
     borderRadius: theme.radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    ...theme.shadow.card
+    gap: 8
   },
   primary: { backgroundColor: theme.color.primary },
   income: { backgroundColor: theme.color.income },
   expense: { backgroundColor: theme.color.expense },
   neutral: { backgroundColor: theme.color.surfaceStrong },
-  pressed: { transform: [{ scale: 0.992 }], opacity: 0.93 },
+  pressed: { transform: [{ scale: 0.995 }], opacity: 0.9 },
   secondaryPressed: { backgroundColor: theme.color.surfaceMuted },
   disabled: { opacity: 0.45 },
-  buttonIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.15)"
-  },
-  bigButtonIcon: { color: theme.color.white, fontSize: 19, fontWeight: "900" },
-  bigButtonText: { color: theme.color.white, fontSize: theme.type.button, fontWeight: "900", letterSpacing: -0.15 },
+  bigButtonIcon: { color: theme.color.white, fontSize: 18, fontWeight: "900" },
+  bigButtonText: { color: theme.color.white, fontSize: theme.type.button, fontWeight: "900", letterSpacing: -0.1 },
   secondaryButton: {
     minHeight: uxPolicy.standardControlHeightPx,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.color.borderStrong,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: theme.color.surface,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18
   },
-  secondaryButtonText: { color: theme.color.text, fontSize: 16, fontWeight: "800" },
+  secondaryButtonText: { color: theme.color.text, fontSize: 15, fontWeight: "800" },
   fieldWrap: { gap: 8 },
   fieldLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   fieldLabel: { color: theme.color.text, fontSize: 15, fontWeight: "800" },
@@ -295,7 +336,7 @@ const styles = StyleSheet.create({
     color: theme.color.text
   },
   choice: {
-    minHeight: 70,
+    minHeight: 68,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: theme.radius.md,
@@ -304,26 +345,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    gap: 12,
-    ...theme.shadow.card
+    gap: 12
   },
-  choiceSelected: { borderColor: theme.color.primary, borderWidth: 1.5, backgroundColor: theme.color.primarySoft },
-  choicePressed: { transform: [{ scale: 0.995 }], opacity: 0.9 },
+  choiceSelected: { borderColor: theme.color.primary, backgroundColor: theme.color.primarySoft },
+  choicePressed: { opacity: 0.88 },
   choiceIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: theme.color.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
-  choiceIcon: { fontSize: 22 },
+  choiceIcon: { fontSize: 21 },
   choiceCopy: { flex: 1, gap: 3 },
   choiceText: { fontSize: 17, color: theme.color.text, fontWeight: "800", flexShrink: 1 },
   choiceCaption: { fontSize: 13, color: theme.color.textMuted, fontWeight: "600", lineHeight: 18 },
   choiceIndicator: {
-    width: 22,
-    height: 22,
+    width: 21,
+    height: 21,
     borderRadius: 11,
     borderWidth: 1.5,
     borderColor: theme.color.borderStrong,
@@ -331,18 +371,18 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   choiceIndicatorSelected: { borderColor: theme.color.primary },
-  choiceIndicatorDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.color.primary },
+  choiceIndicatorDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: theme.color.primary },
   pill: {
     alignSelf: "flex-start",
     borderRadius: theme.radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     backgroundColor: theme.color.surfaceMuted
   },
   pillIncome: { backgroundColor: theme.color.incomeSoft },
   pillExpense: { backgroundColor: theme.color.expenseSoft },
   pillWarning: { backgroundColor: theme.color.warningSoft },
-  pillText: { color: theme.color.textMuted, fontSize: 12, fontWeight: "800" },
+  pillText: { color: theme.color.textMuted, fontSize: 11, fontWeight: "800" },
   pillIncomeText: { color: theme.color.income },
   pillExpenseText: { color: theme.color.expense },
   pillWarningText: { color: theme.color.warning },
@@ -358,10 +398,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.color.border,
-    padding: 20,
-    gap: theme.spacing.md,
-    ...theme.shadow.card
+    padding: 18,
+    gap: theme.spacing.md
   },
-  cardStrong: { backgroundColor: theme.color.surfaceStrong, borderColor: theme.color.surfaceStrong, ...theme.shadow.floating },
-  cardSoft: { backgroundColor: theme.color.surfaceRaised, borderColor: theme.color.divider }
+  cardStrong: { backgroundColor: theme.color.surfaceStrong, borderColor: theme.color.surfaceStrong },
+  cardSoft: { backgroundColor: theme.color.surfaceMuted, borderColor: theme.color.surfaceMuted }
 });
