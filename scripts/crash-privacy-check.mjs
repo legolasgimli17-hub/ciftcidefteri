@@ -5,7 +5,7 @@ const source = fs.readFileSync('src/mobile/crashReporting.ts', 'utf8');
 const appConfig = fs.readFileSync('app.json', 'utf8');
 const packageJson = fs.readFileSync('package.json', 'utf8');
 
-assert.match(packageJson, /"@sentry\/react-native"\s*:\s*"8\.18\.0"/, 'Sentry SDK must stay pinned to the reviewed stable release');
+assert.match(packageJson, /"@sentry\/react-native"\s*:\s*"~7\.11\.0"/, 'Sentry SDK must stay on the Expo SDK 57 compatible release line');
 assert.match(appConfig, /"@sentry\/react-native"/, 'Expo Sentry config plugin must stay enabled');
 
 assert.match(source, /EXPO_PUBLIC_SENTRY_DSN/, 'runtime DSN must come from the build environment');
