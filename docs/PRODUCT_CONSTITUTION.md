@@ -16,6 +16,24 @@ Türkiye'deki çiftçinin tarihli gelir-gider defterini, ürün maliyetini, orta
 8. İnternetsiz temel kullanım
 9. Güven veren, tarımı görsel olarak hissettiren ama finansal bilgiyi gölgelemeyen mobil arayüz
 
+## Faz 2 gerçek kullanıcı / release kapısı — P0
+Faz 2 çekirdek finans özellikleri geliştirilmiş olsa bile aşağıdaki dört madde tamamlanmadan uygulama gerçek kullanıcıya veya mağaza/release adayı olarak verilmez:
+1. Şifreli manuel yedekleme / dışa aktarma ve güvenli geri yükleme
+2. İsteğe bağlı uygulama kilidi: PIN ve cihaz destekliyorsa biyometrik açma
+3. Gizlilik kontrollü crash reporting: finansal içerik, isim, not ve sırlar telemetriye gitmez
+4. Düşük/orta segment gerçek Android cihazda fiziksel kabul testi
+
+P0, daha önce tamamlanmış Faz 2 kodunu geri aldırmaz; bundan sonraki gerçek kullanıcı/release ilerlemesinin kapısıdır. Stok/Elindekiler dahil açık Faz 2 değişiklikleri P0 tamamlanmadan main'e alınmaz.
+
+### Yedekleme güvenlik kapısı
+- Varsayılan yedek açık JSON/CSV değildir; AES-GCM ile şifrelenmiş tek dosyadır.
+- Yedek şifreleme anahtarı dosyanın içine yazılmaz. Uygulama yüksek entropili ayrı bir kurtarma anahtarı üretir ve kullanıcıya dosyadan ayrı saklamasını söyler.
+- Yedek türetilmiş kâr/bakiye sayılarını ikinci kez saklamaz; kaynak gerçek kayıtları taşır.
+- Geri yükleme dosya biçimini, sürümü, satır sınırlarını ve veritabanı ilişkilerini doğrulamadan yazma yapmaz.
+- Geri yükleme atomiktir: ya bütün kaynak kayıtlar doğrulanıp birlikte geri gelir ya da mevcut veri değiştirilmez.
+- Uygulamadan daha yeni bir yedek sessizce açılmaz; kullanıcıya güvenli biçimde daha yeni uygulama gerektiği söylenir.
+- Açık metin CSV dışa aktarma ileride eklenirse varsayılan olamaz ve finans verisinin korunmayacağı açıkça anlatılmalıdır.
+
 ## Faz 2 sınırı — finansal derinlik
 Faz 2 firstprompt sırasını korur ve üç katmanda ilerler:
 1. Kredi / borç takibi: nakdi ve ayni borç ayrımı, toplam borç, taksit planı, ödeme hareketleri, kalan borç ve sıradaki ödeme
