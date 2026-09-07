@@ -27,19 +27,24 @@ export default function PartnerNewScreen() {
         router.replace("/onboarding");
         return;
       }
+
       const partner = createFarmPartner({ id: createLocalId("partner"), name });
-      await new LocalPartnershipRepository(db).addPartner({
+      const repository = new LocalPartnershipRepository(db);
+      const existing = await repository.listActivePartners(identity.farmId);
+      const normalizedName = partner.name.toLocaleLowerCase("tr-TR");
+      if (existing.some((item) => item.name.toLocaleLowerCase("tr-TR") === normalizedName)) {
+        setError("Bu isimde bir ortak zaten var.");
+        return;
+      }
+
+      await repository.addPartner({
         farmId: identity.farmId,
         partner,
         nowIso: new Date().toISOString()
       });
       router.replace("/partners");
-    } catch (caught) {
-      if (caught instanceof Error && caught.message.includes("zaten var")) {
-        setError("Bu isimde bir ortak zaten var.");
-      } else {
-        setError("Ortağı kaydedemedik. İsmi kontrol edip tekrar dene.");
-      }
+    } catch {
+      setError("Ortağı kaydedemedik. İsmi kontrol edip tekrar dene.");
     } finally {
       setSaving(false);
     }
