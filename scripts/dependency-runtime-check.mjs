@@ -39,4 +39,17 @@ const encoded = queryString.stringify({ urun: 'pamuk', not: '%' }, { sort: false
 assert.match(encoded, /urun=pamuk/);
 assert.match(encoded, /not=%25/);
 
-console.log('Dependency runtime check passed: query-string uses the safe CommonJS decoder bridge.');
+const xcodePath = rootRequire.resolve('xcode');
+const xcodeRequire = createRequire(xcodePath);
+const xcodeUuidManifest = xcodeRequire('uuid/package.json');
+const xcodeUuid = xcodeRequire('uuid');
+assert.equal(xcodeUuidManifest.version, '11.1.1', 'xcode must resolve the audited uuid 11.1.1 release');
+assert.equal(typeof xcodeUuid.v4, 'function', 'xcode uuid dependency must keep the CommonJS v4 API');
+
+const xcode = rootRequire('xcode');
+const project = xcode.project('unused.pbxproj');
+project.hash = { project: { objects: {} } };
+const generatedXcodeId = project.generateUuid();
+assert.match(generatedXcodeId, /^[0-9A-F]{24}$/, 'xcode generateUuid contract changed unexpectedly');
+
+console.log('Dependency runtime check passed: Router decoder and xcode uuid paths are hardened and compatible.');
