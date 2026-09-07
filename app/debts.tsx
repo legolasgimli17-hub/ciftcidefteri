@@ -104,6 +104,10 @@ export default function DebtsScreen() {
             <Text style={styles.note}>Mal olarak: {balance.debt.inKindDescription}</Text>
           ) : null}
 
+          <SecondaryButton
+            label="Ayrıntıları aç"
+            onPress={() => router.push({ pathname: "/debt-detail", params: { id: balance.debt.id } })}
+          />
           {balance.remainingKurus > 0 ? (
             <SecondaryButton
               label="Ödeme kaydet"
