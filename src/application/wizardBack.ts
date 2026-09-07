@@ -1,6 +1,6 @@
 export type OnboardingStep = "welcome" | "name" | "place" | "area" | "crops";
 export type CreateTransactionStep = "amount" | "crop" | "category" | "details" | "partnership" | "done";
-export type EditTransactionStep = "details" | "scope" | "category" | "done";
+export type EditTransactionStep = "details" | "partnership" | "scope" | "category" | "done";
 
 export type OnboardingBackAction = "exit" | OnboardingStep;
 export type CreateBackAction = "exit" | "amount" | "crop" | "category" | "details" | "home";
@@ -32,6 +32,7 @@ export function previousCreateTransactionStep(
 
 export function previousEditTransactionStep(step: EditTransactionStep): EditBackAction {
   if (step === "details") return "exit";
+  if (step === "partnership") return "details";
   if (step === "scope") return "details";
   if (step === "category") return "scope";
   return "home";
