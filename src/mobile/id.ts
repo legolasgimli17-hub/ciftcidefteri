@@ -1,5 +1,7 @@
 import * as Crypto from "expo-crypto";
 
-export function createLocalId(prefix: "profile" | "farm" | "txn"): string {
+export type LocalIdPrefix = "profile" | "farm" | "txn" | "partner" | "settlement";
+
+export function createLocalId(prefix: LocalIdPrefix): string {
   return `${prefix}-${Crypto.randomUUID()}`;
 }
