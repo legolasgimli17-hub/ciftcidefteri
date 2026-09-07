@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity } from "@/src/application/appSnapshot";
 import { LocalDebtRepository, type DebtBalance } from "@/src/application/localDebtRepository";
 import { createDebtPayment } from "@/src/domain/debt";
-import { formatTry, moneyFromUserInput } from "@/src/domain/money";
+import { formatTry, moneyFromUserInput, type MoneyKurus } from "@/src/domain/money";
 import { mobileDatabase } from "@/src/mobile/database";
 import { dateInputFromIso, isoDateFromTurkishInput, todayIsoLocal } from "@/src/mobile/date";
 import { createLocalId } from "@/src/mobile/id";
@@ -59,20 +59,36 @@ export default function DebtPaymentScreen() {
     if (savingRef.current || balance === undefined || farmId === undefined || balance.remainingKurus <= 0) return;
     setError(undefined);
 
+    let amountKurus: MoneyKurus;
+    try {
+      amountKurus = moneyFromUserInput(amountText);
+    } catch {
+      setError("Ödeme tutarını kontrol et.");
+      return;
+    }
+    if (amountKurus > balance.remainingKurus) {
+      setError("Ödeme kalan borçtan büyük olamaz.");
+      return;
+    }
+
+    let occurredOn: string;
+    try {
+      occurredOn = isoDateFromTurkishInput(dateText);
+    } catch {
+      setError("Ödeme tarihini GG.AA.YYYY şeklinde kontrol et.");
+      return;
+    }
+
     let payment: ReturnType<typeof createDebtPayment>;
     try {
-      const amountKurus = moneyFromUserInput(amountText);
-      if (amountKurus > balance.remainingKurus) {
-        throw new Error("Ödeme kalan borçtan büyük olamaz.");
-      }
       payment = createDebtPayment({
         id: createLocalId("debtpay"),
         amountKurus,
-        occurredOn: isoDateFromTurkishInput(dateText),
+        occurredOn,
         ...(noteText.trim().length === 0 ? {} : { note: noteText })
       });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Ödeme bilgilerini kontrol et.");
+    } catch {
+      setError("Ödeme bilgilerini kontrol et.");
       return;
     }
 
