@@ -111,12 +111,15 @@ test("filtreli cursor sayfalaması filtre dışı kaydı sonraki sayfaya sızdı
     filter: { kind: "expense", cropCode: "cotton", category: "Gübre" }
   });
   assert.deepEqual(first.items.map((item) => item.id), ["txn-filter-000001"]);
-  assert.ok(first.nextCursor);
+  const cursor = first.nextCursor;
+  if (cursor === undefined) {
+    throw new Error("Filtreli ilk sayfanın devam cursorı olmalı.");
+  }
 
   const second = await history.page({
     farmId: FARM_ID,
     limit: 1,
-    cursor: first.nextCursor,
+    cursor,
     filter: { kind: "expense", cropCode: "cotton", category: "Gübre" }
   });
   assert.deepEqual(second.items.map((item) => item.id), ["txn-filter-000002"]);
