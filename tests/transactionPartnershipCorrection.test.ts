@@ -177,7 +177,9 @@ test("ortaklık kaldırılırken finans kaydı korunur", async () => {
   const { db } = await setup();
   const corrections = new LocalTransactionCorrections(db);
   const current = await corrections.getActiveTransaction({ farmId: FARM_ID, transactionId: TX_ID });
-  assert.ok(current);
+  if (current === null) {
+    throw new Error("Düzeltilecek aktif kayıt bulunmalı.");
+  }
 
   assert.equal(await corrections.updateTransaction({
     farmId: FARM_ID,
