@@ -1,6 +1,7 @@
 import { parseCropCode, type CropCode } from "../domain/crops";
 import { assertIsoUtcTimestamp } from "../domain/date";
 import { moneyFromKurus } from "../domain/money";
+import { createTransactionPartnership, type TransactionPartnership } from "../domain/partnership";
 import { type FarmerProfile } from "../domain/profile";
 import { createProfitLossSummary, type ProfitLossSummary } from "../domain/profitLoss";
 import { createFarmTransaction, type FarmTransaction } from "../domain/transaction";
@@ -80,11 +81,15 @@ export class LocalFarmRepository {
   public async addTransaction(input: {
     readonly farmId: string;
     readonly transaction: FarmTransaction;
+    readonly partnership?: TransactionPartnership;
     readonly nowIso: string;
   }): Promise<void> {
     const farmId = validateId(input.farmId, "Çiftlik kimliği");
     const nowIso = validateTimestamp(input.nowIso);
     const t = input.transaction;
+    const partnership = input.partnership === undefined
+      ? undefined
+      : createTransactionPartnership(input.partnership);
 
     await this.db.transaction(async (tx) => {
       await assertActiveFarm(tx, farmId);
@@ -98,6 +103,18 @@ export class LocalFarmRepository {
         );
         if ((crop?.count ?? 0) !== 1) {
           throw new Error("Bu ürün çiftliğinde kayıtlı değil.");
+        }
+      }
+
+      if (partnership !== undefined) {
+        const partner = await tx.first<{ count: number }>(
+          `SELECT COUNT(*) AS count
+             FROM farm_partners
+            WHERE farm_id = ? AND id = ? AND deleted_at IS NULL`,
+          [farmId, partnership.partnerId]
+        );
+        if ((partner?.count ?? 0) !== 1) {
+          throw new Error("Bu ortak aktif değil. Kayıt eklenmedi.");
         }
       }
 
@@ -120,6 +137,24 @@ export class LocalFarmRepository {
           nowIso
         ]
       );
+
+      if (partnership !== undefined) {
+        await tx.run(
+          `INSERT INTO transaction_partnerships
+            (transaction_id, farm_id, partner_id, owner_share_basis_points, cash_actor,
+             created_at, updated_at, sync_state)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'local')`,
+          [
+            t.id,
+            farmId,
+            partnership.partnerId,
+            partnership.ownerShareBasisPoints,
+            partnership.cashActor,
+            nowIso,
+            nowIso
+          ]
+        );
+      }
     });
   }
 
