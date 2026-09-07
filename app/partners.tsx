@@ -43,7 +43,7 @@ export default function PartnersScreen() {
 
   return (
     <Screen>
-      <PageTitle hint="Kimin ne ödediğini kaynak kayıtlardan hesaplarız. Ayrı, gizli borç hesabı yok.">
+      <PageTitle hint="Kimin ne ödediğini gerçek defter kayıtlarından hesaplarız. Ayrı, gizli borç hesabı yok.">
         Ortak hesapları
       </PageTitle>
 
@@ -69,6 +69,7 @@ export default function PartnersScreen() {
       {balances.map((item) => {
         const status = item.netKurus > 0 ? "Bana borçlu" : item.netKurus < 0 ? "Ben borçluyum" : "Hesap kapalı";
         const tone = item.netKurus > 0 ? "income" : item.netKurus < 0 ? "expense" : "neutral";
+        const openAmount = item.netKurus >= 0 ? item.receivableKurus : item.payableKurus;
         return (
           <Card key={item.partnerId}>
             <View style={styles.partnerHeader}>
@@ -81,11 +82,25 @@ export default function PartnersScreen() {
               </View>
             </View>
             <View style={styles.balanceLine}>
-              <Text style={styles.balanceLabel}>{item.netKurus >= 0 ? "Benden alacağı değil, bana ödeyeceği" : "Benim ödeyeceğim"}</Text>
-              <Text style={[styles.balanceAmount, item.netKurus > 0 ? styles.receivable : item.netKurus < 0 ? styles.payable : styles.closed]}>
-                {formatTry(item.netKurus >= 0 ? item.receivableKurus : item.payableKurus)}
+              <Text style={styles.balanceLabel}>
+                {item.netKurus > 0 ? "Bana ödeyeceği" : item.netKurus < 0 ? "Benim ödeyeceğim" : "Açık hesap"}
+              </Text>
+              <Text style={[
+                styles.balanceAmount,
+                item.netKurus > 0 ? styles.receivable : item.netKurus < 0 ? styles.payable : styles.closed
+              ]}>
+                {formatTry(openAmount)}
               </Text>
             </View>
+            {item.netKurus !== 0 ? (
+              <SecondaryButton
+                label="Ödeme kaydet"
+                onPress={() => router.push({
+                  pathname: "/partner-settlement",
+                  params: { partnerId: item.partnerId }
+                })}
+              />
+            ) : null}
           </Card>
         );
       })}
