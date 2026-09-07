@@ -173,7 +173,7 @@ export default function OnboardingScreen() {
               key={crop}
               leading={<CropArtwork cropCode={crop} compact />}
               label={cropTemplates[crop].label}
-              caption={crop === "other" ? "Listede olmayan ürünler" : undefined}
+              {...(crop === "other" ? { caption: "Listede olmayan ürünler" } : {})}
               selected={draft.cropCodes.includes(crop)}
               onPress={() => setDraft({ ...draft, cropCodes: toggleCrop(draft.cropCodes, crop) })}
             />
