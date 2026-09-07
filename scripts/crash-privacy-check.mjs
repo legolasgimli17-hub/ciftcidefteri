@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const source = fs.readFileSync('src/mobile/crashReporting.ts', 'utf8');
+const privacySource = fs.readFileSync('src/domain/crashPrivacy.ts', 'utf8');
 const appConfig = fs.readFileSync('app.json', 'utf8');
 const packageJson = fs.readFileSync('package.json', 'utf8');
 
@@ -21,5 +22,11 @@ assert.match(source, /sanitizeCrashEvent/, 'every outgoing JS event must pass th
 assert.match(source, /Sentry\.setUser\(null\)/, 'global Sentry user identity must stay empty');
 assert.doesNotMatch(source, /replayIntegration|mobileReplayIntegration|sessionReplay/i, 'session replay is forbidden for financial data');
 assert.doesNotMatch(source, /setUser\(\s*\{/, 'do not attach user identity to crash reports');
+
+assert.match(privacySource, /SAFE_STACK_FRAME_KEYS/, 'stack frames must use an explicit allowlist');
+assert.match(privacySource, /sanitizeStacktrace/, 'stack traces must be minimized before send');
+assert.match(privacySource, /delete event\.logentry/, 'free-form Sentry log messages must be removed');
+assert.match(privacySource, /delete event\.sdkProcessingMetadata/, 'SDK metadata cannot carry free-form local data');
+assert.doesNotMatch(privacySource, /"abs_path"|"vars"|"context_line"/, 'stack allowlist must never include local paths, variables or source context');
 
 console.log('Crash privacy check passed: crash reporting stays minimal and finance-safe.');
