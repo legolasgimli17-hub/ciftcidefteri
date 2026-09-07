@@ -30,7 +30,7 @@ export function initializeCrashReporting(): boolean {
       if (hint && Array.isArray((hint as { attachments?: unknown[] }).attachments)) {
         (hint as { attachments: unknown[] }).attachments = [];
       }
-      return sanitizeCrashEvent(event as unknown as Record<string, unknown>) as typeof event;
+      return sanitizeCrashEvent(event as unknown as Record<string, unknown>) as unknown as typeof event;
     }
   });
 
