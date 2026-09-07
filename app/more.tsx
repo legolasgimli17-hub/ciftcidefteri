@@ -14,6 +14,12 @@ export default function MoreScreen() {
         onPress={() => router.push("/debts")}
       />
 
+      <ChoiceCard
+        label="Banka hareketleri"
+        caption="Bankadan çektiğin ve bankaya yatırdığın parayı ayrı takip et."
+        onPress={() => router.push("/bank-movements")}
+      />
+
       <SecondaryButton label="Deftere dön" onPress={() => router.replace("/home")} />
     </Screen>
   );
