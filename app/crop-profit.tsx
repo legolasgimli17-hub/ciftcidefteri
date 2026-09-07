@@ -6,7 +6,8 @@ import { loadFarmIdentity } from "@/src/application/appSnapshot";
 import { loadCropProfitSummaries, type CropProfitSummary } from "@/src/application/cropProfit";
 import { formatTry } from "@/src/domain/money";
 import { mobileDatabase } from "@/src/mobile/database";
-import { Card, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
+import { Card, PageTitle, Pill, Screen, SecondaryButton, SectionTitle } from "@/src/ui/components";
+import { CropArtwork } from "@/src/ui/cropArtwork";
 import { theme } from "@/src/ui/theme";
 
 export default function CropProfitScreen() {
@@ -37,36 +38,61 @@ export default function CropProfitScreen() {
 
   return (
     <Screen>
-      <PageTitle hint="Her ürün için giren, çıkan ve elinde kalanı gör.">
-        Ürünlerin durumu
+      <PageTitle hint="Hangi ürün para kazandırıyor, hangisi masraf çıkarıyor tek bakışta gör.">
+        Ürün hesabı
       </PageTitle>
 
-      {items.map((item) => (
-        <Card key={item.cropCode}>
-          <Text accessibilityRole="header" style={styles.cropName}>{item.cropLabel}</Text>
-          <Text style={styles.netLabel}>Kalan</Text>
-          <Text style={[
-            styles.netAmount,
-            item.summary.net > 0 && styles.positive,
-            item.summary.net < 0 && styles.negative
-          ]}>
-            {formatTry(item.summary.net)}
-          </Text>
-          <View style={styles.rows}>
-            <Text style={styles.income}>Giren: {formatTry(item.summary.income)}</Text>
-            <Text style={styles.expense}>Çıkan: {formatTry(item.summary.expense)}</Text>
-          </View>
-        </Card>
-      ))}
+      {items.length > 0 ? <SectionTitle detail={`${items.length} ürün`}>Ürünlerin</SectionTitle> : null}
+
+      {items.map((item) => {
+        const tone = item.summary.net > 0 ? "income" : item.summary.net < 0 ? "expense" : "neutral";
+        const status = item.summary.net > 0 ? "Artıda" : item.summary.net < 0 ? "Ekside" : "Dengede";
+        return (
+          <Card key={item.cropCode}>
+            <View style={styles.cropHeader}>
+              <CropArtwork cropCode={item.cropCode} />
+              <View style={styles.cropHeaderCopy}>
+                <Text accessibilityRole="header" style={styles.cropName}>{item.cropLabel}</Text>
+                <Pill label={status} tone={tone} />
+              </View>
+            </View>
+
+            <View style={styles.netBlock}>
+              <Text style={styles.netLabel}>Bu üründe kalan</Text>
+              <Text style={[
+                styles.netAmount,
+                item.summary.net > 0 && styles.positive,
+                item.summary.net < 0 && styles.negative
+              ]}>
+                {formatTry(item.summary.net)}
+              </Text>
+            </View>
+
+            <View style={styles.metricRow}>
+              <View style={[styles.metricBox, styles.incomeBox]}>
+                <Text style={styles.metricLabel}>GELEN</Text>
+                <Text style={[styles.metricAmount, styles.positive]}>{formatTry(item.summary.income)}</Text>
+              </View>
+              <View style={[styles.metricBox, styles.expenseBox]}>
+                <Text style={styles.metricLabel}>HARCANAN</Text>
+                <Text style={[styles.metricAmount, styles.negative]}>{formatTry(item.summary.expense)}</Text>
+              </View>
+            </View>
+          </Card>
+        );
+      })}
 
       {items.length === 0 && !error ? (
-        <Card>
-          <Text style={styles.empty}>Ürün kaydı bulunamadı.</Text>
+        <Card tone="soft">
+          <Text style={styles.emptyTitle}>Henüz ürün hesabı oluşmadı</Text>
+          <Text style={styles.empty}>Ürüne bağlı bir gelir veya gider eklediğinde burada görünür.</Text>
         </Card>
       ) : null}
 
       {error ? (
-        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>
+        <View style={styles.errorBox}>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>
+        </View>
       ) : null}
 
       <SecondaryButton label="Deftere dön" onPress={() => router.replace("/home")} />
@@ -75,14 +101,22 @@ export default function CropProfitScreen() {
 }
 
 const styles = StyleSheet.create({
-  cropName: { color: theme.color.text, fontSize: 22, fontWeight: "900" },
-  netLabel: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700" },
-  netAmount: { color: theme.color.text, fontSize: 32, fontWeight: "900", letterSpacing: -0.5 },
+  cropHeader: { flexDirection: "row", alignItems: "center", gap: 14 },
+  cropHeaderCopy: { flex: 1, gap: 8 },
+  cropName: { color: theme.color.text, fontSize: 23, fontWeight: "900", letterSpacing: -0.35 },
+  netBlock: { gap: 4, paddingTop: 2 },
+  netLabel: { color: theme.color.textMuted, fontSize: 14, fontWeight: "700" },
+  netAmount: { color: theme.color.text, fontSize: 34, fontWeight: "900", letterSpacing: -0.9 },
   positive: { color: theme.color.income },
   negative: { color: theme.color.expense },
-  rows: { flexDirection: "row", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
-  income: { color: theme.color.income, fontSize: 17, fontWeight: "800" },
-  expense: { color: theme.color.expense, fontSize: 17, fontWeight: "800" },
-  empty: { color: theme.color.textMuted, fontSize: 17, fontWeight: "700", lineHeight: 24 },
-  error: { color: theme.color.expense, fontSize: 16, fontWeight: "700", lineHeight: 22 }
+  metricRow: { flexDirection: "row", gap: 10 },
+  metricBox: { flex: 1, borderRadius: theme.radius.md, padding: 14, gap: 7 },
+  incomeBox: { backgroundColor: theme.color.incomeSoft },
+  expenseBox: { backgroundColor: theme.color.expenseSoft },
+  metricLabel: { color: theme.color.textMuted, fontSize: 11, fontWeight: "900", letterSpacing: 0.7 },
+  metricAmount: { fontSize: 16, fontWeight: "900" },
+  emptyTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
+  empty: { color: theme.color.textMuted, fontSize: 16, fontWeight: "600", lineHeight: 23 },
+  errorBox: { backgroundColor: theme.color.expenseSoft, borderRadius: theme.radius.sm, padding: 14 },
+  error: { color: theme.color.expense, fontSize: 15, fontWeight: "700", lineHeight: 22 }
 });
