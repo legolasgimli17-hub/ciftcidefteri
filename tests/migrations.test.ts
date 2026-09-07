@@ -80,8 +80,14 @@ test("migration runner boş veritabanını güncel şemaya getirir", async () =>
   assert.equal(db.tableExists("farm_partners"), true);
   assert.equal(db.tableExists("transaction_partnerships"), true);
   assert.equal(db.tableExists("partner_settlements"), true);
+  assert.equal(db.tableExists("debts"), true);
+  assert.equal(db.tableExists("debt_installments"), true);
+  assert.equal(db.tableExists("debt_payments"), true);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
   assert.equal(db.indexExists("idx_partner_settlements_partner_date"), true);
+  assert.equal(db.indexExists("idx_debts_farm_active"), true);
+  assert.equal(db.indexExists("idx_debt_installments_due"), true);
+  assert.equal(db.indexExists("idx_debt_payments_date"), true);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
@@ -95,7 +101,9 @@ test("mevcut v1 veritabanı güncel sürüme veri kaybetmeden yükselir", async 
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.tableExists("transactions"), true);
   assert.equal(db.tableExists("partner_settlements"), true);
+  assert.equal(db.tableExists("debts"), true);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  assert.equal(db.indexExists("idx_debts_farm_active"), true);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
@@ -133,11 +141,59 @@ test("v2 veritabanı güncel sürüme telefon ve finans kaydını koruyarak yük
   assert.equal(db.tableExists("farm_partners"), true);
   assert.equal(db.tableExists("transaction_partnerships"), true);
   assert.equal(db.tableExists("partner_settlements"), true);
+  assert.equal(db.tableExists("debts"), true);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farmer_profiles"))?.count, 1);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farms"))?.count, 1);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farm_crops"))?.count, 1);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM transactions"))?.count, 1);
   assert.equal((await db.first<{ amount_kurus: number }>("SELECT amount_kurus FROM transactions WHERE id=?", ["txn-v2-0001"]))?.amount_kurus, 125000);
+  assert.equal((await db.all("PRAGMA foreign_key_check")).length, 0);
+  db.close();
+});
+
+test("v4 veritabanı borç tabloları eklenirken mevcut işlem ve ortaklık verisini korur", async () => {
+  const db = new NodeMigrationDatabase();
+  assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 4), 4), 4);
+
+  const now = "2026-09-07T11:00:00.000Z";
+  await db.run(
+    `INSERT INTO farmer_profiles
+      (id,name,province,district,village,total_area_square_meters,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    ["profile-v4-0001", "Mehmet Kaya", "Diyarbakır", "Bismil", "Örnek", 100000, now, now]
+  );
+  await db.run(
+    "INSERT INTO farms (id,owner_local_id,display_name,created_at,updated_at) VALUES (?,?,?,?,?)",
+    ["farm-v4-0001", "profile-v4-0001", "Benim Tarlam", now, now]
+  );
+  await db.run(
+    "INSERT INTO farm_crops (farm_id,crop_code,created_at) VALUES (?,?,?)",
+    ["farm-v4-0001", "cotton", now]
+  );
+  await db.run(
+    `INSERT INTO transactions
+      (id,farm_id,kind,amount_kurus,occurred_on,category,crop_code,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    ["txn-v4-0001", "farm-v4-0001", "expense", 250000, "2026-09-07", "Gübre", "cotton", now, now]
+  );
+  await db.run(
+    `INSERT INTO farm_partners (id,farm_id,display_name,created_at,updated_at)
+     VALUES (?,?,?,?,?)`,
+    ["partner-v4-0001", "farm-v4-0001", "Ahmet Kaya", now, now]
+  );
+  await db.run(
+    `INSERT INTO transaction_partnerships
+      (transaction_id,farm_id,partner_id,owner_share_basis_points,cash_actor,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?)`,
+    ["txn-v4-0001", "farm-v4-0001", "partner-v4-0001", 5000, "owner", now, now]
+  );
+
+  assert.equal(await migrateDatabase(db), 5);
+  assert.equal(db.tableExists("debts"), true);
+  assert.equal(db.tableExists("debt_installments"), true);
+  assert.equal(db.tableExists("debt_payments"), true);
+  assert.equal((await db.first<{ amount_kurus: number }>("SELECT amount_kurus FROM transactions WHERE id=?", ["txn-v4-0001"]))?.amount_kurus, 250000);
+  assert.equal((await db.first<{ partner_id: string }>("SELECT partner_id FROM transaction_partnerships WHERE transaction_id=?", ["txn-v4-0001"]))?.partner_id, "partner-v4-0001");
   assert.equal((await db.all("PRAGMA foreign_key_check")).length, 0);
   db.close();
 });
@@ -148,6 +204,8 @@ test("migration runner tekrar çalıştırıldığında idempotent kalır", asyn
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
   assert.equal(db.indexExists("idx_partner_settlements_partner_date"), true);
+  assert.equal(db.indexExists("idx_debts_farm_active"), true);
+  assert.equal(db.indexExists("idx_debt_payments_date"), true);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
