@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: theme.color.primarySoft, alignItems: "center", justifyContent: "center" },
   avatarText: { color: theme.color.primaryInk, fontSize: 14, fontWeight: "900" },
   copy: { flex: 1, gap: 3 },
-  name: { color: theme.color.text, fontSize: 16, fontWeight: "850" },
+  name: { color: theme.color.text, fontSize: 16, fontWeight: "800" },
   status: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600" },
   amount: { fontSize: 16, fontWeight: "900" },
   receivable: { color: theme.color.income },
