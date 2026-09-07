@@ -22,6 +22,8 @@ class NodeSqliteAdapter implements SqlDatabase {
   public constructor() {
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.db.exec(fs.readFileSync(path.resolve("src/storage/schema.sql"), "utf8"));
+    this.db.exec(fs.readFileSync(path.resolve("src/storage/migrations/0002_transaction_history_index.sql"), "utf8"));
+    this.db.exec(fs.readFileSync(path.resolve("src/storage/migrations/0003_remove_profile_phone.sql"), "utf8"));
   }
 
   public async exec(sql: string): Promise<void> { this.db.exec(sql); }
@@ -58,7 +60,6 @@ async function setup(): Promise<{ db: NodeSqliteAdapter; repo: LocalFarmReposito
   const profile = createFarmerProfile({
     id: "profile-history-0001",
     name: "Mehmet Kaya",
-    phone: "05321234567",
     province: "Diyarbakır",
     district: "Bismil",
     village: "Örnek",

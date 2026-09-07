@@ -4,7 +4,6 @@ import { type SquareMeters } from "./landArea";
 export interface FarmerProfile {
   readonly id: string;
   readonly name: string;
-  readonly phone: string;
   readonly province: string;
   readonly district: string;
   readonly village: string;
@@ -13,9 +12,8 @@ export interface FarmerProfile {
   readonly isCksRegistered?: boolean;
 }
 
-export interface NewFarmerProfile extends Omit<FarmerProfile, "name" | "phone" | "province" | "district" | "village" | "cropCodes"> {
+export interface NewFarmerProfile extends Omit<FarmerProfile, "name" | "province" | "district" | "village" | "cropCodes"> {
   readonly name: string;
-  readonly phone: string;
   readonly province: string;
   readonly district: string;
   readonly village: string;
@@ -25,7 +23,6 @@ export interface NewFarmerProfile extends Omit<FarmerProfile, "name" | "phone" |
 export function createFarmerProfile(input: NewFarmerProfile): FarmerProfile {
   const id = normalizeRequiredText(input.id, "Profil kimliği", 8, 80);
   const name = normalizeRequiredText(input.name, "Ad", 2, 80);
-  const phone = normalizePhone(input.phone);
   const province = normalizeRequiredText(input.province, "İl", 2, 80);
   const district = normalizeRequiredText(input.district, "İlçe", 2, 80);
   const village = normalizeRequiredText(input.village, "Köy", 1, 80);
@@ -38,7 +35,6 @@ export function createFarmerProfile(input: NewFarmerProfile): FarmerProfile {
   return {
     id,
     name,
-    phone,
     province,
     district,
     village,
@@ -46,18 +42,6 @@ export function createFarmerProfile(input: NewFarmerProfile): FarmerProfile {
     cropCodes: crops,
     ...(input.isCksRegistered === undefined ? {} : { isCksRegistered: input.isCksRegistered })
   };
-}
-
-function normalizePhone(raw: string): string {
-  let value = raw.trim().replace(/[\s()-]/g, "");
-  if (value.startsWith("00")) value = `+${value.slice(2)}`;
-  if (value.startsWith("0")) value = `+90${value.slice(1)}`;
-  else if (/^5\d{9}$/.test(value)) value = `+90${value}`;
-
-  if (!/^\+?\d{10,15}$/.test(value)) {
-    throw new Error("Telefon numarasını kontrol et.");
-  }
-  return value;
 }
 
 function uniqueCropCodes(values: readonly string[]): readonly CropCode[] {

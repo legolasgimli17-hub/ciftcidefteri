@@ -26,7 +26,6 @@ type Step = OnboardingStep;
 
 const initialDraft: OnboardingDraft = {
   name: "",
-  phone: "",
   province: "",
   district: "",
   village: "",
@@ -44,7 +43,7 @@ export default function OnboardingScreen() {
   const savingRef = useRef(false);
 
   const stepNumber = useMemo(() => {
-    const sequence: Step[] = ["name", "phone", "place", "area", "crops"];
+    const sequence: Step[] = ["name", "place", "area", "crops"];
     const index = sequence.indexOf(step);
     return index >= 0 ? `${index + 1}/${sequence.length}` : undefined;
   }, [step]);
@@ -129,22 +128,7 @@ export default function OnboardingScreen() {
             returnKeyType="next"
           />
           <ErrorNote message={error} />
-          <BigButton label="Devam" icon="→" onPress={() => draft.name.trim().length >= 2 ? next("phone") : setError("Adını yaz.")} />
-        </>
-      ) : null}
-
-      {step === "phone" ? (
-        <>
-          <PageTitle hint="Bu bilgi yalnızca cihazındaki defterde tutulur.">Telefon numaran?</PageTitle>
-          <Field
-            label="Telefon"
-            keyboardType="phone-pad"
-            value={draft.phone}
-            onChangeText={(phone: string) => setDraft({ ...draft, phone })}
-            placeholder="05xx xxx xx xx"
-          />
-          <ErrorNote message={error} />
-          <BigButton label="Devam" icon="→" onPress={() => draft.phone.replace(/\D/g, "").length >= 10 ? next("place") : setError("Telefon numaranı kontrol et.")} />
+          <BigButton label="Devam" icon="→" onPress={() => draft.name.trim().length >= 2 ? next("place") : setError("Adını yaz.")} />
         </>
       ) : null}
 

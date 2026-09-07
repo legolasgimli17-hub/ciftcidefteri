@@ -23,7 +23,6 @@ export interface AppSnapshot {
 interface IdentityRow {
   profile_id: string;
   name: string;
-  phone: string;
   province: string;
   district: string;
   village: string;
@@ -37,7 +36,7 @@ const HOME_RECENT_TRANSACTION_LIMIT = 4;
 
 export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | null> {
   const rows = await db.all<IdentityRow>(
-    `SELECT p.id AS profile_id, p.name, p.phone, p.province, p.district, p.village,
+    `SELECT p.id AS profile_id, p.name, p.province, p.district, p.village,
             p.total_area_square_meters, p.is_cks_registered,
             f.id AS farm_id, f.display_name AS farm_name
        FROM farmer_profiles p
@@ -65,7 +64,6 @@ export async function loadFarmIdentity(db: SqlDatabase): Promise<FarmIdentity | 
   const profile = createFarmerProfile({
     id: row.profile_id,
     name: row.name,
-    phone: row.phone,
     province: row.province,
     district: row.district,
     village: row.village,

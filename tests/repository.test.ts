@@ -17,6 +17,8 @@ class NodeSqliteAdapter implements SqlDatabase {
   public constructor() {
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.db.exec(fs.readFileSync(path.resolve("src/storage/schema.sql"), "utf8"));
+    this.db.exec(fs.readFileSync(path.resolve("src/storage/migrations/0002_transaction_history_index.sql"), "utf8"));
+    this.db.exec(fs.readFileSync(path.resolve("src/storage/migrations/0003_remove_profile_phone.sql"), "utf8"));
   }
 
   public async exec(sql: string): Promise<void> { this.db.exec(sql); }
@@ -53,7 +55,6 @@ function buildProfile(id = "profile-0001") {
   return createFarmerProfile({
     id,
     name: "Mehmet Kaya",
-    phone: "05321234567",
     province: "Diyarbakır",
     district: "Bismil",
     village: "Örnek",
@@ -72,6 +73,8 @@ test("onboarding tek transaction ile profil + çiftlik + ürünleri kaydeder", a
   assert.equal(await repo.hasCompletedOnboarding(), true);
   const crops = await db.all<{ crop_code: string }>("SELECT crop_code FROM farm_crops ORDER BY crop_code");
   assert.deepEqual(crops.map((row) => row.crop_code), ["corn", "cotton"]);
+  const columns = await db.all<{ name: string }>("PRAGMA table_info(farmer_profiles)");
+  assert.equal(columns.some((column) => column.name === "phone"), false);
   db.close();
 });
 
@@ -108,9 +111,9 @@ test("kullanıcı kaydı olmayan yarım onboarding güvenli soft-repair edilir",
   const repo = new LocalFarmRepository(db);
   await db.run(
     `INSERT INTO farmer_profiles
-      (id,name,phone,province,district,village,total_area_square_meters,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    ["profile-old-01", "Eski Profil", "+905321234567", "Diyarbakır", "Bismil", "Örnek", 100000, NOW, NOW]
+      (id,name,province,district,village,total_area_square_meters,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    ["profile-old-01", "Eski Profil", "Diyarbakır", "Bismil", "Örnek", 100000, NOW, NOW]
   );
 
   await repo.saveInitialFarm({
@@ -135,9 +138,9 @@ test("yarım onboarding altında aktif parcel varsa otomatik repair veri saklama
   const repo = new LocalFarmRepository(db);
   await db.run(
     `INSERT INTO farmer_profiles
-      (id,name,phone,province,district,village,total_area_square_meters,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    ["profile-old-01", "Eski Profil", "+905321234567", "Diyarbakır", "Bismil", "Örnek", 100000, NOW, NOW]
+      (id,name,province,district,village,total_area_square_meters,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    ["profile-old-01", "Eski Profil", "Diyarbakır", "Bismil", "Örnek", 100000, NOW, NOW]
   );
   await db.run(
     `INSERT INTO farms (id,owner_local_id,display_name,created_at,updated_at)

@@ -11,8 +11,7 @@ import {
 test("onboarding Android geri tuşu wizard içinde önceki adıma döner", () => {
   assert.equal(previousOnboardingStep("welcome"), "exit");
   assert.equal(previousOnboardingStep("name"), "welcome");
-  assert.equal(previousOnboardingStep("phone"), "name");
-  assert.equal(previousOnboardingStep("place"), "phone");
+  assert.equal(previousOnboardingStep("place"), "name");
   assert.equal(previousOnboardingStep("area"), "place");
   assert.equal(previousOnboardingStep("crops"), "area");
 });
