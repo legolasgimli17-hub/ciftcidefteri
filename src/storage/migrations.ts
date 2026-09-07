@@ -1,10 +1,12 @@
-import { INITIAL_SCHEMA_SQL, SCHEMA_VERSION } from "./schemaText";
+import { MIGRATION_0001_SQL } from "./migrationSql";
+import { SCHEMA_VERSION } from "./schemaText";
 import { type SqlDatabase, type SqlExecutor } from "./sql";
 
 export interface DatabaseMigration {
   readonly version: number;
   readonly sql: string;
   readonly transactional: boolean;
+  readonly requiresForeignKeysOff?: boolean;
 }
 
 const META_TABLE_SQL = `
@@ -16,7 +18,7 @@ CREATE TABLE IF NOT EXISTS app_meta (
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   {
     version: 1,
-    sql: INITIAL_SCHEMA_SQL,
+    sql: MIGRATION_0001_SQL,
     transactional: true
   }
 ];
@@ -35,6 +37,9 @@ export function validateMigrationPlan(
     const expectedVersion = index + 1;
     if (migration.version !== expectedVersion || !migration.sql.trim()) {
       throw new Error(`Veritabanı migration sırası bozuk: ${expectedVersion}.`);
+    }
+    if (migration.requiresForeignKeysOff === true && migration.transactional !== true) {
+      throw new Error("Foreign key kapatılan migration transactional olmak zorunda.");
     }
   });
 }
@@ -58,19 +63,7 @@ export async function runMigrations(
 
   for (const migration of migrations) {
     if (migration.version <= currentVersion) continue;
-
-    if (migration.transactional) {
-      await database.transaction(async tx => {
-        await tx.exec(migration.sql);
-        await writeSchemaVersion(tx, migration.version);
-      });
-    } else {
-      await database.exec(migration.sql);
-      await database.transaction(async tx => {
-        await writeSchemaVersion(tx, migration.version);
-      });
-    }
-
+    await applyMigration(database, migration);
     currentVersion = migration.version;
   }
 
@@ -79,6 +72,64 @@ export async function runMigrations(
     throw new Error("Veritabanı migration işlemi tamamlanamadı.");
   }
   return finalVersion;
+}
+
+async function applyMigration(database: SqlDatabase, migration: DatabaseMigration): Promise<void> {
+  if (migration.requiresForeignKeysOff === true) {
+    await applyForeignKeyRebuildMigration(database, migration);
+    return;
+  }
+
+  if (migration.transactional) {
+    await database.transaction(async tx => {
+      await tx.exec(migration.sql);
+      await writeSchemaVersion(tx, migration.version);
+    });
+    return;
+  }
+
+  await database.exec(migration.sql);
+  await database.transaction(async tx => {
+    await writeSchemaVersion(tx, migration.version);
+  });
+}
+
+async function applyForeignKeyRebuildMigration(
+  database: SqlDatabase,
+  migration: DatabaseMigration
+): Promise<void> {
+  await assertForeignKeysState(database, true);
+  await setForeignKeys(database, false);
+  try {
+    await database.transaction(async tx => {
+      await tx.exec(migration.sql);
+      await assertNoForeignKeyViolations(tx);
+      await writeSchemaVersion(tx, migration.version);
+    });
+  } finally {
+    await setForeignKeys(database, true);
+    await assertForeignKeysState(database, true);
+  }
+}
+
+async function setForeignKeys(database: SqlExecutor, enabled: boolean): Promise<void> {
+  await database.exec(enabled ? "PRAGMA foreign_keys = ON;" : "PRAGMA foreign_keys = OFF;");
+  await assertForeignKeysState(database, enabled);
+}
+
+async function assertForeignKeysState(database: SqlExecutor, expected: boolean): Promise<void> {
+  const row = await database.first<{ foreign_keys: number }>("PRAGMA foreign_keys;");
+  const actual = Number(row?.foreign_keys ?? -1);
+  if (actual !== (expected ? 1 : 0)) {
+    throw new Error("Veritabanı foreign key koruması beklenen duruma getirilemedi.");
+  }
+}
+
+async function assertNoForeignKeyViolations(database: SqlExecutor): Promise<void> {
+  const violation = await database.first<{ table: string }>("PRAGMA foreign_key_check;");
+  if (violation !== null) {
+    throw new Error("Migration foreign key bütünlüğünü bozuyor.");
+  }
 }
 
 async function readSchemaVersion(database: SqlExecutor): Promise<number> {
