@@ -4,7 +4,6 @@ const assert = require("node:assert/strict");
 const { DatabaseSync } = require("node:sqlite");
 
 import { DATABASE_MIGRATIONS, migrateDatabase, runMigrations } from "../src/storage/migrations";
-import { SCHEMA_VERSION } from "../src/storage/schemaText";
 import { type SqlDatabase, type SqlExecutor, type SqlPrimitive, type SqlRunResult } from "../src/storage/sql";
 
 class TestDatabase implements SqlDatabase {
@@ -83,10 +82,10 @@ test("v3 -> v4 ortaklık migrationı mevcut finans kaydını değiştirmez", asy
   assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 3), 3), 3);
   const before = await insertFarm(db, "a");
 
-  assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
-  assert.equal(SCHEMA_VERSION, 4);
+  assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 4), 4), 4);
   assert.equal(db.tableExists("farm_partners"), true);
   assert.equal(db.tableExists("transaction_partnerships"), true);
+  assert.equal(db.tableExists("debts"), false);
   assert.equal(
     (await db.first<{ amount_kurus: number }>("SELECT amount_kurus FROM transactions WHERE id=?", [before.transactionId]))?.amount_kurus,
     2000000
