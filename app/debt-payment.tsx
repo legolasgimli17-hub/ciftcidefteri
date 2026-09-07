@@ -78,6 +78,10 @@ export default function DebtPaymentScreen() {
       setError("Ödeme tarihini GG.AA.YYYY şeklinde kontrol et.");
       return;
     }
+    if (occurredOn < balance.debt.openedOn) {
+      setError("Ödeme tarihi borcu aldığın tarihten önce olamaz.");
+      return;
+    }
 
     let payment: ReturnType<typeof createDebtPayment>;
     try {
@@ -152,6 +156,7 @@ export default function DebtPaymentScreen() {
             onChangeText={setDateText}
             placeholder="GG.AA.YYYY"
             keyboardType="numbers-and-punctuation"
+            maxLength={10}
           />
           <Field
             label="Not"
