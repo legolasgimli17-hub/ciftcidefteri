@@ -23,6 +23,10 @@ checkConstantMirror(
   "DEBT_LEDGER_SQL",
   ["src/storage/migrations/0005_debt_ledger.sql"]
 );
+checkConstantMirror(
+  "BANK_MOVEMENTS_SQL",
+  ["src/storage/migrations/0006_manual_bank_movements.sql"]
+);
 
 if (failed) process.exit(1);
 console.log("Schema drift gate: başlangıç şeması ve migration SQL aynaları doğru.");
