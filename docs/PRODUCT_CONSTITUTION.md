@@ -70,6 +70,15 @@ OCR, açık bankacılık, destekleme otomasyonu, hava durumu ve AI Faz 2 kapsam�
 - Banka adı isteğe bağlıdır; hareket kaydetmek için gereksiz hesap numarası, IBAN veya banka bağlantısı istenmez.
 - Yanlış banka hareketi hard-delete edilmez; düzeltilebilir/geri alınabilir kaynak kayıt olarak tutulur.
 
+## Elindekiler kapısı
+- Kalan miktar elle tutulan ikinci bir sayı değildir; geçerli ekleme ve azaltma hareketlerinden deterministik olarak türetilir.
+- Miktar kayan nokta ile saklanmaz; seçilen birimin binde biri tam sayı olarak tutulur. 12,5 kg = 12.500 binde birlik birimdir.
+- Bir kayıt tek sabit birimle takip edilir. Uygulama Faz 2'de kg-ton veya başka birimler arasında otomatik dönüşüm yapmaz.
+- Miktar azaltma mevcut kalanı aşamaz. Yanlış veya bozuk veri negatif kalan üretecekse sonuç gösterilmez/yazılmaz.
+- Geçmiş bir ekleme hareketini silmek kalanı eksiye düşürecekse silme reddedilir; kaynak hareketler sessizce tutarsızlaştırılmaz.
+- Ürün/girdi miktar hareketleri para Defterine otomatik gelir-gider yazmaz ve kâr-zararı değiştirmez.
+- Kullanıcı dili “envanter mutasyonu” değil “Elindekiler”, “Miktar ekle”, “Miktar azalt”, “Kalan” gibi günlük Türkçe olmalıdır.
+
 ## Her ekran için kapı
 - İlk bakışta ne yapılacağı anlaşılmalı.
 - Teknik muhasebe jargonu kullanılmamalı.
@@ -98,4 +107,4 @@ OCR, açık bankacılık, destekleme otomasyonu, hava durumu ve AI Faz 2 kapsam�
 - Özet veya bakiye kaynağı bozuksa sistem sessizce yanlış finansal sonuç göstermez; fail-closed davranır.
 
 ## Ücretsiz kullanım
-Çekirdek çiftçi defteri para duvarına konmaz. Temel gelir-gider, ürün, ortaklık, borç, manuel banka hareketleri ve kâr-zarar takibi herkes için ücretsiz kalır.
+Çekirdek çiftçi defteri para duvarına konmaz. Temel gelir-gider, ürün, ortaklık, borç, manuel banka hareketleri, Elindekiler ve kâr-zarar takibi herkes için ücretsiz kalır.

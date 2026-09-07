@@ -9,7 +9,9 @@ export type LocalIdPrefix =
   | "debt"
   | "installment"
   | "debtpay"
-  | "bankmove";
+  | "bankmove"
+  | "stockitem"
+  | "stockmove";
 
 export function createLocalId(prefix: LocalIdPrefix): string {
   return `${prefix}-${Crypto.randomUUID()}`;
