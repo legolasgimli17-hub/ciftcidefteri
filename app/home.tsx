@@ -155,6 +155,11 @@ export default function HomeScreen() {
             <Text style={styles.incomeText}>Giren: {formatTry(snapshot!.summary.income)}</Text>
             <Text style={styles.expenseText}>Çıkan: {formatTry(snapshot!.summary.expense)}</Text>
           </View>
+          <SecondaryButton
+            label="Ürünlerin durumuna bak"
+            disabled={homeActionBusy}
+            onPress={() => router.push("/crop-profit")}
+          />
         </Card>
       ) : null}
 
