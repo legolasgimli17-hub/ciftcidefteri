@@ -53,7 +53,9 @@ assert.equal(
 );
 assert.equal(typeof xcodeUuid.v4, 'function', 'patched uuid must keep the v4 API used by xcode');
 
-const generatedXcodeId = xcode.project('/tmp/ciftci-defteri-ci.xcodeproj/project.pbxproj').generateUuid();
+const xcodeProject = xcode.project('/tmp/ciftci-defteri-ci.xcodeproj/project.pbxproj');
+xcodeProject.hash = { project: { objects: {} } };
+const generatedXcodeId = xcodeProject.generateUuid();
 assert.match(
   generatedXcodeId,
   /^[A-F0-9]{24}$/,
