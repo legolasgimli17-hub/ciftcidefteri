@@ -1,6 +1,7 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 const PACKAGE_NAME = "app.ciftcidefteri.mobile";
 const APK_PATH = process.env.PHASE1_APK_PATH ?? "android/app/build/outputs/apk/release/app-release.apk";
@@ -248,9 +249,19 @@ function assertEncryptedDatabase(files, mainDbHostPath) {
     }
   }
 
-  const sqlite = spawnSync("sqlite3", [mainDbHostPath, ".schema"], { encoding: "utf8" });
-  fs.writeFileSync(path.join(EVIDENCE_DIR, "plain-sqlite-attempt.txt"), `${sqlite.stdout ?? ""}\n${sqlite.stderr ?? ""}`);
-  if (sqlite.status === 0) fail("Ham finans DB'si normal sqlite3 ile okunabildi; SQLCipher kanıtı başarısız.");
+  let readableByPlainSqlite = false;
+  let plainSqliteResult = "";
+  try {
+    const plain = new DatabaseSync(mainDbHostPath, { readOnly: true });
+    const rows = plain.prepare("SELECT name FROM sqlite_master ORDER BY name LIMIT 5").all();
+    plainSqliteResult = JSON.stringify(rows);
+    plain.close();
+    readableByPlainSqlite = true;
+  } catch (error) {
+    plainSqliteResult = error instanceof Error ? error.message : String(error);
+  }
+  fs.writeFileSync(path.join(EVIDENCE_DIR, "plain-sqlite-attempt.txt"), `${plainSqliteResult}\n`);
+  if (readableByPlainSqlite) fail("Ham finans DB'si normal SQLite motoruyla okunabildi; SQLCipher kanıtı başarısız.");
 }
 
 function assertWrongKeyFailsClosed(oldMainDb) {
