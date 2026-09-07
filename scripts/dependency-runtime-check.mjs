@@ -39,4 +39,40 @@ const encoded = queryString.stringify({ urun: 'pamuk', not: '%' }, { sort: false
 assert.match(encoded, /urun=pamuk/);
 assert.match(encoded, /not=%25/);
 
-console.log('Dependency runtime check passed: query-string uses the safe CommonJS decoder bridge.');
+const xcodePath = rootRequire.resolve('xcode');
+const xcodeRequire = createRequire(xcodePath);
+const xcode = rootRequire('xcode');
+const xcodeUuidEntry = xcodeRequire.resolve('uuid');
+const xcodeUuid = xcodeRequire('uuid');
+const xcodeUuidManifest = findPackageManifest(xcodeUuidEntry, 'uuid');
+
+assert.equal(
+  xcodeUuidManifest.version,
+  '11.1.1',
+  'xcode must resolve the patched CommonJS-compatible uuid version',
+);
+assert.equal(typeof xcodeUuid.v4, 'function', 'patched uuid must keep the v4 API used by xcode');
+
+const generatedXcodeId = xcode.project('/tmp/ciftci-defteri-ci.xcodeproj/project.pbxproj').generateUuid();
+assert.match(
+  generatedXcodeId,
+  /^[A-F0-9]{24}$/,
+  'xcode generateUuid() must keep producing a 24-character uppercase project identifier',
+);
+
+console.log('Dependency runtime check passed: Router decoder and xcode UUID tooling use patched compatible paths.');
+
+function findPackageManifest(entryPath, expectedName) {
+  let current = path.dirname(entryPath);
+  while (true) {
+    const candidate = path.join(current, 'package.json');
+    if (fs.existsSync(candidate)) {
+      const manifest = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (manifest.name === expectedName) return manifest;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  throw new Error(`Could not locate package manifest for ${expectedName}.`);
+}
