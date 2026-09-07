@@ -20,6 +20,12 @@ export default function MoreScreen() {
         onPress={() => router.push("/bank-movements")}
       />
 
+      <ChoiceCard
+        label="Elindekiler"
+        caption="Ürün, gübre ve diğer girdilerden elinde ne kadar kaldığını gör."
+        onPress={() => router.push("/inventory")}
+      />
+
       <SecondaryButton label="Deftere dön" onPress={() => router.replace("/home")} />
     </Screen>
   );
