@@ -134,6 +134,10 @@ export default function HomeScreen() {
         <SecondaryButton label="Tüm defteri aç" onPress={() => router.push("/transactions")} />
       ) : null}
 
+      {snapshot ? (
+        <SecondaryButton label="Daha" onPress={() => router.push("/more")} />
+      ) : null}
+
       {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
     </Screen>
   );
