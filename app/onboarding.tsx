@@ -81,7 +81,7 @@ export default function OnboardingScreen() {
         farmName: "Benim Çiftliğim",
         nowIso: new Date().toISOString()
       });
-      router.replace("/home");
+      router.replace("/app-lock?from=onboarding");
     } catch {
       setError("Bilgilerini şu an kaydedemedik. Tekrar dene.");
     } finally {

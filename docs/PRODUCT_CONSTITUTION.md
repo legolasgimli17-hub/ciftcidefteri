@@ -19,7 +19,7 @@ Türkiye'deki çiftçinin tarihli gelir-gider defterini, ürün maliyetini, orta
 ## Faz 2 gerçek kullanıcı / release kapısı — P0
 Faz 2 çekirdek finans özellikleri geliştirilmiş olsa bile aşağıdaki dört madde tamamlanmadan uygulama gerçek kullanıcıya veya mağaza/release adayı olarak verilmez:
 1. Şifreli manuel yedekleme / dışa aktarma ve güvenli geri yükleme
-2. İsteğe bağlı uygulama kilidi: PIN ve cihaz destekliyorsa biyometrik açma
+2. İsteğe bağlı uygulama kilidi: en az PIN ile açma; biyometrik açma zorunlu değildir
 3. Gizlilik kontrollü crash reporting: finansal içerik, isim, not ve sırlar telemetriye gitmez
 4. Düşük/orta segment gerçek Android cihazda fiziksel kabul testi
 
@@ -33,6 +33,15 @@ P0, daha önce tamamlanmış Faz 2 kodunu geri aldırmaz; bundan sonraki gerçek
 - Geri yükleme atomiktir: ya bütün kaynak kayıtlar doğrulanıp birlikte geri gelir ya da mevcut veri değiştirilmez.
 - Uygulamadan daha yeni bir yedek sessizce açılmaz; kullanıcıya güvenli biçimde daha yeni uygulama gerektiği söylenir.
 - Açık metin CSV dışa aktarma ileride eklenirse varsayılan olamaz ve finans verisinin korunmayacağı açıkça anlatılmalıdır.
+
+### Uygulama kilidi güvenlik kapısı
+- Uygulama kilidi isteğe bağlıdır; ilk kurulum sonunda açıkça önerilebilir ama kullanıcı “Şimdi değil” ile geçebilir.
+- Kilit açıksa finansal ekranlar ve yerel veritabanı açılmadan önce PIN doğrulaması yapılır.
+- Ham PIN saklanmaz. SecureStore içinde yalnız rastgele tuz, PIN doğrulayıcı ve deneme sınırı bilgisi tutulur.
+- Yanlış PIN denemeleri kalıcı sayaçla sınırlandırılır; tekrar tekrar uygulamayı kapatıp açmak bekleme süresini sıfırlamaz.
+- Uygulama arka plana gittiğinde tekrar kilitlenir.
+- Kilidi kapatmak doğru mevcut PIN'i gerektirir; uygulama içinde PIN'i atlayan gizli bir yol bulunmaz.
+- Uygulama kilidi SQLCipher anahtarının yaşam döngüsünü değiştirmez; PIN unutulması veritabanı anahtarını yeniden üretmez veya finans verisini sessizce silmez.
 
 ## Faz 2 sınırı — finansal derinlik
 Faz 2 firstprompt sırasını korur ve üç katmanda ilerler:

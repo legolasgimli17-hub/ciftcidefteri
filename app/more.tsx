@@ -15,6 +15,12 @@ export default function MoreScreen() {
       />
 
       <ChoiceCard
+        label="Uygulama kilidi"
+        caption="Telefon açık kalsa bile defterini 6 haneli PIN ile koru."
+        onPress={() => router.push("/app-lock")}
+      />
+
+      <ChoiceCard
         label="Borçlar"
         caption="Ne kadar borcun kaldığını ve sıradaki ödemenin tarihini gör."
         onPress={() => router.push("/debts")}

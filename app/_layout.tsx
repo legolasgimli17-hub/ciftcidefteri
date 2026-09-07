@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { AppLockGate } from "@/src/mobile/AppLockGate";
 import { DATABASE_NAME, initializeDatabase } from "@/src/mobile/database";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
@@ -41,29 +42,31 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      {databaseError ? (
-        <RecoveryScreen
-          title="Defter açılamadı"
-          message="Kayıtlarını silmeden yeniden deneyebilirsin."
-          onRetry={retryDatabase}
-        />
-      ) : (
-        <SQLiteProvider
-          key={`database-provider-${providerKey}`}
-          databaseName={DATABASE_NAME}
-          onInit={initializeDatabase}
-          onError={() => setDatabaseError(true)}
-        >
-          <StatusBar style="dark" />
-          <Stack
-            unstable_screenErrorBoundary={ScreenErrorBoundary}
-            screenOptions={{
-              headerShown: false,
-              animation: "fade"
-            }}
+      <StatusBar style="dark" />
+      <AppLockGate>
+        {databaseError ? (
+          <RecoveryScreen
+            title="Defter açılamadı"
+            message="Kayıtlarını silmeden yeniden deneyebilirsin."
+            onRetry={retryDatabase}
           />
-        </SQLiteProvider>
-      )}
+        ) : (
+          <SQLiteProvider
+            key={`database-provider-${providerKey}`}
+            databaseName={DATABASE_NAME}
+            onInit={initializeDatabase}
+            onError={() => setDatabaseError(true)}
+          >
+            <Stack
+              unstable_screenErrorBoundary={ScreenErrorBoundary}
+              screenOptions={{
+                headerShown: false,
+                animation: "fade"
+              }}
+            />
+          </SQLiteProvider>
+        )}
+      </AppLockGate>
     </SafeAreaProvider>
   );
 }
