@@ -4,10 +4,12 @@ import { useCallback, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { createExclusiveActionGate } from "@/src/application/exclusiveActionGate";
+import { createHistoryPageNavigation } from "@/src/application/historyPageNavigation";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import {
   LocalTransactionHistory,
-  type TransactionHistoryCursor
+  type TransactionHistoryCursor,
+  type TransactionHistoryPage
 } from "@/src/application/transactionHistory";
 import { LocalTransactionCorrections } from "@/src/application/transactionCorrections";
 import { formatTry } from "@/src/domain/money";
@@ -23,68 +25,117 @@ const PAGE_SIZE = 20;
 export default function TransactionsScreen() {
   const sqlite = useSQLiteContext();
   const actionGateRef = useRef(createExclusiveActionGate());
+  const pageNavigationRef = useRef(createHistoryPageNavigation());
   const [identity, setIdentity] = useState<FarmIdentity | null>(null);
   const [items, setItems] = useState<readonly FarmTransaction[]>([]);
   const [nextCursor, setNextCursor] = useState<TransactionHistoryCursor>();
+  const [canGoNewer, setCanGoNewer] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [paging, setPaging] = useState(false);
   const [error, setError] = useState<string>();
   const [lastDeleted, setLastDeleted] = useState<FarmTransaction | null>(null);
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
 
-  const loadFirstPage = useCallback(async () => {
+  const readPage = useCallback(async (
+    farmId: string,
+    cursor: TransactionHistoryCursor | undefined
+  ): Promise<TransactionHistoryPage> => {
+    const history = new LocalTransactionHistory(mobileDatabase(sqlite));
+    return cursor === undefined
+      ? await history.page({ farmId, limit: PAGE_SIZE })
+      : await history.page({ farmId, cursor, limit: PAGE_SIZE });
+  }, [sqlite]);
+
+  const readVisiblePage = useCallback(async (farmId: string): Promise<TransactionHistoryPage> => {
+    let page = await readPage(farmId, pageNavigationRef.current.currentStart());
+
+    while (page.items.length === 0 && pageNavigationRef.current.canGoNewer()) {
+      pageNavigationRef.current.moveNewer();
+      page = await readPage(farmId, pageNavigationRef.current.currentStart());
+    }
+
+    setCanGoNewer(pageNavigationRef.current.canGoNewer());
+    return page;
+  }, [readPage]);
+
+  const applyPage = (page: TransactionHistoryPage) => {
+    setItems(page.items);
+    setNextCursor(page.nextCursor);
+  };
+
+  const loadCurrentPage = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
       const db = mobileDatabase(sqlite);
       const loadedIdentity = await loadFarmIdentity(db);
       if (loadedIdentity === null) {
+        pageNavigationRef.current.reset();
+        setCanGoNewer(false);
         setIdentity(null);
         setItems([]);
         setNextCursor(undefined);
         router.replace("/onboarding");
         return;
       }
-      const page = await new LocalTransactionHistory(db).page({
-        farmId: loadedIdentity.farmId,
-        limit: PAGE_SIZE
-      });
+      const page = await readVisiblePage(loadedIdentity.farmId);
       setIdentity(loadedIdentity);
-      setItems(page.items);
-      setNextCursor(page.nextCursor);
+      applyPage(page);
     } catch {
       setError("Kayıtlarını şu an açamadık. Defterindeki bilgiler silinmedi.");
     } finally {
       setLoading(false);
     }
-  }, [sqlite]);
+  }, [readVisiblePage, sqlite]);
 
   useFocusEffect(useCallback(() => {
-    void loadFirstPage();
-  }, [loadFirstPage]));
+    void loadCurrentPage();
+  }, [loadCurrentPage]));
 
   const finishAction = (key: string) => {
     actionGateRef.current.finish(key);
     setPendingActionKey((current) => current === key ? null : current);
   };
 
-  const loadMore = async () => {
-    if (identity === null || nextCursor === undefined || loadingMore || actionGateRef.current.isBusy()) return;
-    setLoadingMore(true);
+  const showOlder = async () => {
+    if (identity === null || nextCursor === undefined || paging || actionGateRef.current.isBusy()) return;
+
+    pageNavigationRef.current.moveOlder(nextCursor);
+    setCanGoNewer(true);
+    setPaging(true);
     setError(undefined);
     try {
-      const page = await new LocalTransactionHistory(mobileDatabase(sqlite)).page({
-        farmId: identity.farmId,
-        cursor: nextCursor,
-        limit: PAGE_SIZE
-      });
-      setItems((current) => [...current, ...page.items]);
-      setNextCursor(page.nextCursor);
+      applyPage(await readVisiblePage(identity.farmId));
     } catch {
+      pageNavigationRef.current.moveNewer();
+      setCanGoNewer(pageNavigationRef.current.canGoNewer());
       setError("Daha eski kayıtları açamadık. Tekrar deneyebilirsin.");
     } finally {
-      setLoadingMore(false);
+      setPaging(false);
     }
+  };
+
+  const showNewer = async () => {
+    if (identity === null || !pageNavigationRef.current.canGoNewer() || paging || actionGateRef.current.isBusy()) return;
+
+    const oldStart = pageNavigationRef.current.currentStart();
+    pageNavigationRef.current.moveNewer();
+    setCanGoNewer(pageNavigationRef.current.canGoNewer());
+    setPaging(true);
+    setError(undefined);
+    try {
+      applyPage(await readVisiblePage(identity.farmId));
+    } catch {
+      if (oldStart !== undefined) pageNavigationRef.current.moveOlder(oldStart);
+      setCanGoNewer(pageNavigationRef.current.canGoNewer());
+      setError("Daha yeni kayıtları açamadık. Tekrar deneyebilirsin.");
+    } finally {
+      setPaging(false);
+    }
+  };
+
+  const reloadAfterCorrection = async (farmId: string) => {
+    applyPage(await readVisiblePage(farmId));
   };
 
   const deleteTransaction = async (item: FarmTransaction, farmId: string, actionKey: string) => {
@@ -100,7 +151,7 @@ export default function TransactionsScreen() {
         return;
       }
       setLastDeleted(item);
-      await loadFirstPage();
+      await reloadAfterCorrection(farmId);
     } catch {
       setError("Kaydı silemedik. Diğer kayıtların güvende.");
     } finally {
@@ -156,7 +207,7 @@ export default function TransactionsScreen() {
         return;
       }
       setLastDeleted(null);
-      await loadFirstPage();
+      await reloadAfterCorrection(identity.farmId);
     } catch {
       setError("Kaydı geri alamadık. Diğer kayıtların güvende.");
     } finally {
@@ -165,11 +216,12 @@ export default function TransactionsScreen() {
   };
 
   const editTransaction = (item: FarmTransaction) => {
-    if (actionGateRef.current.isBusy()) return;
-    router.push({ pathname: "/transaction-edit", params: { id: item.id } });
+    if (actionGateRef.current.isBusy() || paging) return;
+    router.push({ pathname: "/transaction-edit", params: { id: item.id, returnTo: "transactions" } });
   };
 
   const busy = pendingActionKey !== null;
+  const navigationBusy = busy || paging;
 
   return (
     <Screen>
@@ -177,7 +229,7 @@ export default function TransactionsScreen() {
         Tüm kayıtlar
       </PageTitle>
 
-      <SecondaryButton label="Ana sayfaya dön" disabled={busy} onPress={() => router.replace("/home")} />
+      <SecondaryButton label="Ana sayfaya dön" disabled={navigationBusy} onPress={() => router.replace("/home")} />
 
       {lastDeleted !== null ? (
         <Card>
@@ -185,10 +237,18 @@ export default function TransactionsScreen() {
           <Text style={styles.muted}>{lastDeleted.category} · {formatTry(lastDeleted.amountKurus)}</Text>
           <SecondaryButton
             label={pendingActionKey?.startsWith("restore:") ? "Geri alınıyor…" : "Geri al"}
-            disabled={busy}
+            disabled={navigationBusy}
             onPress={() => void restoreLastDeleted()}
           />
         </Card>
+      ) : null}
+
+      {canGoNewer ? (
+        <SecondaryButton
+          label={paging ? "Açılıyor…" : "Daha yeni kayıtları göster"}
+          disabled={navigationBusy}
+          onPress={() => void showNewer()}
+        />
       ) : null}
 
       {loading && items.length === 0 ? <Text style={styles.muted}>Kayıtların hazırlanıyor…</Text> : null}
@@ -218,22 +278,22 @@ export default function TransactionsScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${item.category} kaydını düzelt`}
-                      accessibilityState={{ disabled: busy }}
-                      disabled={busy}
+                      accessibilityState={{ disabled: navigationBusy }}
+                      disabled={navigationBusy}
                       hitSlop={4}
                       onPress={() => editTransaction(item)}
-                      style={[styles.actionButton, busy && styles.actionDisabled]}
+                      style={[styles.actionButton, navigationBusy && styles.actionDisabled]}
                     >
                       <Text style={styles.editText}>Düzelt</Text>
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={deletingThis ? `${item.category} kaydı siliniyor` : `${item.category} kaydını sil`}
-                      accessibilityState={{ disabled: busy }}
-                      disabled={busy}
+                      accessibilityState={{ disabled: navigationBusy }}
+                      disabled={navigationBusy}
                       hitSlop={4}
                       onPress={() => askDelete(item)}
-                      style={[styles.actionButton, busy && styles.actionDisabled]}
+                      style={[styles.actionButton, navigationBusy && styles.actionDisabled]}
                     >
                       <Text style={styles.deleteText}>{deletingThis ? "Siliniyor…" : "Sil"}</Text>
                     </Pressable>
@@ -247,9 +307,9 @@ export default function TransactionsScreen() {
 
       {nextCursor !== undefined ? (
         <SecondaryButton
-          label={loadingMore ? "Açılıyor…" : "Daha fazla göster"}
-          disabled={loadingMore || busy}
-          onPress={() => void loadMore()}
+          label={paging ? "Açılıyor…" : "Daha eski kayıtları göster"}
+          disabled={navigationBusy}
+          onPress={() => void showOlder()}
         />
       ) : null}
 
