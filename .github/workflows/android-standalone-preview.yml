@@ -1,0 +1,65 @@
+name: android-standalone-preview
+
+on:
+  push:
+    branches:
+      - ci/standalone-preview-apk
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-standalone-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CI: true
+      NODE_ENV: production
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install exact locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify Expo dependency compatibility
+        run: npx expo install --check
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --clean --no-install
+      - name: Verify generated Android security policy
+        run: node scripts/verify-android-prebuild.mjs
+      - name: Build standalone release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+      - name: Verify standalone APK
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          MANIFEST="$(find android/app/build/intermediates -path '*release*' -name AndroidManifest.xml | grep -E 'merged|packaged' | head -n 1 || true)"
+          if [ -n "$MANIFEST" ] && grep -qi 'devlauncher\|devmenu' "$MANIFEST"; then
+            echo "Development launcher/menu leaked into release manifest"
+            exit 1
+          fi
+          ls -lh "$APK"
+      - name: Upload standalone APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ciftci-defteri-standalone-preview
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 3
