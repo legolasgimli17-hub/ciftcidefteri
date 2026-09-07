@@ -22,6 +22,7 @@
     "schema:drift": "node scripts/schema-drift-check.mjs"
   },
   "dependencies": {
+    "@sentry/react-native": "8.18.0",
     "decode-uri-component": "file:vendor/decode-uri-component-bridge",
     "decode-uri-component-safe": "npm:decode-uri-component@0.5.0",
     "expo": "~57.0.17",
