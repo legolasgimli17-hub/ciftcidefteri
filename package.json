@@ -15,8 +15,9 @@
     "security:static": "node scripts/static-security-check.mjs",
     "security:mobile-config": "node scripts/mobile-security-config-check.mjs",
     "security:dependencies": "node scripts/dependency-runtime-check.mjs",
+    "security:crash-privacy": "node scripts/crash-privacy-check.mjs",
     "ux:language": "node scripts/ux-language-check.mjs",
-    "check:core": "npm run typecheck:core && npm test && npm run schema:drift && npm run security:static && npm run security:mobile-config && npm run security:dependencies && npm run ux:language",
+    "check:core": "npm run typecheck:core && npm test && npm run schema:drift && npm run security:static && npm run security:mobile-config && npm run security:dependencies && npm run security:crash-privacy && npm run ux:language",
     "check": "npm run check:core",
     "ci:deps": "npm audit --audit-level=high",
     "schema:drift": "node scripts/schema-drift-check.mjs"
