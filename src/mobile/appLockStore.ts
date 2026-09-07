@@ -84,11 +84,14 @@ export async function verifyAppLockPin(
   return { status: "invalid", failedAttempts, blockedUntilMs };
 }
 
-export async function disableAppLock(pinInput: string, nowMs: number = Date.now()): Promise<boolean> {
+export async function disableAppLock(
+  pinInput: string,
+  nowMs: number = Date.now()
+): Promise<AppLockVerificationResult> {
   const result = await verifyAppLockPin(pinInput, nowMs);
-  if (result.status !== "ok") return false;
+  if (result.status !== "ok") return result;
   await SecureStore.deleteItemAsync(APP_LOCK_KEY, SECURE_STORE_OPTIONS);
-  return true;
+  return result;
 }
 
 async function readRecord(): Promise<AppLockRecord | null> {
