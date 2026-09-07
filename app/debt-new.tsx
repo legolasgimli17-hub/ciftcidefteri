@@ -123,6 +123,10 @@ export default function DebtNewScreen() {
         setError(`${index + 1}. ödeme tarihini GG.AA.YYYY şeklinde kontrol et.`);
         return;
       }
+      if (dueOn < openedOn) {
+        setError(`${index + 1}. ödeme tarihi borcu aldığın tarihten önce olamaz.`);
+        return;
+      }
 
       let amountKurus: MoneyKurus;
       if (installments.length === 1 && item.amountText.trim().length === 0) {
@@ -193,6 +197,7 @@ export default function DebtNewScreen() {
         onChangeText={setCreditorName}
         placeholder={sourceKind.startsWith("coop_") ? "Tarım Kredi Kooperatifi" : "Örnek: Ziraat Bankası"}
         autoCapitalize="words"
+        maxLength={100}
       />
 
       {sourceKind === "coop_in_kind" ? (
@@ -201,6 +206,7 @@ export default function DebtNewScreen() {
           value={inKindDescription}
           onChangeText={setInKindDescription}
           placeholder="Örnek: 20 torba gübre"
+          maxLength={120}
         />
       ) : null}
 
@@ -218,6 +224,7 @@ export default function DebtNewScreen() {
         onChangeText={setOpenedText}
         placeholder="GG.AA.YYYY"
         keyboardType="numbers-and-punctuation"
+        maxLength={10}
       />
 
       <SectionTitle detail={`${installments.length} ödeme`}>Ödeme planı</SectionTitle>
@@ -234,6 +241,7 @@ export default function DebtNewScreen() {
             onChangeText={(dueText) => updateInstallment(item.key, { dueText })}
             placeholder="GG.AA.YYYY"
             keyboardType="numbers-and-punctuation"
+            maxLength={10}
           />
           <Field
             label="Tutar"
@@ -269,6 +277,7 @@ export default function DebtNewScreen() {
         onChangeText={setNote}
         placeholder="Kısa bir not"
         multiline
+        maxLength={240}
       />
 
       <ErrorNote message={error} />
