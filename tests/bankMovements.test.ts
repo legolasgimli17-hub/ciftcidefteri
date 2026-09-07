@@ -103,8 +103,9 @@ test("banka geçmişi tarihe göre sayfalanır ve cursor kayıt atlamaz", async 
   const first = await bank.page({ farmId: FARM_ID, limit: 1 });
   assert.equal(first.items.length, 1);
   assert.equal(first.items[0]?.id, "bankmove-1002");
-  assert.ok(first.nextCursor);
-  const second = await bank.page({ farmId: FARM_ID, limit: 1, cursor: first.nextCursor });
+  const cursor = first.nextCursor;
+  if (cursor === undefined) throw new Error("İkinci banka sayfası için cursor oluşmalı.");
+  const second = await bank.page({ farmId: FARM_ID, limit: 1, cursor });
   assert.equal(second.items.length, 1);
   assert.equal(second.items[0]?.id, "bankmove-1001");
   assert.equal(second.nextCursor, undefined);
