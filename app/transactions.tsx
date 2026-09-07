@@ -177,7 +177,7 @@ export default function TransactionsScreen() {
         Tüm kayıtlar
       </PageTitle>
 
-      <SecondaryButton label="Ana sayfaya dön" disabled={busy} onPress={() => router.back()} />
+      <SecondaryButton label="Ana sayfaya dön" disabled={busy} onPress={() => router.replace("/home")} />
 
       {lastDeleted !== null ? (
         <Card>
