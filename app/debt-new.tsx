@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { LocalDebtRepository } from "@/src/application/localDebtRepository";
 import {
@@ -194,7 +194,7 @@ export default function DebtNewScreen() {
           />
           <Field
             label="Tutar"
-            hint={installments.length === 1 ? "Boş bırakabilirsin" : undefined}
+            {...(installments.length === 1 ? { hint: "Boş bırakabilirsin" } : {})}
             value={item.amountText}
             onChangeText={(amountText) => updateInstallment(item.key, { amountText })}
             placeholder={installments.length === 1 ? "Toplam borç alınır" : "Örnek: 25.000"}
