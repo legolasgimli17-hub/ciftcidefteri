@@ -15,7 +15,6 @@ test("onboarding Android geri tuşu wizard içinde önceki adıma döner", () =>
   assert.equal(previousOnboardingStep("place"), "phone");
   assert.equal(previousOnboardingStep("area"), "place");
   assert.equal(previousOnboardingStep("crops"), "area");
-  assert.equal(previousOnboardingStep("cks"), "crops");
 });
 
 test("yeni kayıt Android geri tuşu wizard içinde önceki adıma döner", () => {

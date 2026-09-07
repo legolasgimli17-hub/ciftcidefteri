@@ -1,8 +1,8 @@
-export type OnboardingStep = "welcome" | "name" | "phone" | "place" | "area" | "crops" | "cks";
+export type OnboardingStep = "welcome" | "name" | "phone" | "place" | "area" | "crops";
 export type CreateTransactionStep = "amount" | "crop" | "category" | "done";
 export type EditTransactionStep = "details" | "scope" | "category" | "done";
 
-export type OnboardingBackAction = "exit" | Exclude<OnboardingStep, "cks">;
+export type OnboardingBackAction = "exit" | OnboardingStep;
 export type CreateBackAction = "exit" | "amount" | "crop" | "home";
 export type EditBackAction = "exit" | "details" | "scope" | "home";
 
@@ -14,7 +14,6 @@ export function previousOnboardingStep(step: OnboardingStep): OnboardingBackActi
     case "place": return "phone";
     case "area": return "place";
     case "crops": return "area";
-    case "cks": return "crops";
   }
 }
 

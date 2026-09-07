@@ -44,7 +44,7 @@ export default function OnboardingScreen() {
   const savingRef = useRef(false);
 
   const stepNumber = useMemo(() => {
-    const sequence: Step[] = ["name", "phone", "place", "area", "crops", "cks"];
+    const sequence: Step[] = ["name", "phone", "place", "area", "crops"];
     const index = sequence.indexOf(step);
     return index >= 0 ? `${index + 1}/${sequence.length}` : undefined;
   }, [step]);
@@ -66,7 +66,7 @@ export default function OnboardingScreen() {
     return () => subscription.remove();
   }, [step]));
 
-  const finish = async (isCksRegistered?: boolean) => {
+  const finish = async () => {
     if (savingRef.current) return;
     setError(undefined);
 
@@ -74,7 +74,7 @@ export default function OnboardingScreen() {
     try {
       profile = buildProfileFromOnboarding({
         id: createLocalId("profile"),
-        draft: { ...draft, ...(isCksRegistered === undefined ? {} : { isCksRegistered }) }
+        draft
       });
     } catch {
       setError("Bilgilerini kontrol et. Eksik veya hatalı bir alan var.");
@@ -150,7 +150,7 @@ export default function OnboardingScreen() {
 
       {step === "place" ? (
         <>
-          <PageTitle hint="Ürün ve dönem önerilerini sana göre göstermek için.">Nerede üretim yapıyorsun?</PageTitle>
+          <PageTitle hint="Üretim yerini defterinde tutmak için.">Nerede üretim yapıyorsun?</PageTitle>
           <Field label="İl" value={draft.province} onChangeText={(province: string) => setDraft({ ...draft, province })} placeholder="Diyarbakır" />
           <Field label="İlçe" value={draft.district} onChangeText={(district: string) => setDraft({ ...draft, district })} placeholder="Bismil" />
           <Field label="Köy / mahalle" value={draft.village} onChangeText={(village: string) => setDraft({ ...draft, village })} placeholder="Köy veya mahalle" />
@@ -195,17 +195,12 @@ export default function OnboardingScreen() {
             />
           ))}
           <ErrorNote message={error} />
-          <BigButton label="Devam" icon="→" onPress={() => draft.cropCodes.length > 0 ? next("cks") : setError("En az bir ürün seç.")} />
-        </>
-      ) : null}
-
-      {step === "cks" ? (
-        <>
-          <PageTitle hint="Bilmiyorsan geçebilirsin.">ÇKS kaydın var mı?</PageTitle>
-          <BigButton label="Evet, var" icon="✓" onPress={() => void finish(true)} disabled={saving} />
-          <BigButton label="Hayır" icon="×" kind="neutral" onPress={() => void finish(false)} disabled={saving} />
-          <BigButton label="Bilmiyorum / geç" icon="→" kind="neutral" onPress={() => void finish()} disabled={saving} />
-          <ErrorNote message={error} />
+          <BigButton
+            label={saving ? "Defter hazırlanıyor…" : "Defteri aç"}
+            icon="→"
+            disabled={saving}
+            onPress={() => draft.cropCodes.length > 0 ? void finish() : setError("En az bir ürün seç.")}
+          />
         </>
       ) : null}
 
