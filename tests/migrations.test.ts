@@ -163,14 +163,18 @@ test("FK-safe rebuild parent tabloyu child kayıt kaybetmeden değiştirir", asy
 
   assert.equal(await runMigrations(db, [v1, v2], 2), 2);
   assert.equal(db.foreignKeysEnabled(), true);
-  assert.deepEqual(
-    await db.first<{ id: string; phone: string | null }>("SELECT id, phone FROM parent_record WHERE id='parent-1'"),
-    { id: "parent-1", phone: "+905321234567" }
+
+  const parent = await db.first<{ id: string; phone: string | null }>(
+    "SELECT id, phone FROM parent_record WHERE id='parent-1'"
   );
-  assert.deepEqual(
-    await db.first<{ id: string; parent_id: string }>("SELECT id, parent_id FROM child_record WHERE id='child-1'"),
-    { id: "child-1", parent_id: "parent-1" }
+  assert.equal(parent?.id, "parent-1");
+  assert.equal(parent?.phone, "+905321234567");
+
+  const child = await db.first<{ id: string; parent_id: string }>(
+    "SELECT id, parent_id FROM child_record WHERE id='child-1'"
   );
+  assert.equal(child?.id, "child-1");
+  assert.equal(child?.parent_id, "parent-1");
   db.close();
 });
 
@@ -202,13 +206,13 @@ test("FK ihlali yapan rebuild rollback olur, sürüm ve FK koruması geri gelir"
 
   await assert.rejects(() => runMigrations(db, [v1, brokenV2], 2), /foreign key bütünlüğünü bozuyor/);
   assert.equal(db.foreignKeysEnabled(), true);
-  assert.deepEqual(
-    await db.first<{ id: string }>("SELECT id FROM parent_record WHERE id='parent-1'"),
-    { id: "parent-1" }
+
+  const parent = await db.first<{ id: string }>("SELECT id FROM parent_record WHERE id='parent-1'");
+  assert.equal(parent?.id, "parent-1");
+
+  const version = await db.first<{ value: string }>(
+    "SELECT value FROM app_meta WHERE key='schema_version'"
   );
-  assert.deepEqual(
-    await db.first<{ value: string }>("SELECT value FROM app_meta WHERE key='schema_version'"),
-    { value: "1" }
-  );
+  assert.equal(version?.value, "1");
   db.close();
 });
