@@ -278,10 +278,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 18
   },
-  secondaryButtonText: { color: theme.color.text, fontSize: 16, fontWeight: "850" },
+  secondaryButtonText: { color: theme.color.text, fontSize: 16, fontWeight: "800" },
   fieldWrap: { gap: 8 },
   fieldLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  fieldLabel: { color: theme.color.text, fontSize: 15, fontWeight: "850" },
+  fieldLabel: { color: theme.color.text, fontSize: 15, fontWeight: "800" },
   fieldHint: { color: theme.color.textSubtle, fontSize: 12, fontWeight: "700" },
   field: {
     minHeight: 56,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
     paddingHorizontal: 16,
     fontSize: 18,
-    fontWeight: "650",
+    fontWeight: "600",
     color: theme.color.text
   },
   choice: {
@@ -319,8 +319,8 @@ const styles = StyleSheet.create({
   },
   choiceIcon: { fontSize: 22 },
   choiceCopy: { flex: 1, gap: 3 },
-  choiceText: { fontSize: 17, color: theme.color.text, fontWeight: "850", flexShrink: 1 },
-  choiceCaption: { fontSize: 13, color: theme.color.textMuted, fontWeight: "650", lineHeight: 18 },
+  choiceText: { fontSize: 17, color: theme.color.text, fontWeight: "800", flexShrink: 1 },
+  choiceCaption: { fontSize: 13, color: theme.color.textMuted, fontWeight: "600", lineHeight: 18 },
   choiceIndicator: {
     width: 22,
     height: 22,
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   pillIncome: { backgroundColor: theme.color.incomeSoft },
   pillExpense: { backgroundColor: theme.color.expenseSoft },
   pillWarning: { backgroundColor: theme.color.warningSoft },
-  pillText: { color: theme.color.textMuted, fontSize: 12, fontWeight: "850" },
+  pillText: { color: theme.color.textMuted, fontSize: 12, fontWeight: "800" },
   pillIncomeText: { color: theme.color.income },
   pillExpenseText: { color: theme.color.expense },
   pillWarningText: { color: theme.color.warning },
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: theme.color.expenseSoft
   },
-  error: { color: theme.color.expense, fontSize: 15, fontWeight: "750", lineHeight: 21 },
+  error: { color: theme.color.expense, fontSize: 15, fontWeight: "700", lineHeight: 21 },
   card: {
     backgroundColor: theme.color.surface,
     borderRadius: theme.radius.lg,
