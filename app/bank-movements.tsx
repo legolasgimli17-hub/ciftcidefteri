@@ -30,7 +30,7 @@ export default function BankMovementsScreen() {
   const [lastDeleted, setLastDeleted] = useState<BankMovement | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  const currentStartRef = useRef<BankMovementCursor>();
+  const currentStartRef = useRef<BankMovementCursor | undefined>(undefined);
   const newerStartsRef = useRef<Array<BankMovementCursor | undefined>>([]);
 
   const readPage = useCallback(async (
