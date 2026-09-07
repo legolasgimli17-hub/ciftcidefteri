@@ -8,6 +8,7 @@ const SAFE_TAG_KEYS = new Set([
 ]);
 
 const SAFE_CONTEXTS = new Set(["app", "device", "os"]);
+const SAFE_STACK_FRAME_KEYS = ["filename", "function", "module", "package", "lineno", "colno", "in_app"] as const;
 
 export function sanitizeCrashEvent<T extends CrashEventRecord>(input: T): T {
   const event: CrashEventRecord = { ...input };
@@ -19,6 +20,11 @@ export function sanitizeCrashEvent<T extends CrashEventRecord>(input: T): T {
   delete event.transaction;
   delete event.fingerprint;
   delete event.server_name;
+  delete event.logentry;
+  delete event.logger;
+  delete event.culprit;
+  delete event.spans;
+  delete event.sdkProcessingMetadata;
 
   if (typeof event.message === "string") {
     event.message = "[redacted]";
@@ -55,6 +61,10 @@ export function sanitizeCrashEvent<T extends CrashEventRecord>(input: T): T {
     };
   }
 
+  if (isRecord(event.stacktrace)) {
+    event.stacktrace = sanitizeStacktrace(event.stacktrace);
+  }
+
   return event as T;
 }
 
@@ -74,7 +84,20 @@ function sanitizeExceptionValue(value: unknown): unknown {
       type: typeof sanitized.mechanism.type === "string" ? sanitized.mechanism.type : undefined
     };
   }
+  if (isRecord(sanitized.stacktrace)) {
+    sanitized.stacktrace = sanitizeStacktrace(sanitized.stacktrace);
+  }
   return sanitized;
+}
+
+function sanitizeStacktrace(value: CrashEventRecord): CrashEventRecord {
+  if (!Array.isArray(value.frames)) return {};
+  return {
+    frames: value.frames.map((frame) => {
+      if (!isRecord(frame)) return {};
+      return pickPrimitives(frame, SAFE_STACK_FRAME_KEYS);
+    })
+  };
 }
 
 function sanitizeSafeContext(kind: string, value: CrashEventRecord): CrashEventRecord {
