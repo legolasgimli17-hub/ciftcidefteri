@@ -5,22 +5,13 @@ import { BackHandler, StyleSheet, Text, View } from "react-native";
 import { buildProfileFromOnboarding, toggleCrop, type OnboardingDraft } from "@/src/application/onboardingDraft";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import { previousOnboardingStep, type OnboardingStep } from "@/src/application/wizardBack";
-import { cropCodes, cropTemplates, type CropCode } from "@/src/domain/crops";
+import { cropCodes, cropTemplates } from "@/src/domain/crops";
 import { squareMetersFromUserInput } from "@/src/domain/landArea";
 import { mobileDatabase } from "@/src/mobile/database";
 import { createLocalId } from "@/src/mobile/id";
 import { BigButton, ChoiceCard, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
+import { CropArtwork } from "@/src/ui/cropArtwork";
 import { theme } from "@/src/ui/theme";
-
-const cropIcons: Record<CropCode, string> = {
-  cotton: "☁️",
-  corn: "🌽",
-  wheat: "🌾",
-  hazelnut: "🌰",
-  tobacco: "🍃",
-  vegetable: "🍅",
-  other: "➕"
-};
 
 type Step = OnboardingStep;
 
@@ -104,12 +95,20 @@ export default function OnboardingScreen() {
       {stepNumber ? <Text style={styles.step}>{stepNumber}</Text> : null}
       {step === "welcome" ? (
         <>
-          <PageTitle hint="Ne kadar kazandığını, ne harcadığını ve elinde ne kaldığını kolayca gör.">
+          <PageTitle hint="Giderini, ürününü ve elinde kalanı tek defterde net gör.">
             Çiftçi Defteri
           </PageTitle>
           <View style={styles.hero}>
-            <Text style={styles.heroIcon}>🌱</Text>
-            <Text style={styles.heroText}>İnternet olmasa da kayıtların sende kalır.</Text>
+            <View style={styles.heroVisuals}>
+              <CropArtwork cropCode="cotton" />
+              <CropArtwork cropCode="corn" />
+              <CropArtwork cropCode="vegetable" />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroEyebrow}>SAHADA ÇALIŞIR</Text>
+              <Text style={styles.heroText}>İnternet olmasa da hesabın telefonunda kalır.</Text>
+              <Text style={styles.heroSubtext}>Muhasebe dili değil, günlük çiftçi dili.</Text>
+            </View>
           </View>
           <BigButton label="Başlayalım" icon="→" onPress={() => next("name")} />
         </>
@@ -168,12 +167,13 @@ export default function OnboardingScreen() {
 
       {step === "crops" ? (
         <>
-          <PageTitle hint="Birden fazla seçebilirsin.">Ne ekiyorsun?</PageTitle>
+          <PageTitle hint="Birden fazla seçebilirsin. Defter seçenekleri buna göre sadeleşir.">Ne ekiyorsun?</PageTitle>
           {cropCodes.map((crop) => (
             <ChoiceCard
               key={crop}
-              icon={cropIcons[crop]}
+              leading={<CropArtwork cropCode={crop} compact />}
               label={cropTemplates[crop].label}
+              caption={crop === "other" ? "Listede olmayan ürünler" : undefined}
               selected={draft.cropCodes.includes(crop)}
               onPress={() => setDraft({ ...draft, cropCodes: toggleCrop(draft.cropCodes, crop) })}
             />
@@ -203,18 +203,27 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  step: { color: theme.color.textMuted, fontSize: 15, fontWeight: "800", alignSelf: "flex-end" },
-  hero: {
-    minHeight: 200,
-    backgroundColor: theme.color.surface,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    gap: 16
+  step: {
+    color: theme.color.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
+    alignSelf: "flex-end",
+    backgroundColor: theme.color.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill
   },
-  heroIcon: { fontSize: 58 },
-  heroText: { color: theme.color.text, fontSize: 20, fontWeight: "800", textAlign: "center", lineHeight: 28 }
+  hero: {
+    backgroundColor: theme.color.surfaceStrong,
+    borderRadius: theme.radius.xl,
+    padding: 20,
+    gap: 20,
+    overflow: "hidden",
+    ...theme.shadow.floating
+  },
+  heroVisuals: { flexDirection: "row", gap: 8, alignItems: "center" },
+  heroCopy: { gap: 7 },
+  heroEyebrow: { color: theme.color.gold, fontSize: 12, fontWeight: "900", letterSpacing: 1.15 },
+  heroText: { color: theme.color.white, fontSize: 22, fontWeight: "900", lineHeight: 29, letterSpacing: -0.35 },
+  heroSubtext: { color: "#B8C7BF", fontSize: 15, fontWeight: "600", lineHeight: 21 }
 });
