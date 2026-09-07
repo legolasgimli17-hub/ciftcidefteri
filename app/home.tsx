@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { createExclusiveActionGate } from "@/src/application/exclusiveActionGate";
 import { buildHomeSummary } from "@/src/application/homeSummary";
 import { loadAppSnapshot, type AppSnapshot } from "@/src/application/appSnapshot";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
@@ -16,10 +17,12 @@ import { uxPolicy } from "@/src/ui/policy";
 
 export default function HomeScreen() {
   const sqlite = useSQLiteContext();
+  const actionGateRef = useRef(createExclusiveActionGate());
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
   const [error, setError] = useState<string>();
   const [lastDeleted, setLastDeleted] = useState<FarmTransaction | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -42,9 +45,19 @@ export default function HomeScreen() {
   }, [refresh]));
 
   const summary = snapshot ? buildHomeSummary(snapshot.summary) : null;
+  const homeActionBusy = pendingActionKey !== null;
+
+  const finishHomeAction = (key: string) => {
+    actionGateRef.current.finish(key);
+    setPendingActionKey((current) => current === key ? null : current);
+  };
 
   const restoreLastDeleted = async () => {
-    if (snapshot === null || lastDeleted === null || restoring) return;
+    if (snapshot === null || lastDeleted === null) return;
+    const actionKey = `restore:${lastDeleted.id}`;
+    if (!actionGateRef.current.tryStart(actionKey)) return;
+
+    setPendingActionKey(actionKey);
     setRestoring(true);
     setError(undefined);
     try {
@@ -64,43 +77,63 @@ export default function HomeScreen() {
       setError("Kaydı geri alamadık. Diğer kayıtların güvende.");
     } finally {
       setRestoring(false);
+      finishHomeAction(actionKey);
+    }
+  };
+
+  const deleteTransaction = async (item: FarmTransaction, farmId: string, actionKey: string) => {
+    setError(undefined);
+    try {
+      const repository = new LocalFarmRepository(mobileDatabase(sqlite));
+      const deleted = await repository.softDeleteTransaction({
+        farmId,
+        transactionId: item.id,
+        nowIso: new Date().toISOString()
+      });
+      if (!deleted) {
+        setError("Bu kayıt zaten silinmiş veya bulunamadı.");
+        return;
+      }
+      setLastDeleted(item);
+      await refresh();
+    } catch {
+      setError("Kaydı silemedik. Kayıtların güvende.");
+    } finally {
+      finishHomeAction(actionKey);
     }
   };
 
   const askDelete = (item: FarmTransaction) => {
     if (snapshot === null) return;
+    const actionKey = `delete:${item.id}`;
+    if (!actionGateRef.current.tryStart(actionKey)) return;
+
+    setPendingActionKey(actionKey);
+    let deleteConfirmed = false;
+    const releasePrompt = () => {
+      if (!deleteConfirmed) finishHomeAction(actionKey);
+    };
+
     Alert.alert(
       "Bu kaydı silelim mi?",
       `${item.category} · ${formatTry(item.amountKurus)}`,
       [
-        { text: "Vazgeç", style: "cancel" },
+        { text: "Vazgeç", style: "cancel", onPress: releasePrompt },
         {
           text: "Sil",
           style: "destructive",
           onPress: () => {
-            const repository = new LocalFarmRepository(mobileDatabase(sqlite));
-            void repository
-              .softDeleteTransaction({
-                farmId: snapshot.identity.farmId,
-                transactionId: item.id,
-                nowIso: new Date().toISOString()
-              })
-              .then(async (deleted) => {
-                if (!deleted) {
-                  setError("Bu kayıt zaten silinmiş veya bulunamadı.");
-                  return;
-                }
-                setLastDeleted(item);
-                await refresh();
-              })
-              .catch(() => setError("Kaydı silemedik. Kayıtların güvende."));
+            deleteConfirmed = true;
+            void deleteTransaction(item, snapshot.identity.farmId, actionKey);
           }
         }
-      ]
+      ],
+      { cancelable: true, onDismiss: releasePrompt }
     );
   };
 
   const editTransaction = (item: FarmTransaction) => {
+    if (actionGateRef.current.isBusy()) return;
     router.push({ pathname: "/transaction-edit", params: { id: item.id } });
   };
 
@@ -131,7 +164,7 @@ export default function HomeScreen() {
           <Text style={styles.undoCopy}>{lastDeleted.category} · {formatTry(lastDeleted.amountKurus)}</Text>
           <SecondaryButton
             label={restoring ? "Geri alınıyor…" : "Geri al"}
-            disabled={restoring}
+            disabled={restoring || homeActionBusy}
             onPress={() => void restoreLastDeleted()}
           />
         </Card>
@@ -140,47 +173,73 @@ export default function HomeScreen() {
       {snapshot ? (
         <>
           <Text style={styles.question}>Bugün para girdi mi, çıktı mı?</Text>
-          <BigButton label="Para girdi" icon="↓" kind="income" onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })} />
-          <BigButton label="Para çıktı" icon="↑" kind="expense" onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })} />
+          <BigButton
+            label="Para girdi"
+            icon="↓"
+            kind="income"
+            disabled={homeActionBusy}
+            onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })}
+          />
+          <BigButton
+            label="Para çıktı"
+            icon="↑"
+            kind="expense"
+            disabled={homeActionBusy}
+            onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })}
+          />
         </>
+      ) : null}
+
+      {snapshot && snapshot.recentTransactions.length === 0 ? (
+        <Card>
+          <Text accessibilityRole="header" style={styles.cardTitle}>Henüz kayıt yok</Text>
+          <Text style={styles.emptyCopy}>İlk para girişini veya çıkışını yukarıdan ekleyebilirsin.</Text>
+        </Card>
       ) : null}
 
       {snapshot && snapshot.recentTransactions.length > 0 ? (
         <Card>
           <Text style={styles.cardTitle}>Son kayıtlar</Text>
-          {snapshot.recentTransactions.map((item: FarmTransaction) => (
-            <View style={styles.transactionRow} key={item.id}>
-              <View style={styles.transactionCopy}>
-                <Text style={styles.transactionCategory}>{item.category}</Text>
-                <Text style={styles.transactionDate}>{dateInputFromIso(item.occurredOn)}</Text>
-              </View>
-              <View style={styles.transactionActions}>
-                <Text style={item.kind === "income" ? styles.incomeText : styles.expenseText}>
-                  {item.kind === "income" ? "+" : "−"}{formatTry(item.amountKurus)}
-                </Text>
-                <View style={styles.actionRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${item.category} kaydını düzelt`}
-                    onPress={() => editTransaction(item)}
-                    hitSlop={4}
-                    style={styles.editButton}
-                  >
-                    <Text style={styles.editText}>Düzelt</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${item.category} kaydını sil`}
-                    onPress={() => askDelete(item)}
-                    hitSlop={4}
-                    style={styles.deleteButton}
-                  >
-                    <Text style={styles.deleteText}>Sil</Text>
-                  </Pressable>
+          {snapshot.recentTransactions.map((item: FarmTransaction) => {
+            const deletingThis = pendingActionKey === `delete:${item.id}`;
+            return (
+              <View style={styles.transactionRow} key={item.id}>
+                <View style={styles.transactionCopy}>
+                  <Text style={styles.transactionCategory}>{item.category}</Text>
+                  <Text style={styles.transactionDate}>{dateInputFromIso(item.occurredOn)}</Text>
+                </View>
+                <View style={styles.transactionActions}>
+                  <Text style={item.kind === "income" ? styles.incomeText : styles.expenseText}>
+                    {item.kind === "income" ? "+" : "−"}{formatTry(item.amountKurus)}
+                  </Text>
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.category} kaydını düzelt`}
+                      accessibilityState={{ disabled: homeActionBusy }}
+                      disabled={homeActionBusy}
+                      onPress={() => editTransaction(item)}
+                      hitSlop={4}
+                      style={[styles.editButton, homeActionBusy && styles.actionDisabled]}
+                    >
+                      <Text style={styles.editText}>Düzelt</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={deletingThis ? `${item.category} kaydı siliniyor` : `${item.category} kaydını sil`}
+                      accessibilityState={{ disabled: homeActionBusy }}
+                      disabled={homeActionBusy}
+                      onPress={() => askDelete(item)}
+                      hitSlop={4}
+                      style={[styles.deleteButton, homeActionBusy && styles.actionDisabled]}
+                    >
+                      <Text style={styles.deleteText}>{deletingThis ? "Siliniyor…" : "Sil"}</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </Card>
       ) : null}
 
@@ -199,6 +258,7 @@ const styles = StyleSheet.create({
   expenseText: { color: theme.color.expense, fontSize: 17, fontWeight: "800" },
   question: { color: theme.color.text, fontSize: 21, fontWeight: "900", marginTop: 6 },
   cardTitle: { color: theme.color.text, fontSize: 20, fontWeight: "900" },
+  emptyCopy: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700", lineHeight: 23 },
   transactionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 58, gap: 12 },
   transactionCopy: { flex: 1 },
   transactionCategory: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
@@ -217,6 +277,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
+  actionDisabled: { opacity: 0.45 },
   editText: { color: theme.color.primary, fontSize: 15, fontWeight: "800" },
   deleteText: { color: theme.color.expense, fontSize: 15, fontWeight: "800" },
   undoTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
