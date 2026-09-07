@@ -14,6 +14,11 @@ test("crash scrubber removes user, request, breadcrumbs and free-form financial 
     transaction: "/transaction-edit?id=secret",
     fingerprint: ["Mehmet", "18500"],
     server_name: "private-device",
+    logentry: { message: "Borç 5000 TL" },
+    logger: "private-ledger",
+    culprit: "/transaction-edit?id=private",
+    spans: [{ description: "Mehmet 18500" }],
+    sdkProcessingMetadata: { secret: "recovery-key" },
     tags: {
       crash_code: "root_error_boundary",
       environment: "production",
@@ -22,32 +27,50 @@ test("crash scrubber removes user, request, breadcrumbs and free-form financial 
   });
 
   assert.equal(event.message, "[redacted]");
-  assert.equal("user" in event, false);
-  assert.equal("request" in event, false);
-  assert.equal("breadcrumbs" in event, false);
-  assert.equal("extra" in event, false);
-  assert.equal("transaction" in event, false);
-  assert.equal("fingerprint" in event, false);
-  assert.equal("server_name" in event, false);
+  for (const forbidden of [
+    "user",
+    "request",
+    "breadcrumbs",
+    "extra",
+    "transaction",
+    "fingerprint",
+    "server_name",
+    "logentry",
+    "logger",
+    "culprit",
+    "spans",
+    "sdkProcessingMetadata"
+  ]) {
+    assert.equal(forbidden in event, false);
+  }
   assert.deepEqual(event.tags, {
     crash_code: "root_error_boundary",
     environment: "production"
   });
 });
 
-test("crash scrubber keeps stack trace but redacts exception value", () => {
-  const stacktrace = {
-    frames: [
-      { filename: "app/_layout.tsx", function: "RootLayout", lineno: 42, colno: 7 }
-    ]
-  };
+test("crash scrubber keeps only diagnostic stack coordinates and redacts exception value", () => {
   const event = sanitizeCrashEvent({
     exception: {
       values: [
         {
           type: "Error",
           value: "Kullanıcı notu: 5000 TL mazot",
-          stacktrace,
+          stacktrace: {
+            frames: [
+              {
+                filename: "app/_layout.tsx",
+                function: "RootLayout",
+                module: "app._layout",
+                lineno: 42,
+                colno: 7,
+                in_app: true,
+                abs_path: "/data/user/0/private/Mehmet/18500",
+                vars: { amount: 18500, note: "2. uygulama gübresi" },
+                context_line: "throw new Error(userNote)"
+              }
+            ]
+          },
           mechanism: {
             type: "generic",
             handled: false,
@@ -60,8 +83,47 @@ test("crash scrubber keeps stack trace but redacts exception value", () => {
 
   const values = (event.exception as { values: Array<Record<string, unknown>> }).values;
   assert.equal(values[0]?.value, "[redacted]");
-  assert.deepEqual(values[0]?.stacktrace, stacktrace);
+  assert.deepEqual(values[0]?.stacktrace, {
+    frames: [
+      {
+        filename: "app/_layout.tsx",
+        function: "RootLayout",
+        module: "app._layout",
+        lineno: 42,
+        colno: 7,
+        in_app: true
+      }
+    ]
+  });
   assert.deepEqual(values[0]?.mechanism, { type: "generic", handled: false });
+});
+
+test("top-level stack trace is minimized with the same allowlist", () => {
+  const event = sanitizeCrashEvent({
+    stacktrace: {
+      frames: [
+        {
+          filename: "src/mobile/database.ts",
+          function: "initializeDatabase",
+          lineno: 17,
+          colno: 3,
+          vars: { dbKey: "secret" },
+          abs_path: "/private/device/path"
+        }
+      ]
+    }
+  });
+
+  assert.deepEqual(event.stacktrace, {
+    frames: [
+      {
+        filename: "src/mobile/database.ts",
+        function: "initializeDatabase",
+        lineno: 17,
+        colno: 3
+      }
+    ]
+  });
 });
 
 test("crash scrubber only keeps narrow device, OS and app context", () => {
