@@ -1,6 +1,7 @@
 import { parseCropCode, type CropCode } from "../domain/crops";
 import { assertIsoUtcTimestamp } from "../domain/date";
 import { moneyFromKurus } from "../domain/money";
+import { createTransactionPartnership, type TransactionPartnership } from "../domain/partnership";
 import { createFarmTransaction, type FarmTransaction } from "../domain/transaction";
 import { type SqlDatabase, type SqlExecutor } from "../storage/sql";
 import { parseSqlBoolean } from "../storage/sqlBoolean";
@@ -38,17 +39,25 @@ export class LocalTransactionCorrections {
   public async updateTransaction(input: {
     readonly farmId: string;
     readonly transaction: FarmTransaction;
+    /** undefined = mevcut ortaklık ilişkisini koru; null = kaldır; değer = ekle/değiştir. */
+    readonly partnership?: TransactionPartnership | null;
     readonly nowIso: string;
   }): Promise<boolean> {
     const farmId = validateId(input.farmId, "Çiftlik kimliği");
     const transactionId = validateId(input.transaction.id, "İşlem kimliği");
     assertIsoUtcTimestamp(input.nowIso);
     const transaction = input.transaction;
+    const partnership = input.partnership === undefined || input.partnership === null
+      ? input.partnership
+      : createTransactionPartnership(input.partnership);
 
     return await this.db.transaction(async (tx) => {
       await assertActiveFarm(tx, farmId, "Kayıt değiştirilmedi.");
       if (transaction.cropCode !== undefined) {
         await assertActiveCrop(tx, farmId, transaction.cropCode, "Kayıt değiştirilmedi.");
+      }
+      if (partnership !== undefined && partnership !== null) {
+        await assertActivePartner(tx, farmId, partnership.partnerId, "Kayıt değiştirilmedi.");
       }
 
       const result = await tx.run(
@@ -69,7 +78,40 @@ export class LocalTransactionCorrections {
           farmId
         ]
       );
-      return result.changes === 1;
+      if (result.changes !== 1) return false;
+
+      if (partnership === null) {
+        await tx.run(
+          `DELETE FROM transaction_partnerships
+            WHERE transaction_id = ? AND farm_id = ?`,
+          [transactionId, farmId]
+        );
+      } else if (partnership !== undefined) {
+        await tx.run(
+          `INSERT INTO transaction_partnerships
+            (transaction_id, farm_id, partner_id, owner_share_basis_points, cash_actor,
+             created_at, updated_at, sync_state)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'local')
+           ON CONFLICT(transaction_id) DO UPDATE SET
+             farm_id = excluded.farm_id,
+             partner_id = excluded.partner_id,
+             owner_share_basis_points = excluded.owner_share_basis_points,
+             cash_actor = excluded.cash_actor,
+             updated_at = excluded.updated_at,
+             sync_state = 'pending'`,
+          [
+            transactionId,
+            farmId,
+            partnership.partnerId,
+            partnership.ownerShareBasisPoints,
+            partnership.cashActor,
+            input.nowIso,
+            input.nowIso
+          ]
+        );
+      }
+
+      return true;
     });
   }
 
@@ -135,6 +177,23 @@ async function assertActiveCrop(
   );
   if ((crop?.count ?? 0) !== 1) {
     throw new Error(`Bu ürün artık çiftliğinde kayıtlı değil. ${suffix}`);
+  }
+}
+
+async function assertActivePartner(
+  database: SqlExecutor,
+  farmId: string,
+  partnerId: string,
+  suffix: string
+): Promise<void> {
+  const row = await database.first<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM farm_partners
+      WHERE farm_id = ? AND id = ? AND deleted_at IS NULL`,
+    [farmId, partnerId]
+  );
+  if ((row?.count ?? 0) !== 1) {
+    throw new Error(`Bu ortak artık aktif değil. ${suffix}`);
   }
 }
 

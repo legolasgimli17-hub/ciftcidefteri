@@ -1,7 +1,7 @@
-import { parseCropCode } from "../domain/crops";
+import { parseCropCode, type CropCode } from "../domain/crops";
 import { assertIsoCalendarDate, assertIsoUtcTimestamp } from "../domain/date";
 import { moneyFromKurus } from "../domain/money";
-import { createFarmTransaction, type FarmTransaction } from "../domain/transaction";
+import { createFarmTransaction, type FarmTransaction, type TransactionKind } from "../domain/transaction";
 import { type SqlDatabase } from "../storage/sql";
 import { parseSqlBoolean } from "../storage/sqlBoolean";
 
@@ -23,6 +23,16 @@ export interface TransactionHistoryCursor {
   readonly id: string;
 }
 
+export interface TransactionHistoryFilter {
+  readonly kind?: TransactionKind;
+  /** undefined = tümü, null = Genel, ürün kodu = yalnız o ürün. */
+  readonly cropCode?: CropCode | null;
+  readonly category?: string;
+  readonly partnerId?: string;
+  readonly fromOn?: string;
+  readonly toOn?: string;
+}
+
 export interface TransactionHistoryPage {
   readonly items: readonly FarmTransaction[];
   readonly nextCursor?: TransactionHistoryCursor;
@@ -38,22 +48,57 @@ export class LocalTransactionHistory {
     readonly farmId: string;
     readonly cursor?: TransactionHistoryCursor;
     readonly limit?: number;
+    readonly filter?: TransactionHistoryFilter;
   }): Promise<TransactionHistoryPage> {
     const farmId = validateId(input.farmId, "Çiftlik kimliği");
     const limit = validatePageSize(input.limit ?? DEFAULT_PAGE_SIZE);
     const cursor = input.cursor === undefined ? undefined : validateCursor(input.cursor);
+    const filter = validateFilter(input.filter);
 
     await assertActiveFarm(this.db, farmId);
 
     const params: Array<string | number | null> = [farmId];
-    let cursorSql = "";
+    const conditions = ["t.farm_id = ?", "t.deleted_at IS NULL"];
+
+    if (filter.kind !== undefined) {
+      conditions.push("t.kind = ?");
+      params.push(filter.kind);
+    }
+    if (filter.cropCode === null) {
+      conditions.push("t.crop_code IS NULL");
+    } else if (filter.cropCode !== undefined) {
+      conditions.push("t.crop_code = ?");
+      params.push(filter.cropCode);
+    }
+    if (filter.category !== undefined) {
+      conditions.push("t.category = ?");
+      params.push(filter.category);
+    }
+    if (filter.partnerId !== undefined) {
+      conditions.push(`EXISTS (
+        SELECT 1
+          FROM transaction_partnerships tp
+         WHERE tp.farm_id = t.farm_id
+           AND tp.transaction_id = t.id
+           AND tp.partner_id = ?
+      )`);
+      params.push(filter.partnerId);
+    }
+    if (filter.fromOn !== undefined) {
+      conditions.push("t.occurred_on >= ?");
+      params.push(filter.fromOn);
+    }
+    if (filter.toOn !== undefined) {
+      conditions.push("t.occurred_on <= ?");
+      params.push(filter.toOn);
+    }
+
     if (cursor !== undefined) {
-      cursorSql = `
-        AND (
-          occurred_on < ?
-          OR (occurred_on = ? AND created_at < ?)
-          OR (occurred_on = ? AND created_at = ? AND id < ?)
-        )`;
+      conditions.push(`(
+        t.occurred_on < ?
+        OR (t.occurred_on = ? AND t.created_at < ?)
+        OR (t.occurred_on = ? AND t.created_at = ? AND t.id < ?)
+      )`);
       params.push(
         cursor.occurredOn,
         cursor.occurredOn,
@@ -66,11 +111,11 @@ export class LocalTransactionHistory {
     params.push(limit + 1);
 
     const rows = await this.db.all<TransactionHistoryRow>(
-      `SELECT id, kind, amount_kurus, occurred_on, category, crop_code, note,
-              is_tax_exempt_support, created_at
-         FROM transactions
-        WHERE farm_id = ? AND deleted_at IS NULL${cursorSql}
-        ORDER BY occurred_on DESC, created_at DESC, id DESC
+      `SELECT t.id, t.kind, t.amount_kurus, t.occurred_on, t.category, t.crop_code, t.note,
+              t.is_tax_exempt_support, t.created_at
+         FROM transactions t
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY t.occurred_on DESC, t.created_at DESC, t.id DESC
         LIMIT ?`,
       params
     );
@@ -102,6 +147,37 @@ async function assertActiveFarm(db: SqlDatabase, farmId: string): Promise<void> 
   if ((row?.count ?? 0) !== 1) {
     throw new Error("Bu çiftlik aktif değil. Kayıt geçmişi açılmadı.");
   }
+}
+
+function validateFilter(filter: TransactionHistoryFilter | undefined): TransactionHistoryFilter {
+  if (filter === undefined) return {};
+  if (filter.kind !== undefined && filter.kind !== "income" && filter.kind !== "expense") {
+    throw new Error("Kayıt türü filtresi geçersiz.");
+  }
+
+  let category: string | undefined;
+  if (filter.category !== undefined) {
+    category = filter.category.trim().replace(/\s+/g, " ");
+    if (category.length < 1 || category.length > 60) throw new Error("Kategori filtresi geçersiz.");
+  }
+
+  let partnerId: string | undefined;
+  if (filter.partnerId !== undefined) partnerId = validateId(filter.partnerId, "Ortak filtresi");
+
+  if (filter.fromOn !== undefined) assertIsoCalendarDate(filter.fromOn);
+  if (filter.toOn !== undefined) assertIsoCalendarDate(filter.toOn);
+  if (filter.fromOn !== undefined && filter.toOn !== undefined && filter.fromOn > filter.toOn) {
+    throw new Error("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
+  }
+
+  return {
+    ...(filter.kind === undefined ? {} : { kind: filter.kind }),
+    ...(filter.cropCode === undefined ? {} : { cropCode: filter.cropCode === null ? null : parseCropCode(filter.cropCode) }),
+    ...(category === undefined ? {} : { category }),
+    ...(partnerId === undefined ? {} : { partnerId }),
+    ...(filter.fromOn === undefined ? {} : { fromOn: filter.fromOn }),
+    ...(filter.toOn === undefined ? {} : { toOn: filter.toOn })
+  };
 }
 
 function mapHistoryRow(row: TransactionHistoryRow): FarmTransaction {

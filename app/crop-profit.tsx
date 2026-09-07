@@ -6,7 +6,8 @@ import { loadFarmIdentity } from "@/src/application/appSnapshot";
 import { loadCropProfitSummaries, type CropProfitSummary } from "@/src/application/cropProfit";
 import { formatTry } from "@/src/domain/money";
 import { mobileDatabase } from "@/src/mobile/database";
-import { Card, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
+import { PageTitle, Screen, TopNav } from "@/src/ui/components";
+import { CropArtwork } from "@/src/ui/cropArtwork";
 import { theme } from "@/src/ui/theme";
 
 export default function CropProfitScreen() {
@@ -22,67 +23,93 @@ export default function CropProfitScreen() {
         router.replace("/onboarding");
         return;
       }
-      const loaded = await loadCropProfitSummaries(db, identity.farmId);
-      setItems(loaded);
+      setItems(await loadCropProfitSummaries(db, identity.farmId));
       setError(undefined);
     } catch {
       setItems([]);
-      setError("Ürünlerinin durumunu şu an gösteremedik. Kayıtların güvende.");
+      setError("Ürün hesabını şu an gösteremedik. Kayıtların güvende.");
     }
   }, [sqlite]);
 
-  useFocusEffect(useCallback(() => {
-    void refresh();
-  }, [refresh]));
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   return (
     <Screen>
-      <PageTitle hint="Her ürün için giren, çıkan ve elinde kalanı gör.">
-        Ürünlerin durumu
-      </PageTitle>
+      <PageTitle hint="Her ürünün net durumunu ayrı gör.">Ürünler</PageTitle>
 
-      {items.map((item) => (
-        <Card key={item.cropCode}>
-          <Text accessibilityRole="header" style={styles.cropName}>{item.cropLabel}</Text>
-          <Text style={styles.netLabel}>Kalan</Text>
-          <Text style={[
-            styles.netAmount,
-            item.summary.net > 0 && styles.positive,
-            item.summary.net < 0 && styles.negative
-          ]}>
-            {formatTry(item.summary.net)}
-          </Text>
-          <View style={styles.rows}>
-            <Text style={styles.income}>Giren: {formatTry(item.summary.income)}</Text>
-            <Text style={styles.expense}>Çıkan: {formatTry(item.summary.expense)}</Text>
+      <TopNav
+        active="crops"
+        onLedger={() => router.replace("/home")}
+        onCrops={() => undefined}
+        onPartners={() => router.replace("/partners")}
+      />
+
+      <View style={styles.list}>
+        {items.map((item, index) => (
+          <View key={item.cropCode} style={[styles.row, index > 0 && styles.divider]}>
+            <CropArtwork cropCode={item.cropCode} compact />
+            <View style={styles.copy}>
+              <Text accessibilityRole="header" style={styles.name}>{item.cropLabel}</Text>
+              <Text style={styles.meta}>
+                Gelir {formatTry(item.summary.income)} · Gider {formatTry(item.summary.expense)}
+              </Text>
+            </View>
+            <View style={styles.amountBlock}>
+              <Text style={styles.amountLabel}>Kalan</Text>
+              <Text style={[
+                styles.amount,
+                item.summary.net < 0 && styles.negative,
+                item.summary.net > 0 && styles.positive
+              ]}>{formatTry(item.summary.net)}</Text>
+            </View>
           </View>
-        </Card>
-      ))}
+        ))}
+      </View>
 
       {items.length === 0 && !error ? (
-        <Card>
-          <Text style={styles.empty}>Ürün kaydı bulunamadı.</Text>
-        </Card>
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Henüz ürün hesabı yok</Text>
+          <Text style={styles.emptyText}>Ürüne bağlı kayıt girdikçe burada oluşur.</Text>
+        </View>
       ) : null}
 
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>
-      ) : null}
-
-      <SecondaryButton label="Deftere dön" onPress={() => router.replace("/home")} />
+      {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  cropName: { color: theme.color.text, fontSize: 22, fontWeight: "900" },
-  netLabel: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700" },
-  netAmount: { color: theme.color.text, fontSize: 32, fontWeight: "900", letterSpacing: -0.5 },
+  list: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider,
+    marginTop: 10
+  },
+  row: {
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14
+  },
+  divider: { borderTopWidth: 1, borderTopColor: theme.color.divider },
+  copy: { flex: 1, gap: 5 },
+  name: { color: theme.color.text, fontSize: 18, fontWeight: "900", letterSpacing: -0.2 },
+  meta: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600", lineHeight: 18 },
+  amountBlock: { alignItems: "flex-end", gap: 3 },
+  amountLabel: { color: theme.color.textSubtle, fontSize: 11, fontWeight: "700" },
+  amount: { color: theme.color.text, fontSize: 17, fontWeight: "900" },
   positive: { color: theme.color.income },
   negative: { color: theme.color.expense },
-  rows: { flexDirection: "row", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
-  income: { color: theme.color.income, fontSize: 17, fontWeight: "800" },
-  expense: { color: theme.color.expense, fontSize: 17, fontWeight: "800" },
-  empty: { color: theme.color.textMuted, fontSize: 17, fontWeight: "700", lineHeight: 24 },
-  error: { color: theme.color.expense, fontSize: 16, fontWeight: "700", lineHeight: 22 }
+  empty: {
+    minHeight: 140,
+    justifyContent: "center",
+    gap: 6,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
+  },
+  emptyTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
+  emptyText: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600" },
+  error: { color: theme.color.expense, fontSize: 15, fontWeight: "700", lineHeight: 22 }
 });

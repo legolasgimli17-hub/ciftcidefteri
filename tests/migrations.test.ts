@@ -77,7 +77,11 @@ test("migration runner boş veritabanını güncel şemaya getirir", async () =>
   const version = await migrateDatabase(db);
   assert.equal(version, SCHEMA_VERSION);
   assert.equal(db.tableExists("transactions"), true);
+  assert.equal(db.tableExists("farm_partners"), true);
+  assert.equal(db.tableExists("transaction_partnerships"), true);
+  assert.equal(db.tableExists("partner_settlements"), true);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  assert.equal(db.indexExists("idx_partner_settlements_partner_date"), true);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
@@ -90,12 +94,13 @@ test("mevcut v1 veritabanı güncel sürüme veri kaybetmeden yükselir", async 
 
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.tableExists("transactions"), true);
+  assert.equal(db.tableExists("partner_settlements"), true);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
 
-test("v2 -> v3 telefon minimizasyonu çiftlik ve finans kayıtlarını korur", async () => {
+test("v2 veritabanı güncel sürüme telefon ve finans kaydını koruyarak yükselir", async () => {
   const db = new NodeMigrationDatabase();
   assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 2), 2), 2);
 
@@ -123,8 +128,11 @@ test("v2 -> v3 telefon minimizasyonu çiftlik ve finans kayıtlarını korur", a
     ["txn-v2-0001", "farm-v2-0001", "income", 125000, "2026-09-07", "Ürün satışı", "cotton", now, now]
   );
 
-  assert.equal(await migrateDatabase(db), 3);
+  assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
+  assert.equal(db.tableExists("farm_partners"), true);
+  assert.equal(db.tableExists("transaction_partnerships"), true);
+  assert.equal(db.tableExists("partner_settlements"), true);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farmer_profiles"))?.count, 1);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farms"))?.count, 1);
   assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farm_crops"))?.count, 1);
@@ -139,6 +147,7 @@ test("migration runner tekrar çalıştırıldığında idempotent kalır", asyn
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  assert.equal(db.indexExists("idx_partner_settlements_partner_date"), true);
   assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });

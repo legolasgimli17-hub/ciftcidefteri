@@ -5,6 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { createExclusiveActionGate } from "@/src/application/exclusiveActionGate";
 import { createHistoryPageNavigation } from "@/src/application/historyPageNavigation";
+import { loadLedgerPartnershipDetails, type LedgerPartnershipDetail } from "@/src/application/ledgerDetails";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import {
   LocalTransactionHistory,
@@ -12,11 +13,13 @@ import {
   type TransactionHistoryPage
 } from "@/src/application/transactionHistory";
 import { LocalTransactionCorrections } from "@/src/application/transactionCorrections";
+import { cropTemplates } from "@/src/domain/crops";
 import { formatTry } from "@/src/domain/money";
+import { percentLabelFromBasisPoints } from "@/src/domain/partnership";
 import { type FarmTransaction } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
 import { dateInputFromIso } from "@/src/mobile/date";
-import { Card, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
+import { PageTitle, Screen, SecondaryButton, TopNav } from "@/src/ui/components";
 import { uxPolicy } from "@/src/ui/policy";
 import { theme } from "@/src/ui/theme";
 
@@ -28,6 +31,7 @@ export default function TransactionsScreen() {
   const pageNavigationRef = useRef(createHistoryPageNavigation());
   const [identity, setIdentity] = useState<FarmIdentity | null>(null);
   const [items, setItems] = useState<readonly FarmTransaction[]>([]);
+  const [partnershipDetails, setPartnershipDetails] = useState<ReadonlyMap<string, LedgerPartnershipDetail>>(new Map());
   const [nextCursor, setNextCursor] = useState<TransactionHistoryCursor>();
   const [canGoNewer, setCanGoNewer] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -58,10 +62,16 @@ export default function TransactionsScreen() {
     return page;
   }, [readPage]);
 
-  const applyPage = (page: TransactionHistoryPage) => {
+  const applyPage = useCallback(async (farmId: string, page: TransactionHistoryPage) => {
+    const details = await loadLedgerPartnershipDetails(
+      mobileDatabase(sqlite),
+      farmId,
+      page.items.map((item) => item.id)
+    );
     setItems(page.items);
+    setPartnershipDetails(details);
     setNextCursor(page.nextCursor);
-  };
+  }, [sqlite]);
 
   const loadCurrentPage = useCallback(async () => {
     setLoading(true);
@@ -74,19 +84,20 @@ export default function TransactionsScreen() {
         setCanGoNewer(false);
         setIdentity(null);
         setItems([]);
+        setPartnershipDetails(new Map());
         setNextCursor(undefined);
         router.replace("/onboarding");
         return;
       }
       const page = await readVisiblePage(loadedIdentity.farmId);
       setIdentity(loadedIdentity);
-      applyPage(page);
+      await applyPage(loadedIdentity.farmId, page);
     } catch {
-      setError("Kayıtlarını şu an açamadık. Defterindeki bilgiler silinmedi.");
+      setError("Defterini şu an açamadık. Kayıtların silinmedi.");
     } finally {
       setLoading(false);
     }
-  }, [readVisiblePage, sqlite]);
+  }, [applyPage, readVisiblePage, sqlite]);
 
   useFocusEffect(useCallback(() => {
     void loadCurrentPage();
@@ -105,7 +116,7 @@ export default function TransactionsScreen() {
     setPaging(true);
     setError(undefined);
     try {
-      applyPage(await readVisiblePage(identity.farmId));
+      await applyPage(identity.farmId, await readVisiblePage(identity.farmId));
     } catch {
       pageNavigationRef.current.moveNewer();
       setCanGoNewer(pageNavigationRef.current.canGoNewer());
@@ -124,7 +135,7 @@ export default function TransactionsScreen() {
     setPaging(true);
     setError(undefined);
     try {
-      applyPage(await readVisiblePage(identity.farmId));
+      await applyPage(identity.farmId, await readVisiblePage(identity.farmId));
     } catch {
       if (oldStart !== undefined) pageNavigationRef.current.moveOlder(oldStart);
       setCanGoNewer(pageNavigationRef.current.canGoNewer());
@@ -135,7 +146,7 @@ export default function TransactionsScreen() {
   };
 
   const reloadAfterCorrection = async (farmId: string) => {
-    applyPage(await readVisiblePage(farmId));
+    await applyPage(farmId, await readVisiblePage(farmId));
   };
 
   const deleteTransaction = async (item: FarmTransaction, farmId: string, actionKey: string) => {
@@ -225,89 +236,102 @@ export default function TransactionsScreen() {
 
   return (
     <Screen>
-      <PageTitle hint="Eski para girişlerini ve çıkışlarını burada bulabilirsin.">
-        Tüm kayıtlar
-      </PageTitle>
+      <PageTitle hint="Tarihli tüm gelir ve giderlerin.">Defter</PageTitle>
 
-      <SecondaryButton label="Ana sayfaya dön" disabled={navigationBusy} onPress={() => router.replace("/home")} />
+      <TopNav
+        active="ledger"
+        onLedger={() => router.replace("/home")}
+        onCrops={() => router.replace("/crop-profit")}
+        onPartners={() => router.replace("/partners")}
+      />
 
       {lastDeleted !== null ? (
-        <Card>
-          <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.undoTitle}>Kayıt silindi.</Text>
-          <Text style={styles.muted}>{lastDeleted.category} · {formatTry(lastDeleted.amountKurus)}</Text>
-          <SecondaryButton
-            label={pendingActionKey?.startsWith("restore:") ? "Geri alınıyor…" : "Geri al"}
+        <View style={styles.undo}>
+          <View style={styles.undoCopy}>
+            <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.undoTitle}>Kayıt silindi</Text>
+            <Text style={styles.muted}>{lastDeleted.category} · {formatTry(lastDeleted.amountKurus)}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Silinen kaydı geri al"
             disabled={navigationBusy}
             onPress={() => void restoreLastDeleted()}
-          />
-        </Card>
+            style={styles.undoButton}
+          >
+            <Text style={styles.undoButtonText}>{pendingActionKey?.startsWith("restore:") ? "Alınıyor…" : "Geri al"}</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       {canGoNewer ? (
         <SecondaryButton
-          label={paging ? "Açılıyor…" : "Daha yeni kayıtları göster"}
+          label={paging ? "Açılıyor…" : "Daha yeni kayıtlar"}
           disabled={navigationBusy}
           onPress={() => void showNewer()}
         />
       ) : null}
 
-      {loading && items.length === 0 ? <Text style={styles.muted}>Kayıtların hazırlanıyor…</Text> : null}
+      {loading && items.length === 0 ? <Text style={styles.muted}>Defter hazırlanıyor…</Text> : null}
 
       {!loading && items.length === 0 && !error ? (
-        <Card>
-          <Text accessibilityRole="header" style={styles.cardTitle}>Henüz kayıt yok</Text>
-          <Text style={styles.muted}>Para girişi veya çıkışı eklediğinde burada görünecek.</Text>
-        </Card>
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Defterin boş</Text>
+          <Text style={styles.muted}>Gider veya gelir eklediğinde burada görünür.</Text>
+        </View>
       ) : null}
 
       {items.length > 0 ? (
-        <Card>
-          {items.map((item) => {
+        <View style={styles.list}>
+          {items.map((item, index) => {
+            const detail = partnershipDetails.get(item.id);
             const deletingThis = pendingActionKey === `delete:${item.id}`;
             return (
-              <View style={styles.transactionRow} key={item.id}>
-                <View style={styles.transactionCopy}>
-                  <Text style={styles.transactionCategory}>{item.category}</Text>
-                  <Text style={styles.transactionDate}>{dateInputFromIso(item.occurredOn)}</Text>
-                </View>
-                <View style={styles.transactionActions}>
+              <View key={item.id} style={[styles.row, index > 0 && styles.divider]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.category} kaydını aç`}
+                  accessibilityState={{ disabled: navigationBusy }}
+                  disabled={navigationBusy}
+                  onPress={() => editTransaction(item)}
+                  style={({ pressed }) => [styles.rowMain, pressed && styles.pressed]}
+                >
+                  <View style={styles.copy}>
+                    <Text style={styles.category}>{item.category}</Text>
+                    <Text style={styles.meta}>
+                      {dateInputFromIso(item.occurredOn)}
+                      {item.cropCode ? ` · ${cropTemplates[item.cropCode].label}` : " · Genel"}
+                    </Text>
+                    {item.note ? <Text numberOfLines={2} style={styles.note}>{item.note}</Text> : null}
+                    {detail ? (
+                      <Text numberOfLines={2} style={styles.partnership}>
+                        {detail.partnerName} · {percentLabelFromBasisPoints(detail.ownerShareBasisPoints)}/{percentLabelFromBasisPoints(detail.partnerShareBasisPoints)} · {cashActorLabel(item, detail)}
+                      </Text>
+                    ) : null}
+                  </View>
                   <Text style={item.kind === "income" ? styles.incomeText : styles.expenseText}>
                     {item.kind === "income" ? "+" : "−"}{formatTry(item.amountKurus)}
                   </Text>
-                  <View style={styles.actionRow}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.category} kaydını düzelt`}
-                      accessibilityState={{ disabled: navigationBusy }}
-                      disabled={navigationBusy}
-                      hitSlop={4}
-                      onPress={() => editTransaction(item)}
-                      style={[styles.actionButton, navigationBusy && styles.actionDisabled]}
-                    >
-                      <Text style={styles.editText}>Düzelt</Text>
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={deletingThis ? `${item.category} kaydı siliniyor` : `${item.category} kaydını sil`}
-                      accessibilityState={{ disabled: navigationBusy }}
-                      disabled={navigationBusy}
-                      hitSlop={4}
-                      onPress={() => askDelete(item)}
-                      style={[styles.actionButton, navigationBusy && styles.actionDisabled]}
-                    >
-                      <Text style={styles.deleteText}>{deletingThis ? "Siliniyor…" : "Sil"}</Text>
-                    </Pressable>
-                  </View>
-                </View>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={deletingThis ? `${item.category} kaydı siliniyor` : `${item.category} kaydını sil`}
+                  accessibilityState={{ disabled: navigationBusy }}
+                  disabled={navigationBusy}
+                  onPress={() => askDelete(item)}
+                  style={styles.deleteButton}
+                >
+                  <Text style={styles.deleteText}>{deletingThis ? "…" : "Sil"}</Text>
+                </Pressable>
               </View>
             );
           })}
-        </Card>
+        </View>
       ) : null}
 
       {nextCursor !== undefined ? (
         <SecondaryButton
-          label={paging ? "Açılıyor…" : "Daha eski kayıtları göster"}
+          label={paging ? "Açılıyor…" : "Daha eski kayıtlar"}
           disabled={navigationBusy}
           onPress={() => void showOlder()}
         />
@@ -318,33 +342,42 @@ export default function TransactionsScreen() {
   );
 }
 
+function cashActorLabel(item: FarmTransaction, detail: LedgerPartnershipDetail): string {
+  if (item.kind === "expense") return detail.cashActor === "owner" ? "Sen ödedin" : "Ortak ödedi";
+  return detail.cashActor === "owner" ? "Para sana geldi" : "Para ortağa geldi";
+}
+
 const styles = StyleSheet.create({
-  cardTitle: { color: theme.color.text, fontSize: 20, fontWeight: "900" },
-  muted: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700", lineHeight: 23 },
-  undoTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
-  transactionRow: {
+  muted: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  undo: {
     minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 4
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
   },
-  transactionCopy: { flex: 1 },
-  transactionCategory: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
-  transactionDate: { color: theme.color.textMuted, fontSize: 14, marginTop: 3 },
-  transactionActions: { alignItems: "flex-end", gap: 6 },
-  incomeText: { color: theme.color.income, fontSize: 17, fontWeight: "800" },
-  expenseText: { color: theme.color.expense, fontSize: 17, fontWeight: "800" },
-  actionRow: { flexDirection: "row", gap: 4 },
-  actionButton: {
-    minWidth: uxPolicy.minimumTouchTargetPx,
-    minHeight: uxPolicy.minimumTouchTargetPx,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  actionDisabled: { opacity: 0.45 },
-  editText: { color: theme.color.primary, fontSize: 15, fontWeight: "800" },
-  deleteText: { color: theme.color.expense, fontSize: 15, fontWeight: "800" },
-  error: { color: theme.color.expense, fontSize: 16, fontWeight: "700", lineHeight: 22 }
+  undoCopy: { flex: 1, gap: 2 },
+  undoTitle: { color: theme.color.text, fontSize: 15, fontWeight: "800" },
+  undoButton: { minWidth: 72, minHeight: uxPolicy.minimumTouchTargetPx, alignItems: "center", justifyContent: "center" },
+  undoButtonText: { color: theme.color.primary, fontSize: 14, fontWeight: "800" },
+  empty: { minHeight: 140, justifyContent: "center", gap: 5, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.color.divider },
+  emptyTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
+  list: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.color.divider },
+  row: { flexDirection: "row", alignItems: "stretch", gap: 4, minHeight: 84 },
+  divider: { borderTopWidth: 1, borderTopColor: theme.color.divider },
+  rowMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
+  pressed: { opacity: 0.6 },
+  copy: { flex: 1, gap: 3 },
+  category: { color: theme.color.text, fontSize: 16, fontWeight: "800" },
+  meta: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600" },
+  note: { color: theme.color.textSubtle, fontSize: 12, fontWeight: "600", lineHeight: 17 },
+  partnership: { color: theme.color.primary, fontSize: 12, fontWeight: "700", lineHeight: 17 },
+  incomeText: { color: theme.color.income, fontSize: 16, fontWeight: "900" },
+  expenseText: { color: theme.color.expense, fontSize: 16, fontWeight: "900" },
+  deleteButton: { minWidth: 52, minHeight: uxPolicy.minimumTouchTargetPx, alignItems: "center", justifyContent: "center" },
+  deleteText: { color: theme.color.expense, fontSize: 12, fontWeight: "700" },
+  error: { color: theme.color.expense, fontSize: 15, fontWeight: "700", lineHeight: 22 }
 });

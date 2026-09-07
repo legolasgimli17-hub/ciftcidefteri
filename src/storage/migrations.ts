@@ -1,5 +1,6 @@
 import {
   INITIAL_SCHEMA_SQL,
+  PARTNERSHIP_LEDGER_SQL,
   PROFILE_PHONE_REMOVAL_SQL,
   SCHEMA_VERSION,
   TRANSACTION_HISTORY_INDEX_SQL
@@ -32,6 +33,11 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   {
     version: 3,
     sql: PROFILE_PHONE_REMOVAL_SQL,
+    transactional: true
+  },
+  {
+    version: 4,
+    sql: PARTNERSHIP_LEDGER_SQL,
     transactional: true
   }
 ];

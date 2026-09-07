@@ -1,28 +1,22 @@
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useCallback, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { createExclusiveActionGate } from "@/src/application/exclusiveActionGate";
+import { useCallback, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { buildHomeSummary } from "@/src/application/homeSummary";
 import { loadAppSnapshot, type AppSnapshot } from "@/src/application/appSnapshot";
-import { LocalFarmRepository } from "@/src/application/localFarmRepository";
-import { LocalTransactionCorrections } from "@/src/application/transactionCorrections";
 import { formatTry } from "@/src/domain/money";
 import { type FarmTransaction } from "@/src/domain/transaction";
+import { cropTemplates } from "@/src/domain/crops";
 import { mobileDatabase } from "@/src/mobile/database";
 import { dateInputFromIso } from "@/src/mobile/date";
-import { BigButton, Card, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
+import { BigButton, PageTitle, Screen, SecondaryButton, SectionTitle, TopNav } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
 
 export default function HomeScreen() {
   const sqlite = useSQLiteContext();
-  const actionGateRef = useRef(createExclusiveActionGate());
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
   const [error, setError] = useState<string>();
-  const [lastDeleted, setLastDeleted] = useState<FarmTransaction | null>(null);
-  const [restoring, setRestoring] = useState(false);
-  const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -45,212 +39,99 @@ export default function HomeScreen() {
   }, [refresh]));
 
   const summary = snapshot ? buildHomeSummary(snapshot.summary) : null;
-  const homeActionBusy = pendingActionKey !== null;
-
-  const finishHomeAction = (key: string) => {
-    actionGateRef.current.finish(key);
-    setPendingActionKey((current) => current === key ? null : current);
-  };
-
-  const restoreLastDeleted = async () => {
-    if (snapshot === null || lastDeleted === null) return;
-    const actionKey = `restore:${lastDeleted.id}`;
-    if (!actionGateRef.current.tryStart(actionKey)) return;
-
-    setPendingActionKey(actionKey);
-    setRestoring(true);
-    setError(undefined);
-    try {
-      const restored = await new LocalTransactionCorrections(mobileDatabase(sqlite)).restoreTransaction({
-        farmId: snapshot.identity.farmId,
-        transactionId: lastDeleted.id,
-        nowIso: new Date().toISOString()
-      });
-      if (!restored) {
-        setLastDeleted(null);
-        setError("Bu kayıt geri alınamadı. Defterini yenileyip tekrar dene.");
-        return;
-      }
-      setLastDeleted(null);
-      await refresh();
-    } catch {
-      setError("Kaydı geri alamadık. Diğer kayıtların güvende.");
-    } finally {
-      setRestoring(false);
-      finishHomeAction(actionKey);
-    }
-  };
-
-  const deleteTransaction = async (item: FarmTransaction, farmId: string, actionKey: string) => {
-    setError(undefined);
-    try {
-      const repository = new LocalFarmRepository(mobileDatabase(sqlite));
-      const deleted = await repository.softDeleteTransaction({
-        farmId,
-        transactionId: item.id,
-        nowIso: new Date().toISOString()
-      });
-      if (!deleted) {
-        setError("Bu kayıt zaten silinmiş veya bulunamadı.");
-        return;
-      }
-      setLastDeleted(item);
-      await refresh();
-    } catch {
-      setError("Kaydı silemedik. Kayıtların güvende.");
-    } finally {
-      finishHomeAction(actionKey);
-    }
-  };
-
-  const askDelete = (item: FarmTransaction) => {
-    if (snapshot === null) return;
-    const actionKey = `delete:${item.id}`;
-    if (!actionGateRef.current.tryStart(actionKey)) return;
-
-    setPendingActionKey(actionKey);
-    let deleteConfirmed = false;
-    const releasePrompt = () => {
-      if (!deleteConfirmed) finishHomeAction(actionKey);
-    };
-
-    Alert.alert(
-      "Bu kaydı silelim mi?",
-      `${item.category} · ${formatTry(item.amountKurus)}`,
-      [
-        { text: "Vazgeç", style: "cancel", onPress: releasePrompt },
-        {
-          text: "Sil",
-          style: "destructive",
-          onPress: () => {
-            deleteConfirmed = true;
-            void deleteTransaction(item, snapshot.identity.farmId, actionKey);
-          }
-        }
-      ],
-      { cancelable: true, onDismiss: releasePrompt }
-    );
-  };
-
-  const editTransaction = (item: FarmTransaction) => {
-    if (actionGateRef.current.isBusy()) return;
-    router.push({ pathname: "/transaction-edit", params: { id: item.id } });
-  };
 
   return (
     <Screen>
-      <PageTitle hint={snapshot ? `${snapshot.identity.profile.name}, bugün ne oldu?` : "Defterin hazırlanıyor…"}>
-        Benim Defterim
+      <PageTitle hint={snapshot ? snapshot.identity.profile.name : "Defterin hazırlanıyor…"}>
+        Defterim
       </PageTitle>
 
-      {summary ? (
-        <Card>
-          <Text style={styles.summaryLabel}>{summary.headline}</Text>
-          <Text style={[
-            styles.summaryAmount,
-            summary.tone === "positive" && styles.positive,
-            summary.tone === "negative" && styles.negative
-          ]}>{formatTry(summary.netKurus)}</Text>
-          <View style={styles.rows}>
-            <Text style={styles.incomeText}>Giren: {formatTry(snapshot!.summary.income)}</Text>
-            <Text style={styles.expenseText}>Çıkan: {formatTry(snapshot!.summary.expense)}</Text>
-          </View>
-          <SecondaryButton
-            label="Ürünlerin durumuna bak"
-            disabled={homeActionBusy}
-            onPress={() => router.push("/crop-profit")}
-          />
-        </Card>
-      ) : null}
+      <TopNav
+        active="ledger"
+        onLedger={() => undefined}
+        onCrops={() => router.replace("/crop-profit")}
+        onPartners={() => router.replace("/partners")}
+      />
 
-      {lastDeleted !== null ? (
-        <Card>
-          <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.undoTitle}>Kayıt silindi.</Text>
-          <Text style={styles.undoCopy}>{lastDeleted.category} · {formatTry(lastDeleted.amountKurus)}</Text>
-          <SecondaryButton
-            label={restoring ? "Geri alınıyor…" : "Geri al"}
-            disabled={restoring || homeActionBusy}
-            onPress={() => void restoreLastDeleted()}
-          />
-        </Card>
+      {summary && snapshot ? (
+        <View style={styles.balanceBlock}>
+          <Text style={styles.balanceLabel}>Bu sezon kalan</Text>
+          <Text style={[
+            styles.balanceAmount,
+            summary.tone === "negative" && styles.balanceNegative
+          ]}>
+            {formatTry(summary.netKurus)}
+          </Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Gelir</Text>
+              <Text style={styles.incomeAmount}>{formatTry(snapshot.summary.income)}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Gider</Text>
+              <Text style={styles.expenseAmount}>{formatTry(snapshot.summary.expense)}</Text>
+            </View>
+          </View>
+        </View>
       ) : null}
 
       {snapshot ? (
-        <>
-          <Text style={styles.question}>Bugün para girdi mi, çıktı mı?</Text>
+        <View style={styles.actions}>
           <BigButton
-            label="Para girdi"
-            icon="↓"
-            kind="income"
-            disabled={homeActionBusy}
-            onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })}
-          />
-          <BigButton
-            label="Para çıktı"
-            icon="↑"
-            kind="expense"
-            disabled={homeActionBusy}
+            label="Gider ekle"
+            icon="+"
+            disabled={false}
             onPress={() => router.push({ pathname: "/transaction", params: { kind: "expense" } })}
           />
-        </>
+          <SecondaryButton
+            label="Gelir ekle"
+            onPress={() => router.push({ pathname: "/transaction", params: { kind: "income" } })}
+          />
+        </View>
       ) : null}
 
+      {snapshot ? <SectionTitle detail="En yeniler">Son kayıtlar</SectionTitle> : null}
+
       {snapshot && snapshot.recentTransactions.length === 0 ? (
-        <Card>
-          <Text accessibilityRole="header" style={styles.cardTitle}>Henüz kayıt yok</Text>
-          <Text style={styles.emptyCopy}>İlk para girişini veya çıkışını yukarıdan ekleyebilirsin.</Text>
-        </Card>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Defterin boş</Text>
+          <Text style={styles.emptyText}>İlk giderini “Gider ekle” ile tarihli olarak yazabilirsin.</Text>
+        </View>
       ) : null}
 
       {snapshot && snapshot.recentTransactions.length > 0 ? (
-        <Card>
-          <Text style={styles.cardTitle}>Son kayıtlar</Text>
-          {snapshot.recentTransactions.map((item: FarmTransaction) => {
-            const deletingThis = pendingActionKey === `delete:${item.id}`;
-            return (
-              <View style={styles.transactionRow} key={item.id}>
-                <View style={styles.transactionCopy}>
-                  <Text style={styles.transactionCategory}>{item.category}</Text>
-                  <Text style={styles.transactionDate}>{dateInputFromIso(item.occurredOn)}</Text>
-                </View>
-                <View style={styles.transactionActions}>
-                  <Text style={item.kind === "income" ? styles.incomeText : styles.expenseText}>
-                    {item.kind === "income" ? "+" : "−"}{formatTry(item.amountKurus)}
-                  </Text>
-                  <View style={styles.actionRow}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.category} kaydını düzelt`}
-                      accessibilityState={{ disabled: homeActionBusy }}
-                      disabled={homeActionBusy}
-                      onPress={() => editTransaction(item)}
-                      hitSlop={4}
-                      style={[styles.editButton, homeActionBusy && styles.actionDisabled]}
-                    >
-                      <Text style={styles.editText}>Düzelt</Text>
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={deletingThis ? `${item.category} kaydı siliniyor` : `${item.category} kaydını sil`}
-                      accessibilityState={{ disabled: homeActionBusy }}
-                      disabled={homeActionBusy}
-                      onPress={() => askDelete(item)}
-                      hitSlop={4}
-                      style={[styles.deleteButton, homeActionBusy && styles.actionDisabled]}
-                    >
-                      <Text style={styles.deleteText}>{deletingThis ? "Siliniyor…" : "Sil"}</Text>
-                    </Pressable>
-                  </View>
-                </View>
+        <View style={styles.ledgerList}>
+          {snapshot.recentTransactions.map((item: FarmTransaction, index: number) => (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.category} kaydını aç`}
+              onPress={() => router.push({ pathname: "/transaction-edit", params: { id: item.id } })}
+              style={({ pressed }) => [
+                styles.ledgerRow,
+                index > 0 && styles.ledgerDivider,
+                pressed && styles.ledgerPressed
+              ]}
+            >
+              <View style={styles.ledgerCopy}>
+                <Text style={styles.ledgerCategory}>{item.category}</Text>
+                <Text style={styles.ledgerMeta}>
+                  {dateInputFromIso(item.occurredOn)}
+                  {item.cropCode ? ` · ${cropTemplates[item.cropCode].label}` : " · Genel"}
+                </Text>
+                {item.note ? <Text numberOfLines={1} style={styles.ledgerNote}>{item.note}</Text> : null}
               </View>
-            );
-          })}
-          <SecondaryButton
-            label="Tüm kayıtları gör"
-            disabled={homeActionBusy}
-            onPress={() => router.push("/transactions")}
-          />
-        </Card>
+              <Text style={item.kind === "income" ? styles.ledgerIncome : styles.ledgerExpense}>
+                {item.kind === "income" ? "+" : "−"}{formatTry(item.amountKurus)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      {snapshot && snapshot.recentTransactions.length > 0 ? (
+        <SecondaryButton label="Tüm defteri aç" onPress={() => router.push("/transactions")} />
       ) : null}
 
       {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
@@ -259,38 +140,70 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  summaryLabel: { color: theme.color.textMuted, fontSize: 17, fontWeight: "700" },
-  summaryAmount: { color: theme.color.text, fontSize: theme.type.amount, fontWeight: "900", letterSpacing: -1 },
-  positive: { color: theme.color.income },
-  negative: { color: theme.color.expense },
-  rows: { flexDirection: "row", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
-  incomeText: { color: theme.color.income, fontSize: 17, fontWeight: "800" },
-  expenseText: { color: theme.color.expense, fontSize: 17, fontWeight: "800" },
-  question: { color: theme.color.text, fontSize: 21, fontWeight: "900", marginTop: 6 },
-  cardTitle: { color: theme.color.text, fontSize: 20, fontWeight: "900" },
-  emptyCopy: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700", lineHeight: 23 },
-  transactionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 58, gap: 12 },
-  transactionCopy: { flex: 1 },
-  transactionCategory: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
-  transactionDate: { color: theme.color.textMuted, fontSize: 14, marginTop: 3 },
-  transactionActions: { alignItems: "flex-end", gap: 6 },
-  actionRow: { flexDirection: "row", gap: 4 },
-  editButton: {
-    minWidth: uxPolicy.minimumTouchTargetPx,
-    minHeight: uxPolicy.minimumTouchTargetPx,
-    alignItems: "center",
-    justifyContent: "center"
+  balanceBlock: {
+    paddingTop: 22,
+    paddingBottom: 16,
+    gap: 7
   },
-  deleteButton: {
-    minWidth: uxPolicy.minimumTouchTargetPx,
-    minHeight: uxPolicy.minimumTouchTargetPx,
-    alignItems: "center",
-    justifyContent: "center"
+  balanceLabel: {
+    color: theme.color.textMuted,
+    fontSize: 14,
+    fontWeight: "700"
   },
-  actionDisabled: { opacity: 0.45 },
-  editText: { color: theme.color.primary, fontSize: 15, fontWeight: "800" },
-  deleteText: { color: theme.color.expense, fontSize: 15, fontWeight: "800" },
-  undoTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
-  undoCopy: { color: theme.color.textMuted, fontSize: 16, fontWeight: "700" },
-  error: { color: theme.color.expense, fontSize: 16, fontWeight: "700" }
+  balanceAmount: {
+    color: theme.color.text,
+    fontSize: theme.type.heroAmount,
+    lineHeight: 56,
+    fontWeight: "900",
+    letterSpacing: -1.8
+  },
+  balanceNegative: { color: theme.color.expense },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginTop: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
+  },
+  summaryItem: { flex: 1, gap: 4 },
+  summaryDivider: { width: 1, backgroundColor: theme.color.divider, marginHorizontal: 18 },
+  summaryLabel: { color: theme.color.textMuted, fontSize: 12, fontWeight: "700" },
+  incomeAmount: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
+  expenseAmount: { color: theme.color.text, fontSize: 17, fontWeight: "800" },
+  actions: { gap: 10, marginTop: 2 },
+  emptyState: {
+    minHeight: 128,
+    justifyContent: "center",
+    paddingVertical: 24,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider,
+    gap: 6
+  },
+  emptyTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
+  emptyText: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  ledgerList: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
+  },
+  ledgerRow: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14,
+    paddingVertical: 13
+  },
+  ledgerDivider: { borderTopWidth: 1, borderTopColor: theme.color.divider },
+  ledgerPressed: { opacity: 0.6 },
+  ledgerCopy: { flex: 1, gap: 3 },
+  ledgerCategory: { color: theme.color.text, fontSize: 16, fontWeight: "800" },
+  ledgerMeta: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600" },
+  ledgerNote: { color: theme.color.textSubtle, fontSize: 12, fontWeight: "600" },
+  ledgerIncome: { color: theme.color.income, fontSize: 16, fontWeight: "900" },
+  ledgerExpense: { color: theme.color.expense, fontSize: 16, fontWeight: "900" },
+  error: { color: theme.color.expense, fontSize: 15, fontWeight: "700", lineHeight: 22, minHeight: uxPolicy.minimumTouchTargetPx }
 });
