@@ -1,4 +1,5 @@
 import {
+  DEBT_LEDGER_SQL,
   INITIAL_SCHEMA_SQL,
   PARTNERSHIP_LEDGER_SQL,
   PROFILE_PHONE_REMOVAL_SQL,
@@ -20,26 +21,11 @@ CREATE TABLE IF NOT EXISTS app_meta (
 );`;
 
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
-  {
-    version: 1,
-    sql: INITIAL_SCHEMA_SQL,
-    transactional: true
-  },
-  {
-    version: 2,
-    sql: TRANSACTION_HISTORY_INDEX_SQL,
-    transactional: true
-  },
-  {
-    version: 3,
-    sql: PROFILE_PHONE_REMOVAL_SQL,
-    transactional: true
-  },
-  {
-    version: 4,
-    sql: PARTNERSHIP_LEDGER_SQL,
-    transactional: true
-  }
+  { version: 1, sql: INITIAL_SCHEMA_SQL, transactional: true },
+  { version: 2, sql: TRANSACTION_HISTORY_INDEX_SQL, transactional: true },
+  { version: 3, sql: PROFILE_PHONE_REMOVAL_SQL, transactional: true },
+  { version: 4, sql: PARTNERSHIP_LEDGER_SQL, transactional: true },
+  { version: 5, sql: DEBT_LEDGER_SQL, transactional: true }
 ];
 
 export function validateMigrationPlan(
