@@ -6,7 +6,11 @@ const path = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
 
 import { LocalFarmRepository } from "../src/application/localFarmRepository";
-import { LocalTransactionHistory } from "../src/application/transactionHistory";
+import {
+  LocalTransactionHistory,
+  type TransactionHistoryCursor,
+  type TransactionHistoryPage
+} from "../src/application/transactionHistory";
 import { squareMetersFromUserInput } from "../src/domain/landArea";
 import { createFarmerProfile } from "../src/domain/profile";
 import { createFarmTransaction } from "../src/domain/transaction";
@@ -86,6 +90,13 @@ async function add(
   });
 }
 
+function requireCursor(page: TransactionHistoryPage): TransactionHistoryCursor {
+  if (page.nextCursor === undefined) {
+    throw new Error("Test beklenen sonraki kayıt imlecini bulamadı.");
+  }
+  return page.nextCursor;
+}
+
 test("kayıt geçmişi cursor ile sayfalanır; kayıt tekrarı veya kaybı olmaz", async () => {
   const { db, repo } = await setup();
   await add(repo, "txn-history-0001", "2026-09-07", "2026-09-07T10:01:00.000Z", 10_000);
@@ -97,13 +108,11 @@ test("kayıt geçmişi cursor ile sayfalanır; kayıt tekrarı veya kaybı olmaz
   const history = new LocalTransactionHistory(db);
   const first = await history.page({ farmId: FARM_ID, limit: 2 });
   assert.deepEqual(first.items.map((item) => item.id), ["txn-history-0002", "txn-history-0001"]);
-  assert.ok(first.nextCursor);
 
-  const second = await history.page({ farmId: FARM_ID, limit: 2, cursor: first.nextCursor });
+  const second = await history.page({ farmId: FARM_ID, limit: 2, cursor: requireCursor(first) });
   assert.deepEqual(second.items.map((item) => item.id), ["txn-history-0003", "txn-history-0004"]);
-  assert.ok(second.nextCursor);
 
-  const third = await history.page({ farmId: FARM_ID, limit: 2, cursor: second.nextCursor });
+  const third = await history.page({ farmId: FARM_ID, limit: 2, cursor: requireCursor(second) });
   assert.deepEqual(third.items.map((item) => item.id), ["txn-history-0005"]);
   assert.equal(third.nextCursor, undefined);
 
@@ -122,7 +131,7 @@ test("aynı tarih ve oluşturma anında kimlik sıralaması cursor kararlılığ
   const history = new LocalTransactionHistory(db);
   const first = await history.page({ farmId: FARM_ID, limit: 2 });
   assert.deepEqual(first.items.map((item) => item.id), ["txn-history-aaa3", "txn-history-aaa2"]);
-  const second = await history.page({ farmId: FARM_ID, limit: 2, cursor: first.nextCursor });
+  const second = await history.page({ farmId: FARM_ID, limit: 2, cursor: requireCursor(first) });
   assert.deepEqual(second.items.map((item) => item.id), ["txn-history-aaa1"]);
   db.close();
 });
