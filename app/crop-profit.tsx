@@ -6,7 +6,7 @@ import { loadFarmIdentity } from "@/src/application/appSnapshot";
 import { loadCropProfitSummaries, type CropProfitSummary } from "@/src/application/cropProfit";
 import { formatTry } from "@/src/domain/money";
 import { mobileDatabase } from "@/src/mobile/database";
-import { Card, PageTitle, Pill, Screen, SecondaryButton, SectionTitle } from "@/src/ui/components";
+import { PageTitle, Screen, TopNav } from "@/src/ui/components";
 import { CropArtwork } from "@/src/ui/cropArtwork";
 import { theme } from "@/src/ui/theme";
 
@@ -23,100 +23,93 @@ export default function CropProfitScreen() {
         router.replace("/onboarding");
         return;
       }
-      const loaded = await loadCropProfitSummaries(db, identity.farmId);
-      setItems(loaded);
+      setItems(await loadCropProfitSummaries(db, identity.farmId));
       setError(undefined);
     } catch {
       setItems([]);
-      setError("Ürünlerinin durumunu şu an gösteremedik. Kayıtların güvende.");
+      setError("Ürün hesabını şu an gösteremedik. Kayıtların güvende.");
     }
   }, [sqlite]);
 
-  useFocusEffect(useCallback(() => {
-    void refresh();
-  }, [refresh]));
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   return (
     <Screen>
-      <PageTitle hint="Hangi ürün para kazandırıyor, hangisi masraf çıkarıyor tek bakışta gör.">
-        Ürün hesabı
-      </PageTitle>
+      <PageTitle hint="Her ürünün net durumunu ayrı gör.">Ürünler</PageTitle>
 
-      {items.length > 0 ? <SectionTitle detail={`${items.length} ürün`}>Ürünlerin</SectionTitle> : null}
+      <TopNav
+        active="crops"
+        onLedger={() => router.replace("/home")}
+        onCrops={() => undefined}
+        onPartners={() => router.replace("/partners")}
+      />
 
-      {items.map((item) => {
-        const tone = item.summary.net > 0 ? "income" : item.summary.net < 0 ? "expense" : "neutral";
-        const status = item.summary.net > 0 ? "Artıda" : item.summary.net < 0 ? "Ekside" : "Dengede";
-        return (
-          <Card key={item.cropCode}>
-            <View style={styles.cropHeader}>
-              <CropArtwork cropCode={item.cropCode} />
-              <View style={styles.cropHeaderCopy}>
-                <Text accessibilityRole="header" style={styles.cropName}>{item.cropLabel}</Text>
-                <Pill label={status} tone={tone} />
-              </View>
-            </View>
-
-            <View style={styles.netBlock}>
-              <Text style={styles.netLabel}>Bu üründe kalan</Text>
-              <Text style={[
-                styles.netAmount,
-                item.summary.net > 0 && styles.positive,
-                item.summary.net < 0 && styles.negative
-              ]}>
-                {formatTry(item.summary.net)}
+      <View style={styles.list}>
+        {items.map((item, index) => (
+          <View key={item.cropCode} style={[styles.row, index > 0 && styles.divider]}>
+            <CropArtwork cropCode={item.cropCode} size={58} />
+            <View style={styles.copy}>
+              <Text accessibilityRole="header" style={styles.name}>{item.cropLabel}</Text>
+              <Text style={styles.meta}>
+                Gelir {formatTry(item.summary.income)} · Gider {formatTry(item.summary.expense)}
               </Text>
             </View>
-
-            <View style={styles.metricRow}>
-              <View style={[styles.metricBox, styles.incomeBox]}>
-                <Text style={styles.metricLabel}>GELEN</Text>
-                <Text style={[styles.metricAmount, styles.positive]}>{formatTry(item.summary.income)}</Text>
-              </View>
-              <View style={[styles.metricBox, styles.expenseBox]}>
-                <Text style={styles.metricLabel}>HARCANAN</Text>
-                <Text style={[styles.metricAmount, styles.negative]}>{formatTry(item.summary.expense)}</Text>
-              </View>
+            <View style={styles.amountBlock}>
+              <Text style={styles.amountLabel}>Kalan</Text>
+              <Text style={[
+                styles.amount,
+                item.summary.net < 0 && styles.negative,
+                item.summary.net > 0 && styles.positive
+              ]}>{formatTry(item.summary.net)}</Text>
             </View>
-          </Card>
-        );
-      })}
+          </View>
+        ))}
+      </View>
 
       {items.length === 0 && !error ? (
-        <Card tone="soft">
-          <Text style={styles.emptyTitle}>Henüz ürün hesabı oluşmadı</Text>
-          <Text style={styles.empty}>Ürüne bağlı bir gelir veya gider eklediğinde burada görünür.</Text>
-        </Card>
-      ) : null}
-
-      {error ? (
-        <View style={styles.errorBox}>
-          <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Henüz ürün hesabı yok</Text>
+          <Text style={styles.emptyText}>Ürüne bağlı kayıt girdikçe burada oluşur.</Text>
         </View>
       ) : null}
 
-      <SecondaryButton label="Deftere dön" onPress={() => router.replace("/home")} />
+      {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  cropHeader: { flexDirection: "row", alignItems: "center", gap: 14 },
-  cropHeaderCopy: { flex: 1, gap: 8 },
-  cropName: { color: theme.color.text, fontSize: 23, fontWeight: "900", letterSpacing: -0.35 },
-  netBlock: { gap: 4, paddingTop: 2 },
-  netLabel: { color: theme.color.textMuted, fontSize: 14, fontWeight: "700" },
-  netAmount: { color: theme.color.text, fontSize: 34, fontWeight: "900", letterSpacing: -0.9 },
+  list: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider,
+    marginTop: 10
+  },
+  row: {
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14
+  },
+  divider: { borderTopWidth: 1, borderTopColor: theme.color.divider },
+  copy: { flex: 1, gap: 5 },
+  name: { color: theme.color.text, fontSize: 18, fontWeight: "900", letterSpacing: -0.2 },
+  meta: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600", lineHeight: 18 },
+  amountBlock: { alignItems: "flex-end", gap: 3 },
+  amountLabel: { color: theme.color.textSubtle, fontSize: 11, fontWeight: "700" },
+  amount: { color: theme.color.text, fontSize: 17, fontWeight: "900" },
   positive: { color: theme.color.income },
   negative: { color: theme.color.expense },
-  metricRow: { flexDirection: "row", gap: 10 },
-  metricBox: { flex: 1, borderRadius: theme.radius.md, padding: 14, gap: 7 },
-  incomeBox: { backgroundColor: theme.color.incomeSoft },
-  expenseBox: { backgroundColor: theme.color.expenseSoft },
-  metricLabel: { color: theme.color.textMuted, fontSize: 11, fontWeight: "900", letterSpacing: 0.7 },
-  metricAmount: { fontSize: 16, fontWeight: "900" },
+  empty: {
+    minHeight: 140,
+    justifyContent: "center",
+    gap: 6,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
+  },
   emptyTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
-  empty: { color: theme.color.textMuted, fontSize: 16, fontWeight: "600", lineHeight: 23 },
-  errorBox: { backgroundColor: theme.color.expenseSoft, borderRadius: theme.radius.sm, padding: 14 },
+  emptyText: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600" },
   error: { color: theme.color.expense, fontSize: 15, fontWeight: "700", lineHeight: 22 }
 });
