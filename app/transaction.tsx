@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, StyleSheet, Text, View } from "react-native";
+import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity, type FarmIdentity } from "@/src/application/appSnapshot";
 import { LocalFarmRepository } from "@/src/application/localFarmRepository";
 import { LocalPartnershipRepository } from "@/src/application/localPartnershipRepository";
@@ -28,7 +28,7 @@ import { type TransactionKind } from "@/src/domain/transaction";
 import { mobileDatabase } from "@/src/mobile/database";
 import { dateInputFromIso, isoDateFromTurkishInput, todayIsoLocal } from "@/src/mobile/date";
 import { createLocalId } from "@/src/mobile/id";
-import { BigButton, Card, ChoiceCard, ErrorNote, Field, PageTitle, Pill, Screen, SecondaryButton, SectionTitle } from "@/src/ui/components";
+import { BigButton, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { CropArtwork } from "@/src/ui/cropArtwork";
 import { theme } from "@/src/ui/theme";
 
@@ -258,66 +258,75 @@ export default function TransactionScreen() {
     <Screen>
       {step === "amount" ? (
         <>
-          <PageTitle hint="Tarih bugün hazır. Gerekirse değiştirebilirsin.">
-            {kind === "income" ? "Ne kadar gelir var?" : "Ne kadar harcadın?"}
+          <PageTitle hint="Tarih bugün hazır. Gerekirse değiştir.">
+            {kind === "income" ? "Gelir ekle" : "Gider ekle"}
           </PageTitle>
           <Field label="Tutar" keyboardType="decimal-pad" value={amountText} onChangeText={setAmountText} placeholder="0,00 TL" autoFocus />
           <Field label="Tarih" keyboardType="numeric" value={dateText} onChangeText={setDateText} placeholder="GG.AA.YYYY" />
           <ErrorNote message={error} />
-          <BigButton label="Devam" icon="→" kind={kind} onPress={afterAmount} />
+          <BigButton label="Devam" icon="→" onPress={afterAmount} />
           <SecondaryButton label="Vazgeç" onPress={() => router.back()} />
         </>
       ) : null}
 
       {step === "crop" ? (
         <>
-          <PageTitle hint="Bir ürüne bağlı değilse Genel'i seç.">Hangi ürün için?</PageTitle>
-          <ChoiceCard
-            icon="G"
-            label="Genel"
-            caption="Belirli bir ürüne ait değil"
-            selected={cropCode === undefined}
-            onPress={() => { setCropCode(undefined); setStep("category"); }}
-          />
-          {identity?.cropCodes.map((crop: CropCode) => (
-            <ChoiceCard
-              key={crop}
-              leading={<CropArtwork cropCode={crop} compact />}
-              label={cropTemplates[crop].label}
-              selected={cropCode === crop}
-              onPress={() => { setCropCode(crop); setStep("category"); }}
+          <PageTitle hint="Bir ürüne ait değilse Genel'i seç.">Hangi ürün?</PageTitle>
+          <View style={styles.selectionList}>
+            <SimpleOption
+              label="Genel"
+              selected={cropCode === undefined}
+              onPress={() => { setCropCode(undefined); setStep("category"); }}
             />
-          ))}
+            {identity?.cropCodes.map((crop: CropCode) => (
+              <SimpleOption
+                key={crop}
+                label={cropTemplates[crop].label}
+                selected={cropCode === crop}
+                leading={<CropArtwork cropCode={crop} compact />}
+                onPress={() => { setCropCode(crop); setStep("category"); }}
+              />
+            ))}
+          </View>
           <SecondaryButton label="Geri" onPress={() => setStep("amount")} />
         </>
       ) : null}
 
       {step === "category" ? (
         <>
-          <PageTitle hint={cropCode === undefined ? "Bu kayıt belirli bir ürüne bağlanmayacak." : "Defterde görmek istediğin en yakın kalemi seç."}>
+          <PageTitle hint="En yakın gider veya gelir kalemini seç.">
             {kind === "income" ? "Gelir nereden geldi?" : "Neye harcadın?"}
           </PageTitle>
+
           {singleCrop !== undefined ? (
-            <View style={styles.scopeBlock}>
-              <SectionTitle>Bu kayıt neyle ilgili?</SectionTitle>
-              <ChoiceCard
-                leading={<CropArtwork cropCode={singleCrop} compact />}
+            <View style={styles.scopeToggle}>
+              <ScopeButton
                 label={cropTemplates[singleCrop].label}
                 selected={cropCode === singleCrop}
                 onPress={() => setCropCode(singleCrop)}
               />
-              <ChoiceCard
-                icon="G"
+              <ScopeButton
                 label="Genel"
-                caption="Belirli bir ürüne ait değil"
                 selected={cropCode === undefined}
                 onPress={() => setCropCode(undefined)}
               />
             </View>
           ) : null}
-          {categories.map((item: string) => (
-            <ChoiceCard key={item} icon={kind === "income" ? "+" : "−"} label={item} onPress={() => chooseCategory(item)} />
-          ))}
+
+          <View style={styles.categoryGrid}>
+            {categories.map((item: string) => (
+              <Pressable
+                key={item}
+                accessibilityRole="button"
+                accessibilityLabel={item}
+                onPress={() => chooseCategory(item)}
+                style={({ pressed }) => [styles.categoryTile, pressed && styles.pressed]}
+              >
+                <Text style={styles.categoryText}>{item}</Text>
+              </Pressable>
+            ))}
+          </View>
+
           <ErrorNote message={error} />
           <SecondaryButton
             label="Geri"
@@ -328,16 +337,11 @@ export default function TransactionScreen() {
 
       {step === "details" ? (
         <>
-          <PageTitle hint="Deftere geçmeden önce son ayrıntıları ekleyebilirsin.">Kayıt ayrıntısı</PageTitle>
-          <Card tone="soft">
-            <View style={styles.reviewTop}>
-              <Pill label={kind === "income" ? "Gelir" : "Gider"} tone={kind === "income" ? "income" : "expense"} />
-              <Text style={styles.reviewAmount}>{amountPreview}</Text>
-            </View>
-            <View style={styles.reviewLine}><Text style={styles.reviewKey}>Tarih</Text><Text style={styles.reviewValue}>{dateText}</Text></View>
-            <View style={styles.reviewLine}><Text style={styles.reviewKey}>Kalem</Text><Text style={styles.reviewValue}>{category ?? "—"}</Text></View>
-            <View style={styles.reviewLine}><Text style={styles.reviewKey}>Ürün</Text><Text style={styles.reviewValue}>{cropCode ? cropTemplates[cropCode].label : "Genel"}</Text></View>
-          </Card>
+          <PageTitle hint={`${category ?? "Kayıt"} · ${cropCode ? cropTemplates[cropCode].label : "Genel"} · ${dateText}`}>
+            Son kontrol
+          </PageTitle>
+
+          <Text style={styles.amount}>{amountPreview}</Text>
 
           <Field
             label="Not"
@@ -349,54 +353,63 @@ export default function TransactionScreen() {
             maxLength={240}
           />
 
-          <SectionTitle>Ortaklık</SectionTitle>
           {partnership !== undefined && configuredPartner !== undefined ? (
-            <Card>
-              <View style={styles.partnershipHeader}>
-                <View style={styles.partnerInitial}><Text style={styles.partnerInitialText}>{configuredPartner.name.slice(0, 1).toLocaleUpperCase("tr-TR")}</Text></View>
-                <View style={styles.partnershipCopy}>
-                  <Text style={styles.partnershipName}>{configuredPartner.name}</Text>
-                  <Text style={styles.partnershipMeta}>
-                    Sen {percentLabelFromBasisPoints(partnership.ownerShareBasisPoints)} · Ortak {percentLabelFromBasisPoints(BASIS_POINTS_TOTAL - partnership.ownerShareBasisPoints)}
-                  </Text>
-                  <Text style={styles.partnershipMeta}>
-                    {kind === "expense"
-                      ? partnership.cashActor === "owner" ? "Ödemeyi sen yaptın" : "Ödemeyi ortak yaptı"
-                      : partnership.cashActor === "owner" ? "Para sana geldi" : "Para ortağa geldi"}
-                  </Text>
-                </View>
+            <View style={styles.partnerLine}>
+              <View style={styles.partnerAvatar}>
+                <Text style={styles.partnerAvatarText}>{configuredPartner.name.slice(0, 1).toLocaleUpperCase("tr-TR")}</Text>
               </View>
-              <SecondaryButton label="Ortaklığı değiştir" onPress={openPartnership} />
-              <SecondaryButton label="Ortaklığı kaldır" onPress={() => setPartnership(undefined)} />
-            </Card>
+              <View style={styles.partnerCopy}>
+                <Text style={styles.partnerName}>{configuredPartner.name}</Text>
+                <Text style={styles.partnerMeta}>
+                  Sen {percentLabelFromBasisPoints(partnership.ownerShareBasisPoints)} · Ortak {percentLabelFromBasisPoints(BASIS_POINTS_TOTAL - partnership.ownerShareBasisPoints)}
+                </Text>
+                <Text style={styles.partnerMeta}>
+                  {kind === "expense"
+                    ? partnership.cashActor === "owner" ? "Ödemeyi sen yaptın" : "Ödemeyi ortak yaptı"
+                    : partnership.cashActor === "owner" ? "Para sana geldi" : "Para ortağa geldi"}
+                </Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Ortaklığı değiştir" onPress={openPartnership} hitSlop={8}>
+                <Text style={styles.link}>Değiştir</Text>
+              </Pressable>
+            </View>
           ) : partners.length > 0 ? (
-            <SecondaryButton label="Bu kayıt ortaklı" onPress={openPartnership} />
-          ) : (
-            <Card tone="soft">
-              <Text style={styles.helperText}>Ortaklı çalışıyorsan önce ana sayfadaki “Ortak hesabı” bölümünden kişiyi ekleyebilirsin.</Text>
-            </Card>
-          )}
+            <SecondaryButton label="Ortaklık ekle" onPress={openPartnership} />
+          ) : null}
+
+          {partnership !== undefined ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Ortaklığı kaldır" onPress={() => setPartnership(undefined)} style={styles.removePartner}>
+              <Text style={styles.removePartnerText}>Ortaklığı kaldır</Text>
+            </Pressable>
+          ) : null}
+
           {partnerWarning ? <Text style={styles.warningText}>{partnerWarning}</Text> : null}
           <ErrorNote message={error} />
           {saving ? <Text style={styles.saving}>Kaydediliyor…</Text> : null}
-          <BigButton label={kind === "income" ? "Geliri kaydet" : "Gideri kaydet"} icon="✓" kind={kind} disabled={saving} onPress={() => void save()} />
+          <BigButton
+            label={kind === "income" ? "Geliri kaydet" : "Gideri kaydet"}
+            icon="✓"
+            disabled={saving}
+            onPress={() => void save()}
+          />
           <SecondaryButton label="Geri" disabled={saving} onPress={() => setStep("category")} />
         </>
       ) : null}
 
       {step === "partnership" ? (
         <>
-          <PageTitle hint="Bu bilgiler yalnız bu kaydın ortak hesabını hesaplamak için kullanılır.">Ortaklık hesabı</PageTitle>
-          <SectionTitle>Hangi ortak?</SectionTitle>
-          {partners.map((item) => (
-            <ChoiceCard
-              key={item.id}
-              icon={item.name.slice(0, 1).toLocaleUpperCase("tr-TR")}
-              label={item.name}
-              selected={partnerId === item.id}
-              onPress={() => setPartnerId(item.id)}
-            />
-          ))}
+          <PageTitle hint="Yalnız bu kaydın ortak hesabı için.">Ortaklık</PageTitle>
+
+          <View style={styles.selectionList}>
+            {partners.map((item) => (
+              <SimpleOption
+                key={item.id}
+                label={item.name}
+                selected={partnerId === item.id}
+                onPress={() => setPartnerId(item.id)}
+              />
+            ))}
+          </View>
 
           <Field
             label="Benim payım"
@@ -406,30 +419,24 @@ export default function TransactionScreen() {
             onChangeText={setOwnerShareText}
             placeholder="50"
           />
+
           {sharePreview ? (
-            <Card tone="soft">
-              <View style={styles.shareRow}><Text style={styles.reviewKey}>Senin payın</Text><Text style={styles.shareValue}>{sharePreview.owner}</Text></View>
-              <View style={styles.shareRow}><Text style={styles.reviewKey}>Ortağın payı</Text><Text style={styles.shareValue}>{sharePreview.partner}</Text></View>
-            </Card>
+            <Text style={styles.sharePreview}>Sen {sharePreview.owner} · Ortak {sharePreview.partner}</Text>
           ) : null}
 
           {selectedPartner ? (
-            <>
-              <SectionTitle>{kind === "expense" ? "Parayı kim ödedi?" : "Parayı kim aldı?"}</SectionTitle>
-              <ChoiceCard
-                icon="B"
+            <View style={styles.scopeToggle}>
+              <ScopeButton
                 label={kind === "expense" ? "Ben ödedim" : "Ben aldım"}
                 selected={cashActor === "owner"}
                 onPress={() => setCashActor("owner")}
               />
-              <ChoiceCard
-                icon="O"
+              <ScopeButton
                 label={kind === "expense" ? "Ortak ödedi" : "Ortak aldı"}
-                caption={selectedPartner.name}
                 selected={cashActor === "partner"}
                 onPress={() => setCashActor("partner")}
               />
-            </>
+            </View>
           ) : null}
 
           <ErrorNote message={error} />
@@ -441,7 +448,7 @@ export default function TransactionScreen() {
       {step === "done" ? (
         <View style={styles.done}>
           <View style={styles.doneMark}><Text style={styles.doneIcon}>✓</Text></View>
-          <PageTitle hint="İnternet olmasa da kayıt telefonunda duruyor.">Deftere işlendi</PageTitle>
+          <PageTitle hint="Kayıt telefonunda duruyor.">Deftere işlendi</PageTitle>
           <BigButton label="Deftere dön" icon="←" onPress={() => router.replace("/home")} />
         </View>
       ) : null}
@@ -449,25 +456,100 @@ export default function TransactionScreen() {
   );
 }
 
+function SimpleOption(props: {
+  readonly label: string;
+  readonly selected: boolean;
+  readonly leading?: React.ReactNode;
+  readonly onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.label}
+      accessibilityState={{ selected: props.selected }}
+      onPress={props.onPress}
+      style={({ pressed }) => [styles.simpleOption, props.selected && styles.simpleOptionSelected, pressed && styles.pressed]}
+    >
+      {props.leading}
+      <Text style={styles.simpleOptionText}>{props.label}</Text>
+      <View style={[styles.dot, props.selected && styles.dotSelected]} />
+    </Pressable>
+  );
+}
+
+function ScopeButton(props: { readonly label: string; readonly selected: boolean; readonly onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.label}
+      accessibilityState={{ selected: props.selected }}
+      onPress={props.onPress}
+      style={({ pressed }) => [styles.scopeButton, props.selected && styles.scopeButtonSelected, pressed && styles.pressed]}
+    >
+      <Text style={[styles.scopeButtonText, props.selected && styles.scopeButtonTextSelected]}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  saving: { color: theme.color.textMuted, fontSize: 15, fontWeight: "700", textAlign: "center" },
+  selectionList: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
+  },
+  simpleOption: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.divider,
+    paddingVertical: 8
+  },
+  simpleOptionSelected: { backgroundColor: theme.color.primarySoft },
+  simpleOptionText: { flex: 1, color: theme.color.text, fontSize: 16, fontWeight: "800" },
+  dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: theme.color.borderStrong },
+  dotSelected: { borderWidth: 5, borderColor: theme.color.primary },
+  pressed: { opacity: 0.65 },
+  scopeToggle: {
+    minHeight: 48,
+    flexDirection: "row",
+    backgroundColor: theme.color.surfaceMuted,
+    borderRadius: theme.radius.md,
+    padding: 4,
+    gap: 4
+  },
+  scopeButton: { flex: 1, minHeight: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  scopeButtonSelected: { backgroundColor: theme.color.surface },
+  scopeButtonText: { color: theme.color.textMuted, fontSize: 14, fontWeight: "700" },
+  scopeButtonTextSelected: { color: theme.color.text, fontWeight: "900" },
+  categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  categoryTile: {
+    width: "48%",
+    minHeight: 58,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.color.surface,
+    paddingHorizontal: 13,
+    paddingVertical: 10
+  },
+  categoryText: { color: theme.color.text, fontSize: 14, fontWeight: "800", lineHeight: 18 },
+  amount: { color: theme.color.text, fontSize: 38, fontWeight: "900", letterSpacing: -1.1, marginVertical: 6 },
+  partnerLine: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.color.divider },
+  partnerAvatar: { width: 42, height: 42, borderRadius: 13, backgroundColor: theme.color.primarySoft, alignItems: "center", justifyContent: "center" },
+  partnerAvatarText: { color: theme.color.primaryInk, fontSize: 15, fontWeight: "900" },
+  partnerCopy: { flex: 1, gap: 2 },
+  partnerName: { color: theme.color.text, fontSize: 15, fontWeight: "900" },
+  partnerMeta: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600", lineHeight: 17 },
+  link: { color: theme.color.primary, fontSize: 13, fontWeight: "800" },
+  removePartner: { minHeight: 44, alignItems: "center", justifyContent: "center" },
+  removePartnerText: { color: theme.color.expense, fontSize: 13, fontWeight: "700" },
+  sharePreview: { color: theme.color.textMuted, fontSize: 14, fontWeight: "700", textAlign: "center" },
+  saving: { color: theme.color.textMuted, fontSize: 14, fontWeight: "700", textAlign: "center" },
+  warningText: { color: theme.color.warning, fontSize: 13, fontWeight: "700", lineHeight: 19 },
   done: { flex: 1, justifyContent: "center", gap: theme.spacing.md },
-  doneMark: { width: 72, height: 72, borderRadius: 24, backgroundColor: theme.color.incomeSoft, alignItems: "center", justifyContent: "center", alignSelf: "center" },
-  doneIcon: { fontSize: 38, color: theme.color.income, fontWeight: "900" },
-  scopeBlock: { gap: theme.spacing.sm },
-  reviewTop: { gap: 8 },
-  reviewAmount: { color: theme.color.text, fontSize: 30, fontWeight: "900", letterSpacing: -0.7 },
-  reviewLine: { flexDirection: "row", justifyContent: "space-between", gap: 16, borderTopWidth: 1, borderTopColor: theme.color.divider, paddingTop: 10 },
-  reviewKey: { color: theme.color.textMuted, fontSize: 14, fontWeight: "700" },
-  reviewValue: { color: theme.color.text, fontSize: 14, fontWeight: "800", flexShrink: 1, textAlign: "right" },
-  partnershipHeader: { flexDirection: "row", gap: 12, alignItems: "center" },
-  partnerInitial: { width: 48, height: 48, borderRadius: 16, backgroundColor: theme.color.primarySoft, alignItems: "center", justifyContent: "center" },
-  partnerInitialText: { color: theme.color.primaryInk, fontSize: 18, fontWeight: "900" },
-  partnershipCopy: { flex: 1, gap: 3 },
-  partnershipName: { color: theme.color.text, fontSize: 17, fontWeight: "900" },
-  partnershipMeta: { color: theme.color.textMuted, fontSize: 13, fontWeight: "600", lineHeight: 18 },
-  helperText: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600", lineHeight: 21 },
-  warningText: { color: theme.color.warning, fontSize: 14, fontWeight: "700", lineHeight: 20 },
-  shareRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  shareValue: { color: theme.color.primary, fontSize: 17, fontWeight: "900" }
+  doneMark: { width: 68, height: 68, borderRadius: 22, backgroundColor: theme.color.incomeSoft, alignItems: "center", justifyContent: "center", alignSelf: "center" },
+  doneIcon: { fontSize: 35, color: theme.color.income, fontWeight: "900" }
 });
