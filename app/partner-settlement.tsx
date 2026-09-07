@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useState } from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { loadFarmIdentity } from "@/src/application/appSnapshot";
 import { LocalPartnershipRepository, type PartnerBalance } from "@/src/application/localPartnershipRepository";
 import { formatTry, moneyFromUserInput } from "@/src/domain/money";
@@ -9,7 +9,7 @@ import { createPartnershipSettlement } from "@/src/domain/partnershipSettlement"
 import { mobileDatabase } from "@/src/mobile/database";
 import { dateInputFromIso, isoDateFromTurkishInput, todayIsoLocal } from "@/src/mobile/date";
 import { createLocalId } from "@/src/mobile/id";
-import { BigButton, Card, ErrorNote, Field, PageTitle, Pill, Screen, SecondaryButton } from "@/src/ui/components";
+import { BigButton, ErrorNote, Field, PageTitle, Screen, SecondaryButton } from "@/src/ui/components";
 import { theme } from "@/src/ui/theme";
 
 export default function PartnerSettlementScreen() {
@@ -61,10 +61,17 @@ export default function PartnerSettlementScreen() {
     setSaving(true);
     setError(undefined);
     try {
+      const amountKurus = moneyFromUserInput(amountText);
+      const openAmount = balance.netKurus > 0 ? balance.receivableKurus : balance.payableKurus;
+      if (amountKurus > openAmount) {
+        setError("Ödeme açık hesaptan büyük olamaz.");
+        return;
+      }
+
       const settlement = createPartnershipSettlement({
         id: createLocalId("settlement"),
         partnerId: balance.partnerId,
-        amountKurus: moneyFromUserInput(amountText),
+        amountKurus,
         occurredOn: isoDateFromTurkishInput(dateText),
         direction: balance.netKurus > 0 ? "partner_to_owner" : "owner_to_partner",
         ...(noteText.trim().length === 0 ? {} : { note: noteText })
@@ -75,12 +82,8 @@ export default function PartnerSettlementScreen() {
         nowIso: new Date().toISOString()
       });
       router.replace("/partners");
-    } catch (caught) {
-      if (caught instanceof Error && caught.message.includes("aşıyor")) {
-        setError("Ödeme açık hesaptan büyük olamaz.");
-      } else {
-        setError("Ödemeyi kaydedemedik. Tutarı ve tarihi kontrol et.");
-      }
+    } catch {
+      setError("Ödemeyi kaydedemedik. Tutarı ve tarihi kontrol et.");
     } finally {
       setSaving(false);
     }
@@ -89,9 +92,9 @@ export default function PartnerSettlementScreen() {
   if (balance === undefined) {
     return (
       <Screen>
-        <PageTitle hint="Ortak hesabı hazırlanıyor.">Hesap kapatma</PageTitle>
+        <PageTitle hint="Ortak hesabı hazırlanıyor.">Ödeme</PageTitle>
         <ErrorNote message={error} />
-        <SecondaryButton label="Ortak hesaplarına dön" onPress={() => router.replace("/partners")} />
+        <SecondaryButton label="Ortaklara dön" onPress={() => router.replace("/partners")} />
       </Screen>
     );
   }
@@ -101,51 +104,48 @@ export default function PartnerSettlementScreen() {
 
   return (
     <Screen>
-      <PageTitle hint="Gerçek bir ödeme olduğunda buraya yaz. Bu hareket kâr-zarara eklenmez.">
-        Hesap kapatma
-      </PageTitle>
+      <PageTitle hint={balance.partnerName}>Ödeme kaydet</PageTitle>
 
-      <Card tone="strong">
-        <Text style={styles.eyebrow}>ORTAK HESABI</Text>
-        <Text style={styles.partnerName}>{balance.partnerName}</Text>
-        <Pill label={isReceivable ? "Sana ödenecek" : balance.netKurus < 0 ? "Sen ödeyeceksin" : "Hesap kapalı"} tone={isReceivable ? "income" : balance.netKurus < 0 ? "expense" : "neutral"} />
-        <Text style={styles.openLabel}>Açık tutar</Text>
+      <View style={styles.openBalance}>
+        <Text style={styles.openLabel}>{isReceivable ? "Bana ödeyecek" : balance.netKurus < 0 ? "Ben ödeyeceğim" : "Hesap kapalı"}</Text>
         <Text style={[styles.openAmount, isReceivable ? styles.receivable : styles.payable]}>{formatTry(openAmount)}</Text>
-      </Card>
+        <Text style={styles.explanation}>Bu ödeme yalnız ortak hesabını azaltır; gelir ve gider toplamını değiştirmez.</Text>
+      </View>
 
       {balance.netKurus === 0 ? (
-        <Card tone="soft">
+        <View style={styles.closed}>
           <Text style={styles.closedTitle}>Açık hesap yok</Text>
-          <Text style={styles.closedCopy}>Bu ortakla hesap şu an sıfır. Ödeme kaydı eklemene gerek yok.</Text>
-        </Card>
+          <Text style={styles.closedCopy}>Bu ortakla hesap şu an sıfır.</Text>
+        </View>
       ) : (
         <>
           <Field label="Ödenen tutar" keyboardType="decimal-pad" value={amountText} onChangeText={setAmountText} placeholder="0,00 TL" />
           <Field label="Tarih" keyboardType="numeric" value={dateText} onChangeText={setDateText} placeholder="GG.AA.YYYY" />
           <Field label="Not" hint="İsteğe bağlı" value={noteText} onChangeText={setNoteText} placeholder="Örnek: Elden ödeme" maxLength={180} />
-          <Card tone="soft">
-            <Text style={styles.ruleTitle}>Bu kayıt ne yapar?</Text>
-            <Text style={styles.ruleCopy}>Yalnız {balance.partnerName} ile açık hesabı azaltır. Gelir veya gider toplamını değiştirmez.</Text>
-          </Card>
           <ErrorNote message={error} />
           <BigButton label={saving ? "Kaydediliyor…" : "Ödemeyi kaydet"} icon="✓" disabled={saving} onPress={() => void save()} />
         </>
       )}
 
-      <SecondaryButton label="Ortak hesaplarına dön" disabled={saving} onPress={() => router.replace("/partners")} />
+      <SecondaryButton label="Ortaklara dön" disabled={saving} onPress={() => router.replace("/partners")} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  eyebrow: { color: theme.color.gold, fontSize: 11, fontWeight: "900", letterSpacing: 1.1 },
-  partnerName: { color: theme.color.white, fontSize: 23, fontWeight: "900", letterSpacing: -0.35 },
-  openLabel: { color: "#B8C7BF", fontSize: 13, fontWeight: "700" },
-  openAmount: { fontSize: 32, fontWeight: "900", letterSpacing: -0.8 },
-  receivable: { color: "#8DE0AC" },
-  payable: { color: "#FFAAA4" },
+  openBalance: {
+    gap: 6,
+    paddingVertical: 22,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.color.divider
+  },
+  openLabel: { color: theme.color.textMuted, fontSize: 13, fontWeight: "700" },
+  openAmount: { fontSize: 36, fontWeight: "900", letterSpacing: -1 },
+  receivable: { color: theme.color.income },
+  payable: { color: theme.color.expense },
+  explanation: { color: theme.color.textMuted, fontSize: 13, fontWeight: "600", lineHeight: 19, marginTop: 5 },
+  closed: { minHeight: 110, justifyContent: "center", gap: 5, borderBottomWidth: 1, borderBottomColor: theme.color.divider },
   closedTitle: { color: theme.color.text, fontSize: 18, fontWeight: "900" },
-  closedCopy: { color: theme.color.textMuted, fontSize: 15, fontWeight: "600", lineHeight: 22 },
-  ruleTitle: { color: theme.color.text, fontSize: 16, fontWeight: "900" },
-  ruleCopy: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600", lineHeight: 21 }
+  closedCopy: { color: theme.color.textMuted, fontSize: 14, fontWeight: "600" }
 });
