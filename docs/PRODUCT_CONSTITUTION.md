@@ -35,6 +35,14 @@ OCR, açık bankacılık, destekleme otomasyonu, hava durumu ve AI Faz 2 kapsam�
 - Ödeme kalan borcu aşamaz. Bozuk veya tutarsız veri varsa yanlış bakiye göstermek yerine hesap gösterilmez.
 - Kullanıcı dili “Kredi anapara bakiyesi” değil “Ne kadar borcun kaldı?” gibi gündelik Türkçe olmalıdır.
 
+## Banka muhasebesi kapısı
+- Bankadan kendi paranı çekmek gelir değildir; bankaya kendi paranı yatırmak gider değildir. Bunlar yalnız paranın yer değiştirmesidir.
+- Manuel banka hareketleri gelir-gider Defterine otomatik işlem yazmaz ve kâr-zarar toplamını değiştirmez.
+- Başlangıç bakiyesi veya güvenilir tam hesap kaynağı yoksa “bankada şu kadar paran var” diye bakiye tahmini gösterilmez.
+- Faz 2'de yalnız kullanıcının kendi girdiği “Bankadan çektim / Bankaya yatırdım” hareketleri tutulur. OCR ve açık bankacılık bu fazın dışında kalır.
+- Banka adı isteğe bağlıdır; hareket kaydetmek için gereksiz hesap numarası, IBAN veya banka bağlantısı istenmez.
+- Yanlış banka hareketi hard-delete edilmez; düzeltilebilir/geri alınabilir kaynak kayıt olarak tutulur.
+
 ## Her ekran için kapı
 - İlk bakışta ne yapılacağı anlaşılmalı.
 - Teknik muhasebe jargonu kullanılmamalı.
@@ -63,4 +71,4 @@ OCR, açık bankacılık, destekleme otomasyonu, hava durumu ve AI Faz 2 kapsam�
 - Özet veya bakiye kaynağı bozuksa sistem sessizce yanlış finansal sonuç göstermez; fail-closed davranır.
 
 ## Ücretsiz kullanım
-Çekirdek çiftçi defteri para duvarına konmaz. Temel gelir-gider, ürün, ortaklık, borç ve kâr-zarar takibi herkes için ücretsiz kalır.
+Çekirdek çiftçi defteri para duvarına konmaz. Temel gelir-gider, ürün, ortaklık, borç, manuel banka hareketleri ve kâr-zarar takibi herkes için ücretsiz kalır.

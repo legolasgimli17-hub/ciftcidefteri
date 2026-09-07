@@ -1,4 +1,5 @@
 import {
+  BANK_MOVEMENTS_SQL,
   DEBT_LEDGER_SQL,
   INITIAL_SCHEMA_SQL,
   PARTNERSHIP_LEDGER_SQL,
@@ -25,7 +26,8 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   { version: 2, sql: TRANSACTION_HISTORY_INDEX_SQL, transactional: true },
   { version: 3, sql: PROFILE_PHONE_REMOVAL_SQL, transactional: true },
   { version: 4, sql: PARTNERSHIP_LEDGER_SQL, transactional: true },
-  { version: 5, sql: DEBT_LEDGER_SQL, transactional: true }
+  { version: 5, sql: DEBT_LEDGER_SQL, transactional: true },
+  { version: 6, sql: BANK_MOVEMENTS_SQL, transactional: true }
 ];
 
 export function validateMigrationPlan(
