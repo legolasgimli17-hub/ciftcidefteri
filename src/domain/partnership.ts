@@ -125,3 +125,21 @@ export function basisPointsFromPercent(percent: number): number {
   }
   return basisPoints;
 }
+
+export function basisPointsFromUserInput(raw: string): number {
+  const normalized = raw.trim().replace(",", ".");
+  if (!/^(?:[1-9]\d?|0?\.\d{1,2}|[1-9]\d?\.\d{1,2})$/.test(normalized)) {
+    throw new Error("Payı 0 ile 100 arasında yüzde olarak yaz.");
+  }
+  const percent = Number(normalized);
+  return basisPointsFromPercent(percent);
+}
+
+export function percentLabelFromBasisPoints(basisPoints: number): string {
+  if (!Number.isSafeInteger(basisPoints) || basisPoints <= 0 || basisPoints >= BASIS_POINTS_TOTAL) {
+    throw new Error("Pay yüzdesi geçersiz.");
+  }
+  const whole = Math.floor(basisPoints / 100);
+  const fraction = basisPoints % 100;
+  return fraction === 0 ? `%${whole}` : `%${whole},${String(fraction).padStart(2, "0").replace(/0$/, "")}`;
+}
