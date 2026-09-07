@@ -9,6 +9,12 @@ export default function MoreScreen() {
       </PageTitle>
 
       <ChoiceCard
+        label="Yedekleme"
+        caption="Kayıtlarını şifreli dosyada sakla veya eski yedeğini geri getir."
+        onPress={() => router.push("/backup")}
+      />
+
+      <ChoiceCard
         label="Borçlar"
         caption="Ne kadar borcun kaldığını ve sıradaki ödemenin tarihini gör."
         onPress={() => router.push("/debts")}
