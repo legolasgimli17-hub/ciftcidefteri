@@ -1,5 +1,7 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+declare function require(name: string): any;
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
 import { createExclusiveActionGate } from "../src/application/exclusiveActionGate";
 
 test("exclusive action gate aynı anda yalnız bir işlem başlatır", () => {
