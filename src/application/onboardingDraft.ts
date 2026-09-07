@@ -4,7 +4,6 @@ import { createFarmerProfile, type FarmerProfile } from "../domain/profile";
 
 export interface OnboardingDraft {
   readonly name: string;
-  readonly phone: string;
   readonly province: string;
   readonly district: string;
   readonly village: string;
@@ -25,7 +24,6 @@ export function buildProfileFromOnboarding(input: {
   return createFarmerProfile({
     id: input.id,
     name: input.draft.name,
-    phone: input.draft.phone,
     province: input.draft.province,
     district: input.draft.district,
     village: input.draft.village,

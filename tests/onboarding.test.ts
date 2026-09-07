@@ -9,12 +9,11 @@ test("ürün seçimi tekrar dokununca ürünü kaldırır", () => {
   assert.deepEqual(toggleCrop(["cotton", "corn"], "cotton"), ["corn"]);
 });
 
-test("onboarding taslağı domain profil doğrulamasından geçer", () => {
+test("onboarding taslağı gereksiz telefon verisi toplamadan domain profil doğrulamasından geçer", () => {
   const profile = buildProfileFromOnboarding({
     id: "profile-1234",
     draft: {
       name: "Mehmet Kaya",
-      phone: "0532 123 45 67",
       province: "Diyarbakır",
       district: "Bismil",
       village: "Örnek",
@@ -24,7 +23,7 @@ test("onboarding taslağı domain profil doğrulamasından geçer", () => {
       isCksRegistered: true
     }
   });
-  assert.equal(profile.phone, "+905321234567");
+  assert.equal("phone" in profile, false);
   assert.equal(profile.totalAreaSquareMeters, 12_500);
   assert.deepEqual(profile.cropCodes, ["cotton"]);
 });

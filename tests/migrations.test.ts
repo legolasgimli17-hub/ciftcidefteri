@@ -15,6 +15,10 @@ import { type SqlDatabase, type SqlExecutor, type SqlPrimitive, type SqlRunResul
 class NodeMigrationDatabase implements SqlDatabase {
   private readonly db = new DatabaseSync(":memory:");
 
+  public constructor() {
+    this.db.exec("PRAGMA foreign_keys = ON;");
+  }
+
   public async exec(sql: string): Promise<void> {
     this.db.exec(sql);
   }
@@ -58,6 +62,11 @@ class NodeMigrationDatabase implements SqlDatabase {
     return Boolean(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?").get(name));
   }
 
+  public columnExists(table: string, column: string): boolean {
+    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    return rows.some((row) => row.name === column);
+  }
+
   public close(): void {
     this.db.close();
   }
@@ -69,17 +78,59 @@ test("migration runner boş veritabanını güncel şemaya getirir", async () =>
   assert.equal(version, SCHEMA_VERSION);
   assert.equal(db.tableExists("transactions"), true);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
 
-test("mevcut v1 veritabanı veri şemasını yeniden kurmadan v2 indeksine yükselir", async () => {
+test("mevcut v1 veritabanı güncel sürüme veri kaybetmeden yükselir", async () => {
   const db = new NodeMigrationDatabase();
   assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 1), 1), 1);
   assert.equal(db.indexExists("idx_transactions_active_history"), false);
+  assert.equal(db.columnExists("farmer_profiles", "phone"), true);
 
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.tableExists("transactions"), true);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  assert.equal(db.columnExists("farmer_profiles", "phone"), false);
+  db.close();
+});
+
+test("v2 -> v3 telefon minimizasyonu çiftlik ve finans kayıtlarını korur", async () => {
+  const db = new NodeMigrationDatabase();
+  assert.equal(await runMigrations(db, DATABASE_MIGRATIONS.slice(0, 2), 2), 2);
+
+  const now = "2026-09-07T10:00:00.000Z";
+  await db.run(
+    `INSERT INTO farmer_profiles
+      (id,name,phone,province,district,village,total_area_square_meters,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    ["profile-v2-01", "Mehmet Kaya", "+905321234567", "Diyarbakır", "Bismil", "Örnek", 100000, now, now]
+  );
+  await db.run(
+    `INSERT INTO farms (id,owner_local_id,display_name,created_at,updated_at)
+     VALUES (?,?,?,?,?)`,
+    ["farm-v2-0001", "profile-v2-01", "Benim Tarlam", now, now]
+  );
+  await db.run(
+    `INSERT INTO farm_crops (farm_id,crop_code,created_at)
+     VALUES (?,?,?)`,
+    ["farm-v2-0001", "cotton", now]
+  );
+  await db.run(
+    `INSERT INTO transactions
+      (id,farm_id,kind,amount_kurus,occurred_on,category,crop_code,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    ["txn-v2-0001", "farm-v2-0001", "income", 125000, "2026-09-07", "Ürün satışı", "cotton", now, now]
+  );
+
+  assert.equal(await migrateDatabase(db), 3);
+  assert.equal(db.columnExists("farmer_profiles", "phone"), false);
+  assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farmer_profiles"))?.count, 1);
+  assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farms"))?.count, 1);
+  assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM farm_crops"))?.count, 1);
+  assert.equal((await db.first<{ count: number }>("SELECT COUNT(*) AS count FROM transactions"))?.count, 1);
+  assert.equal((await db.first<{ amount_kurus: number }>("SELECT amount_kurus FROM transactions WHERE id=?", ["txn-v2-0001"]))?.amount_kurus, 125000);
+  assert.equal((await db.all("PRAGMA foreign_key_check")).length, 0);
   db.close();
 });
 
@@ -88,6 +139,7 @@ test("migration runner tekrar çalıştırıldığında idempotent kalır", asyn
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(await migrateDatabase(db), SCHEMA_VERSION);
   assert.equal(db.indexExists("idx_transactions_active_history"), true);
+  assert.equal(db.columnExists("farmer_profiles", "phone"), false);
   db.close();
 });
 

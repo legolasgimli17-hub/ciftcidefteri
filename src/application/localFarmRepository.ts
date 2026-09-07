@@ -289,13 +289,12 @@ async function prepareInitialSetup(tx: SqlExecutor, nowIso: string): Promise<voi
 async function insertProfile(tx: SqlExecutor, profile: FarmerProfile, nowIso: string): Promise<void> {
   await tx.run(
     `INSERT INTO farmer_profiles
-      (id, name, phone, province, district, village, total_area_square_meters,
+      (id, name, province, district, village, total_area_square_meters,
        is_cks_registered, created_at, updated_at, sync_state)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')`,
     [
       profile.id,
       profile.name,
-      profile.phone,
       profile.province,
       profile.district,
       profile.village,

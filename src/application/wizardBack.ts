@@ -1,4 +1,4 @@
-export type OnboardingStep = "welcome" | "name" | "phone" | "place" | "area" | "crops";
+export type OnboardingStep = "welcome" | "name" | "place" | "area" | "crops";
 export type CreateTransactionStep = "amount" | "crop" | "category" | "done";
 export type EditTransactionStep = "details" | "scope" | "category" | "done";
 
@@ -10,8 +10,7 @@ export function previousOnboardingStep(step: OnboardingStep): OnboardingBackActi
   switch (step) {
     case "welcome": return "exit";
     case "name": return "welcome";
-    case "phone": return "name";
-    case "place": return "phone";
+    case "place": return "name";
     case "area": return "place";
     case "crops": return "area";
   }

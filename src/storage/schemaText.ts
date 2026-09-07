@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const INITIAL_SCHEMA_SQL = String.raw`
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -85,4 +85,8 @@ export const TRANSACTION_HISTORY_INDEX_SQL = String.raw`
 CREATE INDEX IF NOT EXISTS idx_transactions_active_history
   ON transactions(farm_id, occurred_on DESC, created_at DESC, id DESC)
   WHERE deleted_at IS NULL;
+`;
+
+export const PROFILE_PHONE_REMOVAL_SQL = String.raw`
+ALTER TABLE farmer_profiles DROP COLUMN phone;
 `;

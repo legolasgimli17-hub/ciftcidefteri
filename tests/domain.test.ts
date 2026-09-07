@@ -48,11 +48,10 @@ test("dönüm ve dekar aynı m² tabanına güvenli çevrilir", () => {
   assert.equal(squareMetersFromUserInput("0,001", "decare"), 1);
 });
 
-test("çiftçi profili normalize edilir ve ürün tekrarı kaldırılır", () => {
+test("çiftçi profili normalize edilir ve gereksiz telefon alanı içermez", () => {
   const profile = createFarmerProfile({
     id: "profile-0001",
     name: "  Mehmet   Kaya ",
-    phone: "0532 123 45 67",
     province: " Diyarbakır ",
     district: " Bismil ",
     village: " Örnek Köy ",
@@ -62,7 +61,7 @@ test("çiftçi profili normalize edilir ve ürün tekrarı kaldırılır", () =>
   });
 
   assert.equal(profile.name, "Mehmet Kaya");
-  assert.equal(profile.phone, "+905321234567");
+  assert.equal("phone" in profile, false);
   assert.deepEqual(profile.cropCodes, ["cotton", "corn"]);
 });
 

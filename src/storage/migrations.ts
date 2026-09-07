@@ -1,5 +1,6 @@
 import {
   INITIAL_SCHEMA_SQL,
+  PROFILE_PHONE_REMOVAL_SQL,
   SCHEMA_VERSION,
   TRANSACTION_HISTORY_INDEX_SQL
 } from "./schemaText";
@@ -26,6 +27,11 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   {
     version: 2,
     sql: TRANSACTION_HISTORY_INDEX_SQL,
+    transactional: true
+  },
+  {
+    version: 3,
+    sql: PROFILE_PHONE_REMOVAL_SQL,
     transactional: true
   }
 ];
@@ -71,10 +77,12 @@ export async function runMigrations(
     if (migration.transactional) {
       await database.transaction(async tx => {
         await tx.exec(migration.sql);
+        await assertForeignKeyIntegrity(tx);
         await writeSchemaVersion(tx, migration.version);
       });
     } else {
       await database.exec(migration.sql);
+      await assertForeignKeyIntegrity(database);
       await database.transaction(async tx => {
         await writeSchemaVersion(tx, migration.version);
       });
@@ -87,7 +95,20 @@ export async function runMigrations(
   if (finalVersion !== targetVersion) {
     throw new Error("Veritabanı migration işlemi tamamlanamadı.");
   }
+  await assertForeignKeyIntegrity(database);
   return finalVersion;
+}
+
+async function assertForeignKeyIntegrity(database: SqlExecutor): Promise<void> {
+  const violations = await database.all<{
+    table: string;
+    rowid: number | null;
+    parent: string;
+    fkid: number;
+  }>("PRAGMA foreign_key_check");
+  if (violations.length !== 0) {
+    throw new Error("Veritabanı ilişkilerinde bozulma bulundu. Migration tamamlanmadı.");
+  }
 }
 
 async function readSchemaVersion(database: SqlExecutor): Promise<number> {
