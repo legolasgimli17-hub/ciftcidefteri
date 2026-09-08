@@ -2,13 +2,13 @@
   "expo": {
     "name": "Çiftçi Defteri",
     "slug": "ciftci-defteri",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "ciftcidefteri",
     "android": {
       "package": "app.ciftcidefteri.mobile",
-      "versionCode": 4,
+      "versionCode": 5,
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.CAMERA",
@@ -47,7 +47,7 @@
     },
     "ios": {
       "bundleIdentifier": "app.ciftcidefteri.mobile",
-      "buildNumber": "4"
+      "buildNumber": "5"
     },
     "plugins": [
       "expo-router",
