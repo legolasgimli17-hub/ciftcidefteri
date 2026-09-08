@@ -17,8 +17,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -51,6 +53,18 @@ public final class MainActivity extends Activity {
                 Uri uri = request.getUrl();
                 return !"file".equals(uri.getScheme());
             }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (!"file:///android_asset/index.html".equals(url)) return;
+                try {
+                    String phase3 = readAssetText("phase3-core.js") + "\n" + readAssetText("phase3.js");
+                    view.evaluateJavascript(phase3, null);
+                } catch (Exception ignored) {
+                    // The base ledger stays usable even if the optional enhancement layer cannot load.
+                }
+            }
         });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -69,6 +83,15 @@ public final class MainActivity extends Activity {
             }
         });
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private String readAssetText(String name) throws Exception {
+        try (InputStream input = getAssets().open(name); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            return output.toString(StandardCharsets.UTF_8.name());
+        }
     }
 
     @Override
