@@ -1,0 +1,72 @@
+name: android-release-db-smoke
+
+on:
+  push:
+    branches:
+      - fix/release-db-init-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      CI: true
+      NODE_ENV: production
+      APK_PATH: android/app/build/outputs/apk/release/app-release.apk
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx expo install --check
+      - run: npx expo prebuild --platform android --clean --no-install
+      - run: node scripts/verify-android-prebuild.mjs
+      - name: Build standalone SQLCipher release APK for emulator
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=x86_64
+      - run: test -s "$APK_PATH"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+      - name: Install emulator image
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -perm -u+x | sort | tail -n 1)"
+          AVDMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name avdmanager -perm -u+x | sort | tail -n 1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
+          echo "no" | "$AVDMANAGER" create avd --force --name db-smoke --package "system-images;android-35;google_apis;x86_64" --device "pixel_5"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
+      - name: Start emulator
+        run: |
+          nohup emulator -avd db-smoke -no-window -noaudio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > emulator.log 2>&1 &
+          adb wait-for-device
+      - name: Launch release and require onboarding
+        run: node scripts/android-emulator-db-init-smoke.mjs
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: db-init-smoke-evidence
+          path: |
+            dist-db-init-evidence
+            emulator.log
+          if-no-files-found: warn
+          retention-days: 3
