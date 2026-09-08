@@ -43,6 +43,12 @@ jobs:
           Path('/tmp/ciftci-app.js').write_text(m.group(1))
           PY
           node --check /tmp/ciftci-app.js
+          node --check android-web-shell/app/src/main/assets/phase3-core.js
+          node --check android-web-shell/app/src/main/assets/phase3.js
+      - name: Run Phase 3 unit tests
+        env:
+          TZ: Europe/Istanbul
+        run: node android-web-shell/tests/phase3.test.cjs
       - name: Build standalone WebView APK
         working-directory: android-web-shell
         run: gradle :app:assembleDebug --no-daemon --stacktrace
@@ -51,6 +57,8 @@ jobs:
           APK="android-web-shell/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           unzip -l "$APK" | grep -q "assets/index.html"
+          unzip -l "$APK" | grep -q "assets/phase3-core.js"
+          unzip -l "$APK" | grep -q "assets/phase3.js"
           unzip -l "$APK" | grep -q "classes.dex"
           if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
             echo "Unexpected INTERNET permission" >&2
