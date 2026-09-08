@@ -35,6 +35,18 @@
     return kg * price;
   }
 
+  function updateTransaction(existing, changes, now) {
+    if (!existing || !existing.id) throw new Error('transaction_missing');
+    if (!changes || typeof changes !== 'object') throw new Error('changes_missing');
+    return {
+      ...existing,
+      ...changes,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: Number.isFinite(Number(now)) ? Number(now) : Date.now()
+    };
+  }
+
   function weatherWarnings(day) {
     if (!day || typeof day !== 'object') return [];
     const warnings = [];
@@ -75,5 +87,5 @@
     return '🌥️';
   }
 
-  return { quickCalculate, fieldCost, saleValue, weatherWarnings, weatherLabel, weatherIcon };
+  return { quickCalculate, fieldCost, saleValue, updateTransaction, weatherWarnings, weatherLabel, weatherIcon };
 });
