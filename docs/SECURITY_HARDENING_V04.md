@@ -2,6 +2,8 @@
 
 Bu belge production güvenliği için uygulanan ve henüz fiziksel cihazda kanıtlanması gereken kontrolleri ayırır.
 
+Fiziksel cihazdaki uygulama adımları ve PASS / FAIL kabul kaydı `docs/ANDROID_DEVICE_ACCEPTANCE_V04.md` içinde tutulur. Bu belge güvenlik gereksinimlerinin kaynağı olmaya devam eder; cihaz kabul belgesi yalnız bunların nasıl kanıtlanacağını standartlaştırır.
+
 ## Bu sürümde kod seviyesinde zorunlu hale gelenler
 
 - Yerel SQLite veritabanı SQLCipher olmadan açılmaz (`PRAGMA cipher_version` fail-closed kontrolü).
