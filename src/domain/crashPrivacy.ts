@@ -2,6 +2,7 @@ export type CrashEventRecord = Record<string, unknown>;
 
 const SAFE_TAG_KEYS = new Set([
   "crash_code",
+  "diagnostic_code",
   "environment",
   "platform",
   "release"
@@ -70,6 +71,10 @@ export function sanitizeCrashEvent<T extends CrashEventRecord>(input: T): T {
 
 export function isSafeCrashCode(value: string): boolean {
   return /^[a-z0-9_]{3,48}$/.test(value);
+}
+
+export function isSafeDiagnosticCode(value: string): boolean {
+  return /^legacy_[a-z0-9_]{3,72}$/.test(value);
 }
 
 function sanitizeExceptionValue(value: unknown): unknown {

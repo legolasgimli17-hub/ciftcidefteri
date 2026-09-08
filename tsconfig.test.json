@@ -14,6 +14,7 @@
     "src/storage/sql.ts",
     "src/storage/schemaText.ts",
     "src/storage/migrations.ts",
+    "src/mobile/legacyDatabaseUpgradeCore.ts",
     "tests/**/*.ts",
     "src/ui/policy.ts",
     "src/application/transactionFlow.ts"

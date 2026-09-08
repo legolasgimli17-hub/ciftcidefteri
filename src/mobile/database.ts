@@ -1,12 +1,15 @@
 import { type SQLiteDatabase } from "expo-sqlite";
 import { SCHEMA_VERSION } from "../storage/schemaText";
 import { migrateDatabase } from "../storage/migrations";
+import { rememberDatabasePathForRecovery } from "./databaseRecoveryExport";
 import { ExpoSqliteAdapter } from "./expoSqliteAdapter";
 import { getOrCreateDatabaseKeyHex, sqlCipherKeyPragma } from "./databaseKey";
 import {
   cleanupLegacyPlaintextAfterSuccess,
   isDatabaseReopenRequired,
-  migrateLegacyPlaintextIfNeeded
+  legacyDatabaseDiagnosticTagOrUnknown,
+  migrateLegacyPlaintextIfNeeded,
+  type LegacyDatabaseDiagnosticTag
 } from "./legacyDatabaseUpgrade";
 
 export const DATABASE_NAME = "ciftci-defteri.db";
@@ -19,17 +22,29 @@ export type DatabaseFailureCode =
   | "DB-MIGRATE"
   | "DB-UNKNOWN";
 
+export interface DatabaseFailureDetails {
+  readonly code: DatabaseFailureCode;
+  readonly diagnosticTag: LegacyDatabaseDiagnosticTag | null;
+}
+
 class DatabaseStartupError extends Error {
   readonly code: DatabaseFailureCode;
+  readonly diagnosticTag: LegacyDatabaseDiagnosticTag | null;
 
-  constructor(code: DatabaseFailureCode) {
+  constructor(
+    code: DatabaseFailureCode,
+    diagnosticTag: LegacyDatabaseDiagnosticTag | null = null
+  ) {
     super(code);
     this.name = "DatabaseStartupError";
     this.code = code;
+    this.diagnosticTag = diagnosticTag;
   }
 }
 
 export async function initializeDatabase(database: SQLiteDatabase): Promise<void> {
+  rememberDatabasePathForRecovery(database.databasePath);
+
   let keyHex: string;
   try {
     keyHex = await getOrCreateDatabaseKeyHex();
@@ -41,7 +56,10 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
     await migrateLegacyPlaintextIfNeeded(database, keyHex);
   } catch (error) {
     if (isDatabaseReopenRequired(error)) throw error;
-    throw new DatabaseStartupError("DB-UPGRADE");
+    throw new DatabaseStartupError(
+      "DB-UPGRADE",
+      legacyDatabaseDiagnosticTagOrUnknown(error)
+    );
   }
 
   try {
@@ -87,15 +105,21 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
   cleanupLegacyPlaintextAfterSuccess(database.databasePath);
 }
 
-export function databaseFailureCode(error: unknown): DatabaseFailureCode {
-  if (error instanceof DatabaseStartupError) return error.code;
+export function databaseFailureDetails(error: unknown): DatabaseFailureDetails {
+  if (error instanceof DatabaseStartupError) {
+    return { code: error.code, diagnosticTag: error.diagnosticTag };
+  }
   if (error instanceof Error) {
     const code = error.message as DatabaseFailureCode;
     if (["DB-KEY", "DB-UPGRADE", "DB-OPEN", "DB-PRAGMA", "DB-MIGRATE"].includes(code)) {
-      return code;
+      return { code, diagnosticTag: null };
     }
   }
-  return "DB-UNKNOWN";
+  return { code: "DB-UNKNOWN", diagnosticTag: null };
+}
+
+export function databaseFailureCode(error: unknown): DatabaseFailureCode {
+  return databaseFailureDetails(error).code;
 }
 
 export { isDatabaseReopenRequired } from "./legacyDatabaseUpgrade";
