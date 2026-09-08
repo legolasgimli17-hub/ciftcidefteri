@@ -8,28 +8,32 @@ Bu kontrol tamamlanmadan uygulama gerçek kullanıcıya, mağaza sürümüne vey
 
 ## Test edilecek paket
 
-GitHub Actions `android-native` işi şu üç dosyayı tek artifact içinde üretir:
+Fiziksel kullanıcı kabulünün ana paketi GitHub Actions `android-standalone` işinin ürettiği Metro/dev-server gerektirmeyen release-test artifact'idir:
 
-- `app-debug.apk`
+- `app-release.apk`
 - `SHA256SUMS.txt`
 - `BUILD_EVIDENCE.txt`
 
-Kabul kaydına test edilen commit SHA ve APK SHA-256 değeri yazılır. Böylece başka bir APK'nın sonucu yanlışlıkla bu sürüme mal edilemez.
+CI, APK içinde `assets/index.android.bundle` bulunmasını zorunlu tutar. Bu paket Play Store imzalı mağaza sürümü değildir; fiziksel kabul için production-benzeri standalone test paketidir.
+
+Düşük seviyeli DB başlık/SQLCipher kanıtında Android `run-as` erişimi gerektiği için yalnız **aynı kaynak ağacından** geçen `android-native` debug artifact'i kullanılır. Debug artifact kullanıcı/UX kabul paketi sayılmaz. Standalone ve debug kanıtlarının kaynak tree/commit ilişkisi kabul kaydında doğrulanır.
+
+Kabul kaydına test edilen commit/tree ve APK SHA-256 değeri yazılır. Böylece başka bir APK'nın sonucu yanlışlıkla bu sürüme mal edilemez.
 
 ### Cihaz kanıtı yardımcısı
 
-Android platform-tools/ADB bulunan bir bilgisayarda yalnız sentetik test cihazı bağlıyken şu yardımcı script kullanılabilir:
+Android platform-tools/ADB bulunan bir bilgisayarda yalnız sentetik test cihazı bağlıyken düşük seviyeli DB kanıtı için aynı kaynak ağacından üretilen debug APK ile şu yardımcı script kullanılabilir:
 
 ```bash
 bash scripts/android-device-evidence.sh /path/to/app-debug.apk
 ```
 
-Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, kullanıcı temel offline kaydı oluşturduktan sonra DB dosyasının düz `SQLite format 3` başlığı taşımadığını doğrular ve paket/izin dökümünü `device-evidence/` klasörüne kaydeder. PIN, yedekleme, finans akışları, güncelleme ve UX kontrollerini kendi kendine PASS saymaz; bunlar fiziksel ekranda aşağıdaki protokole göre doğrulanır.
+Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, kullanıcı temel offline kaydı oluşturduktan sonra DB dosyasının düz `SQLite format 3` başlığı taşımadığını doğrular ve paket/izin dökümünü `device-evidence/` klasörüne kaydeder. PIN, yedekleme, finans akışları, güncelleme ve UX kontrollerini kendi kendine PASS saymaz; bunlar standalone release-test APK üzerinde fiziksel ekranda aşağıdaki protokole göre doğrulanır.
 
 ## A. Kurulum ve temel offline akış
 
-1. Android cihazı internetsiz moda al.
-2. APK'yı temiz kurulum olarak yükle ve uygulamayı aç.
+1. Standalone release-test APK'yı temiz kurulum olarak yükle.
+2. Android cihazı internetsiz moda al ve uygulamayı aç.
 3. İlk kurulumu tamamla.
 4. En az bir para girdi ve bir para çıktı kaydı oluştur.
 5. Uygulamayı tamamen kapatıp yeniden aç.
@@ -40,17 +44,19 @@ Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, ku
 
 ## B. Yerel veritabanı güvenliği
 
-1. Test cihazındaki uygulama DB dosyasını debug erişimiyle al.
-2. Dosyanın ilk baytlarının düz SQLite başlığı (`SQLite format 3`) olmadığını doğrula.
-3. Normal SQLite istemcisiyle açılmadığını doğrula.
-4. SQLCipher kullanılan doğrulama ortamında yanlış anahtarla açmanın başarısız olduğunu doğrula.
-5. Uygulamanın kendi doğru SecureStore anahtarıyla yeniden açıldığında kayıtların okunabildiğini doğrula.
+1. Standalone APK ile aynı kaynak ağacından üretilmiş `android-native` debug APK'yı sentetik test cihazına temiz kur.
+2. Sentetik bir kayıt oluştur ve debug erişimiyle uygulama DB dosyasını al.
+3. Dosyanın ilk baytlarının düz SQLite başlığı (`SQLite format 3`) olmadığını doğrula.
+4. Normal SQLite istemcisiyle açılmadığını doğrula.
+5. SQLCipher kullanılan doğrulama ortamında yanlış anahtarla açmanın başarısız olduğunu doğrula.
+6. Uygulamanın kendi doğru SecureStore anahtarıyla yeniden açıldığında kayıtların okunabildiğini doğrula.
+7. Debug ve standalone build'lerin aynı kabul kaynak ağacına dayandığını kanıtla.
 
-**Geçer:** DB yalnız doğru cihaz anahtarıyla açılır; şifreleme sessizce normal SQLite'a düşmez.
+**Geçer:** Aynı kabul kaynak ağacındaki DB katmanı yalnız doğru cihaz anahtarıyla açılır; şifreleme sessizce normal SQLite'a düşmez.
 
 ## C. Uygulama kilidi
 
-1. Ayarlardan PIN kilidini aç.
+1. Standalone APK'da Ayarlardan PIN kilidini aç.
 2. Doğru PIN ile açılışı doğrula.
 3. Uygulamayı arka plana gönderip geri dön; yeniden kilitlendiğini doğrula.
 4. Birkaç yanlış PIN denemesi yap; bekleme/sınır politikasının devreye girdiğini doğrula.
@@ -61,7 +67,7 @@ Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, ku
 
 ## D. Şifreli yedekleme ve geri yükleme
 
-1. Sentetik kayıtlarla şifreli manuel yedek oluştur.
+1. Standalone APK'da sentetik kayıtlarla şifreli manuel yedek oluştur.
 2. Yedek dosyası ile kurtarma anahtarının ayrı çıktılar olduğunu doğrula.
 3. Yanlış kurtarma anahtarıyla geri yüklemeyi dene; mevcut verinin değişmediğini doğrula.
 4. Doğru anahtarla geri yükle; kaynak kayıtların eksiksiz döndüğünü doğrula.
@@ -71,7 +77,7 @@ Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, ku
 
 ## E. Faz 2 finans doğruluğu smoke testi
 
-1. Bir nakdi borç oluştur, ödeme ekle ve kalan borcu kontrol et.
+1. Standalone APK'da bir nakdi borç oluştur, ödeme ekle ve kalan borcu kontrol et.
 2. Bir manuel banka hareketi oluştur; bunun kâr/zarar toplamını değiştirmediğini doğrula.
 3. Elindekiler'e miktar ekle ve azalt; kalan miktarı kontrol et.
 4. Mevcut kalandan fazla azaltmanın reddedildiğini doğrula.
@@ -81,7 +87,7 @@ Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, ku
 
 ## F. Android güvenlik ve gizlilik kanıtı
 
-1. Üretilmiş merged manifestte kontrolsüz Android backup'ın kapalı olduğunu doğrula.
+1. Standalone release merged manifestte kontrolsüz Android backup'ın kapalı olduğunu doğrula.
 2. Uygulama boyunca logcat/crash çıktısını incele.
 3. Sentetik test adı, not metni, finans tutarı, PIN veya DB anahtarının log/crash olayına taşınmadığını doğrula.
 4. Uygulamanın ihtiyaç dışı tehlikeli Android izni istemediğini doğrula.
@@ -90,8 +96,8 @@ Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, ku
 
 ## G. Güncelleme testi
 
-1. Bir önceki test APK'sında sentetik kayıt oluştur.
-2. Uygulamayı kaldırmadan yeni APK'yı üzerine kur.
+1. Aynı paket kimliği ve uyumlu imza zincirine sahip önceki test APK'sında sentetik kayıt oluştur.
+2. Uygulamayı kaldırmadan yeni standalone APK'yı üzerine kur.
 3. SecureStore anahtarıyla mevcut DB'nin açıldığını ve kayıtların korunduğunu doğrula.
 4. Migration sonrasında kaynak kayıt ve türetilmiş özetlerin tutarlı kaldığını kontrol et.
 
@@ -99,7 +105,7 @@ Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, ku
 
 ## H. Düşük/orta segment cihaz UX kabulü
 
-Aşağıdaki akışlarda takılma, küçük dokunma alanı, teknik jargon, taşan metin veya okunamayan kontrast olmamalıdır:
+Standalone APK'da aşağıdaki akışlarda takılma, küçük dokunma alanı, teknik jargon, taşan metin veya okunamayan kontrast olmamalıdır:
 
 - İlk kurulum
 - Para girdi / çıktı
@@ -116,8 +122,10 @@ Metin boyutu artırılmış Android erişilebilirlik ayarıyla ana işlemler tek
 
 ## Kabul kaydı
 
-- Commit SHA:
-- APK SHA-256:
+- Standalone commit/tree:
+- Standalone APK SHA-256:
+- DB debug kanıt commit/tree:
+- DB debug APK SHA-256:
 - Cihaz modeli:
 - Android sürümü:
 - Test tarihi:
