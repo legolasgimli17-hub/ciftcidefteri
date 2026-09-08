@@ -1,0 +1,82 @@
+name: android-standalone
+
+on:
+  pull_request:
+    paths:
+      - "app.json"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "scripts/verify-expo-compat.mjs"
+      - "scripts/verify-android-prebuild.mjs"
+      - "scripts/verify-android-merged-manifest.mjs"
+      - ".github/workflows/android-standalone.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-standalone-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CI: true
+      NODE_ENV: production
+      ANDROID_VARIANT: release
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install exact locked dependencies
+        run: npm ci --include=dev --ignore-scripts --no-audit --no-fund
+      - name: Verify Expo dependency compatibility
+        run: node scripts/verify-expo-compat.mjs
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --clean --no-install
+      - name: Verify generated Android security policy
+        run: node scripts/verify-android-prebuild.mjs
+      - name: Build standalone SQLCipher release-test APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+      - name: Verify release merged Android permission policy
+        run: node scripts/verify-android-merged-manifest.mjs
+      - name: Verify standalone APK and embedded JS bundle
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          unzip -l "$APK" | grep -q "assets/index.android.bundle"
+      - name: Write standalone integrity evidence
+        run: |
+          cd android/app/build/outputs/apk/release
+          sha256sum app-release.apk > SHA256SUMS.txt
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "variant=release"
+            echo "embedded_bundle=assets/index.android.bundle"
+            echo "artifact=ciftci-defteri-android-standalone-acceptance"
+          } > BUILD_EVIDENCE.txt
+      - name: Upload standalone acceptance bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ciftci-defteri-android-standalone-acceptance
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/apk/release/SHA256SUMS.txt
+            android/app/build/outputs/apk/release/BUILD_EVIDENCE.txt
+          if-no-files-found: error
+          retention-days: 7
