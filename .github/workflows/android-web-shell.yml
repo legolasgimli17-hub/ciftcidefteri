@@ -47,6 +47,7 @@ jobs:
           node --check android-web-shell/app/src/main/assets/phase3.js
           node --check android-web-shell/app/src/main/assets/phase4-core.js
           node --check android-web-shell/app/src/main/assets/phase4.js
+          node --check android-web-shell/app/src/main/assets/phase4-compat.js
       - name: Run Phase 3 unit tests
         env:
           TZ: Europe/Istanbul
@@ -59,6 +60,7 @@ jobs:
           grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "calculator" android-web-shell/app/src/main/assets/phase4.js
           grep -q "phase4-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase4-compat.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
       - name: Build standalone WebView APK
         working-directory: android-web-shell
         run: gradle :app:assembleDebug --no-daemon --stacktrace
@@ -71,6 +73,7 @@ jobs:
           unzip -l "$APK" | grep -q "assets/phase3.js"
           unzip -l "$APK" | grep -q "assets/phase4-core.js"
           unzip -l "$APK" | grep -q "assets/phase4.js"
+          unzip -l "$APK" | grep -q "assets/phase4-compat.js"
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
