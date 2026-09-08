@@ -8,6 +8,7 @@ on:
       - "package-lock.json"
       - "src/mobile/**"
       - "src/storage/**"
+      - "scripts/verify-expo-compat.mjs"
       - "scripts/verify-android-prebuild.mjs"
       - "scripts/verify-android-merged-manifest.mjs"
       - ".github/workflows/android-native.yml"
@@ -20,6 +21,7 @@ on:
       - "package-lock.json"
       - "src/mobile/**"
       - "src/storage/**"
+      - "scripts/verify-expo-compat.mjs"
       - "scripts/verify-android-prebuild.mjs"
       - "scripts/verify-android-merged-manifest.mjs"
       - ".github/workflows/android-native.yml"
@@ -55,7 +57,7 @@ jobs:
       - name: Install exact locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify Expo dependency compatibility
-        run: npx expo install --check
+        run: node scripts/verify-expo-compat.mjs
       - name: Generate Android native project
         run: npx expo prebuild --platform android --clean --no-install
       - name: Verify generated Android security policy
