@@ -6,7 +6,9 @@ import { getOrCreateDatabaseKeyHex, sqlCipherKeyPragma } from "./databaseKey";
 import {
   cleanupLegacyPlaintextAfterSuccess,
   isDatabaseReopenRequired,
-  migrateLegacyPlaintextIfNeeded
+  legacyUpgradeDiagnosticTag,
+  migrateLegacyPlaintextIfNeeded,
+  type LegacyUpgradeDiagnosticTag
 } from "./legacyDatabaseUpgrade";
 
 export const DATABASE_NAME = "ciftci-defteri.db";
@@ -21,11 +23,13 @@ export type DatabaseFailureCode =
 
 class DatabaseStartupError extends Error {
   readonly code: DatabaseFailureCode;
+  readonly diagnosticTag: LegacyUpgradeDiagnosticTag | null;
 
-  constructor(code: DatabaseFailureCode) {
+  constructor(code: DatabaseFailureCode, diagnosticTag: LegacyUpgradeDiagnosticTag | null = null) {
     super(code);
     this.name = "DatabaseStartupError";
     this.code = code;
+    this.diagnosticTag = diagnosticTag;
   }
 }
 
@@ -41,7 +45,10 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
     await migrateLegacyPlaintextIfNeeded(database, keyHex);
   } catch (error) {
     if (isDatabaseReopenRequired(error)) throw error;
-    throw new DatabaseStartupError("DB-UPGRADE");
+    throw new DatabaseStartupError(
+      "DB-UPGRADE",
+      legacyUpgradeDiagnosticTag(error) ?? "legacy_upgrade_unknown"
+    );
   }
 
   try {
@@ -98,7 +105,12 @@ export function databaseFailureCode(error: unknown): DatabaseFailureCode {
   return "DB-UNKNOWN";
 }
 
+export function databaseFailureDiagnosticTag(error: unknown): LegacyUpgradeDiagnosticTag | null {
+  return error instanceof DatabaseStartupError ? error.diagnosticTag : null;
+}
+
 export { isDatabaseReopenRequired } from "./legacyDatabaseUpgrade";
+export type { LegacyUpgradeDiagnosticTag } from "./legacyDatabaseUpgrade";
 
 export function mobileDatabase(database: SQLiteDatabase): ExpoSqliteAdapter {
   return new ExpoSqliteAdapter(database);
