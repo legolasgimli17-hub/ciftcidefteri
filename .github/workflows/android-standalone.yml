@@ -11,6 +11,18 @@ on:
       - "scripts/verify-android-prebuild.mjs"
       - "scripts/verify-android-merged-manifest.mjs"
       - ".github/workflows/android-standalone.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app.json"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "scripts/verify-expo-compat.mjs"
+      - "scripts/verify-android-prebuild.mjs"
+      - "scripts/verify-android-merged-manifest.mjs"
+      - ".github/workflows/android-standalone.yml"
   workflow_dispatch:
 
 permissions:
@@ -28,6 +40,7 @@ jobs:
       CI: true
       NODE_ENV: production
       ANDROID_VARIANT: release
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
       GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,6 +81,7 @@ jobs:
             echo "workflow_run=${GITHUB_RUN_ID}"
             echo "variant=release"
             echo "embedded_bundle=assets/index.android.bundle"
+            echo "sentry_auto_upload=disabled_for_acceptance_build"
             echo "artifact=ciftci-defteri-android-standalone-acceptance"
           } > BUILD_EVIDENCE.txt
       - name: Upload standalone acceptance bundle
