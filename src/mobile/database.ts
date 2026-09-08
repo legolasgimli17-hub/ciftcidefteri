@@ -1,6 +1,7 @@
 import { type SQLiteDatabase } from "expo-sqlite";
 import { SCHEMA_VERSION } from "../storage/schemaText";
 import { migrateDatabase } from "../storage/migrations";
+import { rememberDatabasePathForRecovery } from "./databaseRecoveryExport";
 import { ExpoSqliteAdapter } from "./expoSqliteAdapter";
 import { getOrCreateDatabaseKeyHex, sqlCipherKeyPragma } from "./databaseKey";
 import {
@@ -42,6 +43,8 @@ class DatabaseStartupError extends Error {
 }
 
 export async function initializeDatabase(database: SQLiteDatabase): Promise<void> {
+  rememberDatabasePathForRecovery(database.databasePath);
+
   let keyHex: string;
   try {
     keyHex = await getOrCreateDatabaseKeyHex();
