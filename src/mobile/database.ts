@@ -3,35 +3,102 @@ import { SCHEMA_VERSION } from "../storage/schemaText";
 import { migrateDatabase } from "../storage/migrations";
 import { ExpoSqliteAdapter } from "./expoSqliteAdapter";
 import { getOrCreateDatabaseKeyHex, sqlCipherKeyPragma } from "./databaseKey";
+import {
+  cleanupLegacyPlaintextAfterSuccess,
+  isDatabaseReopenRequired,
+  migrateLegacyPlaintextIfNeeded
+} from "./legacyDatabaseUpgrade";
 
 export const DATABASE_NAME = "ciftci-defteri.db";
 
-export async function initializeDatabase(database: SQLiteDatabase): Promise<void> {
-  const keyHex = await getOrCreateDatabaseKeyHex();
-  await database.execAsync(sqlCipherKeyPragma(keyHex));
+export type DatabaseFailureCode =
+  | "DB-KEY"
+  | "DB-UPGRADE"
+  | "DB-OPEN"
+  | "DB-PRAGMA"
+  | "DB-MIGRATE"
+  | "DB-UNKNOWN";
 
-  const cipher = await database.getFirstAsync<{ cipher_version: string }>("PRAGMA cipher_version;");
-  if (!cipher?.cipher_version?.trim()) {
-    throw new Error("SQLCipher etkin değil. Finansal veri şifrelenmeden açılamaz.");
-  }
+class DatabaseStartupError extends Error {
+  readonly code: DatabaseFailureCode;
 
-  await database.execAsync("PRAGMA foreign_keys = ON;");
-  const foreignKeys = await database.getFirstAsync<{ foreign_keys: number }>("PRAGMA foreign_keys;");
-  if (Number(foreignKeys?.foreign_keys) !== 1) {
-    throw new Error("Yerel veri bütünlüğü koruması açılamadı.");
-  }
-
-  await database.execAsync("PRAGMA journal_mode = WAL;");
-  const journal = await database.getFirstAsync<{ journal_mode: string }>("PRAGMA journal_mode;");
-  if (journal?.journal_mode?.toLowerCase() !== "wal") {
-    throw new Error("Yerel veritabanı dayanıklılık modu açılamadı.");
-  }
-
-  const version = await migrateDatabase(mobileDatabase(database));
-  if (version !== SCHEMA_VERSION) {
-    throw new Error("Yerel veritabanı doğru sürüme getirilemedi.");
+  constructor(code: DatabaseFailureCode) {
+    super(code);
+    this.name = "DatabaseStartupError";
+    this.code = code;
   }
 }
+
+export async function initializeDatabase(database: SQLiteDatabase): Promise<void> {
+  let keyHex: string;
+  try {
+    keyHex = await getOrCreateDatabaseKeyHex();
+  } catch {
+    throw new DatabaseStartupError("DB-KEY");
+  }
+
+  try {
+    await migrateLegacyPlaintextIfNeeded(database, keyHex);
+  } catch (error) {
+    if (isDatabaseReopenRequired(error)) throw error;
+    throw new DatabaseStartupError("DB-UPGRADE");
+  }
+
+  try {
+    await database.execAsync(sqlCipherKeyPragma(keyHex));
+
+    const cipher = await database.getFirstAsync<{ cipher_version: string }>("PRAGMA cipher_version;");
+    if (!cipher?.cipher_version?.trim()) {
+      throw new Error("cipher_unavailable");
+    }
+
+    await database.getFirstAsync<{ count: number }>(
+      "SELECT count(*) AS count FROM sqlite_master;"
+    );
+  } catch {
+    throw new DatabaseStartupError("DB-OPEN");
+  }
+
+  try {
+    await database.execAsync("PRAGMA foreign_keys = ON;");
+    const foreignKeys = await database.getFirstAsync<{ foreign_keys: number }>("PRAGMA foreign_keys;");
+    if (Number(foreignKeys?.foreign_keys) !== 1) {
+      throw new Error("foreign_keys_unavailable");
+    }
+
+    await database.execAsync("PRAGMA journal_mode = WAL;");
+    const journal = await database.getFirstAsync<{ journal_mode: string }>("PRAGMA journal_mode;");
+    if (journal?.journal_mode?.toLowerCase() !== "wal") {
+      throw new Error("wal_unavailable");
+    }
+  } catch {
+    throw new DatabaseStartupError("DB-PRAGMA");
+  }
+
+  try {
+    const version = await migrateDatabase(mobileDatabase(database));
+    if (version !== SCHEMA_VERSION) {
+      throw new Error("schema_version_mismatch");
+    }
+  } catch {
+    throw new DatabaseStartupError("DB-MIGRATE");
+  }
+
+  cleanupLegacyPlaintextAfterSuccess(database.databasePath);
+}
+
+export function databaseFailureCode(error: unknown): DatabaseFailureCode {
+  if (error instanceof DatabaseStartupError) return error.code;
+  if (error instanceof Error) {
+    const code = error.message as DatabaseFailureCode;
+    if (["DB-KEY", "DB-UPGRADE", "DB-OPEN", "DB-PRAGMA", "DB-MIGRATE"].includes(code)) {
+      return code;
+    }
+  }
+  return "DB-UNKNOWN";
+}
+
+export { isDatabaseReopenRequired } from "./legacyDatabaseUpgrade";
 
 export function mobileDatabase(database: SQLiteDatabase): ExpoSqliteAdapter {
   return new ExpoSqliteAdapter(database);

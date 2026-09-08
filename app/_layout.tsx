@@ -6,7 +6,13 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AppLockGate } from "@/src/mobile/AppLockGate";
 import { initializeCrashReporting, reportCrash } from "@/src/mobile/crashReporting";
-import { DATABASE_NAME, initializeDatabase } from "@/src/mobile/database";
+import {
+  DATABASE_NAME,
+  databaseFailureCode,
+  initializeDatabase,
+  isDatabaseReopenRequired,
+  type DatabaseFailureCode
+} from "@/src/mobile/database";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
 
@@ -38,10 +44,10 @@ function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const [providerKey, setProviderKey] = useState(0);
-  const [databaseError, setDatabaseError] = useState(false);
+  const [databaseErrorCode, setDatabaseErrorCode] = useState<DatabaseFailureCode | null>(null);
 
   const retryDatabase = () => {
-    setDatabaseError(false);
+    setDatabaseErrorCode(null);
     setProviderKey((current) => current + 1);
   };
 
@@ -49,10 +55,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <AppLockGate>
-        {databaseError ? (
+        {databaseErrorCode ? (
           <RecoveryScreen
             title="Defter açılamadı"
-            message="Kayıtlarını silmeden yeniden deneyebilirsin."
+            message={`Kayıtlarını silmeden yeniden deneyebilirsin. Hata kodu: ${databaseErrorCode}`}
             onRetry={retryDatabase}
           />
         ) : (
@@ -61,8 +67,12 @@ export default function RootLayout() {
             databaseName={DATABASE_NAME}
             onInit={initializeDatabase}
             onError={(error) => {
+              if (isDatabaseReopenRequired(error)) {
+                setProviderKey((current) => current + 1);
+                return;
+              }
               reportCrash(error, "database_init_error");
-              setDatabaseError(true);
+              setDatabaseErrorCode(databaseFailureCode(error));
             }}
           >
             <Stack
