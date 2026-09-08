@@ -68,9 +68,12 @@ public final class MainActivity extends Activity {
                 if (!"file:///android_asset/index.html".equals(url)) return;
                 try {
                     String enhancements = readAssetText("phase3-core.js") + "\n"
+                        + "window.effective=window.eff;window.renderAll=window.render;\n"
                         + readAssetText("phase3.js") + "\n"
+                        + "if(window.renderAll)window.render=window.renderAll;\n"
                         + readAssetText("phase4-core.js") + "\n"
-                        + readAssetText("phase4.js");
+                        + readAssetText("phase4.js") + "\n"
+                        + readAssetText("phase4-compat.js");
                     view.evaluateJavascript(enhancements, null);
                 } catch (Exception ignored) {
                     // The base ledger stays usable even if an optional enhancement layer cannot load.
