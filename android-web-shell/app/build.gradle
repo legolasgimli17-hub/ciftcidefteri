@@ -7,11 +7,11 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'app.ciftcidefteri.web'
+        applicationId 'app.ciftcidefteri.phase4'
         minSdk 26
         targetSdk 35
-        versionCode 3
-        versionName '1.2.0'
+        versionCode 1
+        versionName '1.2.0-delivery'
     }
 
     buildTypes {
