@@ -36,6 +36,12 @@ const REQUIRED_BLOCKED_PERMISSIONS = [
   "android.permission.USE_FINGERPRINT"
 ];
 
+const variant = (process.env.ANDROID_VARIANT ?? "debug").trim().toLowerCase();
+if (!/^[a-z0-9_-]+$/.test(variant)) {
+  console.error(`Android permission gate: geçersiz variant: ${variant}`);
+  process.exit(1);
+}
+
 const app = JSON.parse(fs.readFileSync("app.json", "utf8"));
 const configured = new Set(app.expo?.android?.blockedPermissions ?? []);
 const failures = [];
@@ -46,9 +52,9 @@ for (const permission of REQUIRED_BLOCKED_PERMISSIONS) {
   }
 }
 
-const manifests = findMergedDebugManifests("android/app/build/intermediates");
+const manifests = findMergedManifests("android/app/build/intermediates", variant);
 if (manifests.length === 0) {
-  failures.push("Gradle merged debug AndroidManifest.xml bulunamadı.");
+  failures.push(`Gradle merged ${variant} AndroidManifest.xml bulunamadı.`);
 }
 
 for (const manifestPath of manifests) {
@@ -67,7 +73,7 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Android permission gate: ${REQUIRED_BLOCKED_PERMISSIONS.length} hassas izin default-deny ve ${manifests.length} merged manifest temiz.`
+  `Android permission gate: ${REQUIRED_BLOCKED_PERMISSIONS.length} hassas izin default-deny ve ${manifests.length} ${variant} merged manifest temiz.`
 );
 
 function extractPermissions(xml) {
@@ -79,14 +85,16 @@ function extractPermissions(xml) {
   return permissions;
 }
 
-function findMergedDebugManifests(root) {
+function findMergedManifests(root, buildVariant) {
   if (!fs.existsSync(root)) return [];
   const results = [];
   walk(root, results);
+  const markerA = `/merged_manifests/${buildVariant}/`;
+  const markerB = `/merged_manifest/${buildVariant}/`;
   return results.filter((candidate) => {
     const normalized = candidate.replace(/\\/g, "/");
     return normalized.endsWith("/AndroidManifest.xml") &&
-      (normalized.includes("/merged_manifests/debug/") || normalized.includes("/merged_manifest/debug/"));
+      (normalized.includes(markerA) || normalized.includes(markerB));
   });
 }
 
