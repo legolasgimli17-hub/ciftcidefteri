@@ -16,6 +16,16 @@ GitHub Actions `android-native` işi şu üç dosyayı tek artifact içinde üre
 
 Kabul kaydına test edilen commit SHA ve APK SHA-256 değeri yazılır. Böylece başka bir APK'nın sonucu yanlışlıkla bu sürüme mal edilemez.
 
+### Cihaz kanıtı yardımcısı
+
+Android platform-tools/ADB bulunan bir bilgisayarda yalnız sentetik test cihazı bağlıyken şu yardımcı script kullanılabilir:
+
+```bash
+bash scripts/android-device-evidence.sh /path/to/app-debug.apk
+```
+
+Script temiz kurulum yapar, cihaz/Android ve APK checksum kanıtını toplar, kullanıcı temel offline kaydı oluşturduktan sonra DB dosyasının düz `SQLite format 3` başlığı taşımadığını doğrular ve paket/izin dökümünü `device-evidence/` klasörüne kaydeder. PIN, yedekleme, finans akışları, güncelleme ve UX kontrollerini kendi kendine PASS saymaz; bunlar fiziksel ekranda aşağıdaki protokole göre doğrulanır.
+
 ## A. Kurulum ve temel offline akış
 
 1. Android cihazı internetsiz moda al.
