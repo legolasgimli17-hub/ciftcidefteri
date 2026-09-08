@@ -2,7 +2,11 @@ declare function require(name: string): any;
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-import { isSafeCrashCode, sanitizeCrashEvent } from "../src/domain/crashPrivacy";
+import {
+  isSafeCrashCode,
+  isSafeDiagnosticCode,
+  sanitizeCrashEvent
+} from "../src/domain/crashPrivacy";
 
 test("crash scrubber removes user, request, breadcrumbs and free-form financial data", () => {
   const event = sanitizeCrashEvent({
@@ -21,6 +25,7 @@ test("crash scrubber removes user, request, breadcrumbs and free-form financial 
     sdkProcessingMetadata: { secret: "recovery-key" },
     tags: {
       crash_code: "root_error_boundary",
+      diagnostic_code: "legacy_export_failed",
       environment: "production",
       farm_name: "Benim Çiftliğim"
     }
@@ -45,6 +50,7 @@ test("crash scrubber removes user, request, breadcrumbs and free-form financial 
   }
   assert.deepEqual(event.tags, {
     crash_code: "root_error_boundary",
+    diagnostic_code: "legacy_export_failed",
     environment: "production"
   });
 });
@@ -148,4 +154,11 @@ test("crash code is intentionally small and machine-only", () => {
   assert.equal(isSafeCrashCode("root_error_boundary"), true);
   assert.equal(isSafeCrashCode("Mehmet 18500 TL"), false);
   assert.equal(isSafeCrashCode("../../secret"), false);
+});
+
+test("diagnostic code accepts only fixed legacy machine labels", () => {
+  assert.equal(isSafeDiagnosticCode("legacy_export_integrity_failed"), true);
+  assert.equal(isSafeDiagnosticCode("legacy_plaintext_backup_conflict"), true);
+  assert.equal(isSafeDiagnosticCode("Mehmet 18500 TL"), false);
+  assert.equal(isSafeDiagnosticCode("legacy_/data/user/0/private"), false);
 });
