@@ -9,9 +9,11 @@ import { initializeCrashReporting, reportCrash } from "@/src/mobile/crashReporti
 import {
   DATABASE_NAME,
   databaseFailureCode,
+  databaseFailureDiagnosticTag,
   initializeDatabase,
   isDatabaseReopenRequired,
-  type DatabaseFailureCode
+  type DatabaseFailureCode,
+  type LegacyUpgradeDiagnosticTag
 } from "@/src/mobile/database";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
@@ -42,23 +44,34 @@ function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
+type DatabaseErrorState = {
+  readonly code: DatabaseFailureCode;
+  readonly diagnosticTag: LegacyUpgradeDiagnosticTag | null;
+};
+
 export default function RootLayout() {
   const [providerKey, setProviderKey] = useState(0);
-  const [databaseErrorCode, setDatabaseErrorCode] = useState<DatabaseFailureCode | null>(null);
+  const [databaseError, setDatabaseError] = useState<DatabaseErrorState | null>(null);
 
   const retryDatabase = () => {
-    setDatabaseErrorCode(null);
+    setDatabaseError(null);
     setProviderKey((current) => current + 1);
   };
+
+  const databaseMessage = databaseError === null
+    ? ""
+    : databaseError.diagnosticTag === null
+      ? `Kayıtlarını silmeden yeniden deneyebilirsin. Hata kodu: ${databaseError.code}`
+      : `Kayıtlarını silmeden yeniden deneyebilirsin. Hata kodu: ${databaseError.code}. Tanı etiketi: ${databaseError.diagnosticTag}`;
 
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <AppLockGate>
-        {databaseErrorCode ? (
+        {databaseError ? (
           <RecoveryScreen
             title="Defter açılamadı"
-            message={`Kayıtlarını silmeden yeniden deneyebilirsin. Hata kodu: ${databaseErrorCode}`}
+            message={databaseMessage}
             onRetry={retryDatabase}
           />
         ) : (
@@ -72,7 +85,10 @@ export default function RootLayout() {
                 return;
               }
               reportCrash(error, "database_init_error");
-              setDatabaseErrorCode(databaseFailureCode(error));
+              setDatabaseError({
+                code: databaseFailureCode(error),
+                diagnosticTag: databaseFailureDiagnosticTag(error)
+              });
             }}
           >
             <Stack
