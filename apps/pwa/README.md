@@ -1,0 +1,1 @@
+Çiftçi Defteri PWA teslim sürümü. Offline-first web uygulaması; gelir/gider, borç/alacak, stok, banka ve ortaklık akışlarını içerir. Ana dosya index.html'dir.
