@@ -1,0 +1,68 @@
+name: android-web-shell
+
+on:
+  pull_request:
+    paths:
+      - "android-web-shell/**"
+      - ".github/workflows/android-web-shell.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-web-shell-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Check bundled JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('android-web-shell/app/src/main/assets/index.html').read_text()
+          m=re.search(r'<script>(.*)</script>', html, re.S)
+          assert m, 'script block missing'
+          Path('/tmp/ciftci-app.js').write_text(m.group(1))
+          PY
+          node --check /tmp/ciftci-app.js
+      - name: Build standalone WebView APK
+        working-directory: android-web-shell
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify isolated APK
+        run: |
+          APK="android-web-shell/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -l "$APK" | grep -q "assets/index.html"
+          unzip -l "$APK" | grep -q "classes.dex"
+          if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
+            echo "Unexpected INTERNET permission" >&2
+            exit 1
+          fi
+          sha256sum "$APK" > android-web-shell/app/build/outputs/apk/debug/SHA256SUMS.txt
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ciftci-defteri-webview-apk
+          path: |
+            android-web-shell/app/build/outputs/apk/debug/app-debug.apk
+            android-web-shell/app/build/outputs/apk/debug/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
