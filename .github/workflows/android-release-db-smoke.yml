@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-release-db-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -57,8 +61,24 @@ jobs:
           echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
       - name: Start emulator
         run: |
-          nohup emulator -avd db-smoke -no-window -noaudio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > emulator.log 2>&1 &
-          adb wait-for-device
+          set -euo pipefail
+          nohup emulator -avd db-smoke -no-window -noaudio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect -camera-back none -camera-front none > emulator.log 2>&1 &
+          EMULATOR_PID=$!
+          for attempt in $(seq 1 120); do
+            if adb get-state >/dev/null 2>&1; then
+              echo "Android emulator ADB'ye bağlandı."
+              exit 0
+            fi
+            if ! kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then
+              echo "Android emulator beklenmeden kapandı."
+              cat emulator.log || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Android emulator 120 saniyede ADB'ye bağlanamadı."
+          cat emulator.log || true
+          exit 1
       - name: Launch release and require onboarding
         run: node scripts/android-emulator-db-init-smoke.mjs
       - name: Upload evidence
