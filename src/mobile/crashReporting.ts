@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/react-native";
-import { isSafeCrashCode, sanitizeCrashEvent } from "../domain/crashPrivacy";
+import {
+  isSafeCrashCode,
+  isSafeDiagnosticCode,
+  sanitizeCrashEvent
+} from "../domain/crashPrivacy";
 
 export type CrashCode =
   | "database_init_error"
@@ -39,7 +43,11 @@ export function initializeCrashReporting(): boolean {
   return true;
 }
 
-export function reportCrash(error: unknown, crashCode: CrashCode): void {
+export function reportCrash(
+  error: unknown,
+  crashCode: CrashCode,
+  diagnosticCode?: string
+): void {
   if (!initialized || !isSafeCrashCode(crashCode)) return;
 
   if (typeof error === "object" && error !== null) {
@@ -52,6 +60,9 @@ export function reportCrash(error: unknown, crashCode: CrashCode): void {
   Sentry.withScope((scope) => {
     scope.setUser(null);
     scope.setTag("crash_code", crashCode);
+    if (diagnosticCode !== undefined && isSafeDiagnosticCode(diagnosticCode)) {
+      scope.setTag("diagnostic_code", diagnosticCode);
+    }
     Sentry.captureException(reportableError);
   });
 }
