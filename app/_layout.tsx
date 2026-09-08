@@ -2,7 +2,7 @@ import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AppLockGate } from "@/src/mobile/AppLockGate";
 import { initializeCrashReporting, reportCrash } from "@/src/mobile/crashReporting";
@@ -13,7 +13,10 @@ import {
   isDatabaseReopenRequired,
   type DatabaseFailureDetails
 } from "@/src/mobile/database";
-import { exportEncryptedDatabaseRecoveryCopy } from "@/src/mobile/databaseRecoveryExport";
+import {
+  archiveCurrentDatabaseForFreshEncryptedStart,
+  exportEncryptedDatabaseRecoveryCopy
+} from "@/src/mobile/databaseRecoveryExport";
 import { theme } from "@/src/ui/theme";
 import { uxPolicy } from "@/src/ui/policy";
 
@@ -35,6 +38,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         detail={null}
         onRetry={() => void retry()}
         secondaryAction={null}
+        tertiaryAction={null}
       />
     </SafeAreaProvider>
   );
@@ -49,6 +53,7 @@ function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       detail={null}
       onRetry={() => void retry()}
       secondaryAction={null}
+      tertiaryAction={null}
     />
   );
 }
@@ -60,10 +65,13 @@ export default function RootLayout() {
   const [recoveryExporting, setRecoveryExporting] = useState(false);
   const [recoveryExportStatus, setRecoveryExportStatus] = useState<string | null>(null);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [freshStarting, setFreshStarting] = useState(false);
+  const [freshStartStatus, setFreshStartStatus] = useState<string | null>(null);
 
   const retryDatabase = () => {
     setDatabaseFailure(null);
     setRecoveryExportStatus(null);
+    setFreshStartStatus(null);
     setProviderKey((current) => current + 1);
   };
 
@@ -87,6 +95,41 @@ export default function RootLayout() {
     }
   };
 
+  const performFreshStart = async () => {
+    if (freshStarting) return;
+    setFreshStarting(true);
+    setFreshStartStatus(null);
+    try {
+      const result = await archiveCurrentDatabaseForFreshEncryptedStart();
+      setDatabaseFailure(null);
+      setRecoveryExportStatus(null);
+      setRecoveryKey(null);
+      setFreshStartStatus(
+        result.archived
+          ? "Eski defter cihazda kurtarma dosyası olarak korundu."
+          : "Eski defter dosyası bulunamadı; yeni defter hazırlanıyor."
+      );
+      setProviderKey((current) => current + 1);
+    } catch {
+      setFreshStartStatus(
+        "Eski defter güvenle ayrılamadı. Hiçbir kayıt silinmedi."
+      );
+    } finally {
+      setFreshStarting(false);
+    }
+  };
+
+  const confirmFreshStart = () => {
+    Alert.alert(
+      "Yeni defterle açılsın mı?",
+      "Eski defter silinmeyecek. Cihazda kurtarma dosyası olarak saklanacak ve uygulama yeni, şifreli bir defterle açılacak.",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        { text: "Yeni defterle aç", onPress: () => void performFreshStart() }
+      ]
+    );
+  };
+
   const databaseDetail = databaseFailure === null
     ? null
     : [
@@ -94,6 +137,7 @@ export default function RootLayout() {
         databaseFailure.diagnosticTag === null
           ? null
           : `Teşhis etiketi: ${databaseFailure.diagnosticTag}`,
+        freshStartStatus,
         recoveryExportStatus,
         recoveryKey === null ? null : `Kurtarma anahtarı: ${recoveryKey}`
       ].filter((value): value is string => value !== null).join("\n");
@@ -105,13 +149,18 @@ export default function RootLayout() {
         {databaseFailure ? (
           <RecoveryScreen
             title="Defter açılamadı"
-            message="Kayıtlarını silmeden yeniden deneyebilirsin."
+            message="Eski kayıtlarını silmeden devam edebilirsin."
             detail={databaseDetail}
             onRetry={retryDatabase}
-            secondaryAction={databaseFailureCount >= 3 ? {
+            secondaryAction={databaseFailure.code === "DB-UPGRADE" ? {
+              label: freshStarting ? "Yeni defter hazırlanıyor..." : "Eski kaydı koru, yeni defter aç",
+              onPress: confirmFreshStart,
+              disabled: freshStarting || recoveryExporting
+            } : null}
+            tertiaryAction={databaseFailureCount >= 3 ? {
               label: recoveryExporting ? "Kurtarma kopyası hazırlanıyor..." : "Verini dışa aktarmayı dene",
               onPress: () => void exportRecoveryCopy(),
-              disabled: recoveryExporting
+              disabled: recoveryExporting || freshStarting
             } : null}
           />
         ) : (
@@ -154,6 +203,7 @@ function RecoveryScreen(props: {
   readonly detail: string | null;
   readonly onRetry: () => void;
   readonly secondaryAction: RecoverySecondaryAction | null;
+  readonly tertiaryAction: RecoverySecondaryAction | null;
 }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
@@ -173,23 +223,29 @@ function RecoveryScreen(props: {
         >
           <Text style={styles.retryText}>Tekrar dene</Text>
         </Pressable>
-        {props.secondaryAction === null ? null : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={props.secondaryAction.label}
-            disabled={props.secondaryAction.disabled}
-            onPress={props.secondaryAction.onPress}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              props.secondaryAction?.disabled && styles.disabled,
-              pressed && styles.pressed
-            ]}
-          >
-            <Text style={styles.secondaryText}>{props.secondaryAction.label}</Text>
-          </Pressable>
-        )}
+        <RecoveryActionButton action={props.secondaryAction} />
+        <RecoveryActionButton action={props.tertiaryAction} />
       </View>
     </SafeAreaView>
+  );
+}
+
+function RecoveryActionButton(props: { readonly action: RecoverySecondaryAction | null }) {
+  if (props.action === null) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.action.label}
+      disabled={props.action.disabled}
+      onPress={props.action.onPress}
+      style={({ pressed }) => [
+        styles.secondaryButton,
+        props.action?.disabled && styles.disabled,
+        pressed && styles.pressed
+      ]}
+    >
+      <Text style={styles.secondaryText}>{props.action.label}</Text>
+    </Pressable>
   );
 }
 
@@ -245,7 +301,8 @@ const styles = StyleSheet.create({
   secondaryText: {
     color: theme.color.primary,
     fontSize: theme.type.button,
-    fontWeight: "800"
+    fontWeight: "800",
+    textAlign: "center"
   },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.86 }
