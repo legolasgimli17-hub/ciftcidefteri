@@ -22,4 +22,6 @@ assert.match(ui,/API\+'\/fuel'/);
 assert.match(ui,/Imagery © Esri/);
 const fuel=fs.readFileSync(path.join(__dirname,'../../pwa/api/fuel.js'),'utf8');assert.match(fuel,/apigateway\.epdk\.gov\.tr/);assert.match(fuel,/petrolBayiSatisFiyatBulten/);
 const market=fs.readFileSync(path.join(__dirname,'../../pwa/api/market.js'),'utf8');assert.match(market,/borsa\.tobb\.org\.tr/);assert.match(market,/TOBB Ticaret Borsaları/);
-console.log('Phase 10 assertions: 18 passed');
+const loader=fs.readFileSync(path.join(__dirname,'../../pwa/app-loader.js'),'utf8');assert.match(loader,/phase10-core\.js/);assert.match(loader,/phase10-command\.js/);
+const sw=fs.readFileSync(path.join(__dirname,'../../pwa/sw.js'),'utf8');assert.match(sw,/server\.arcgisonline\.com/);assert.match(sw,/SATELLITE,160/);assert.match(sw,/\/api\/market/);assert.match(sw,/\/api\/fuel/);
+console.log('Phase 10 assertions: 24 passed');
