@@ -1,0 +1,51 @@
+name: Deploy EkinCep P10
+
+on:
+  push:
+    branches: [phase10-command-center]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ekincep-pages
+  cancel-in-progress: true
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify command center
+        run: |
+          node --check android-web-shell/app/src/main/assets/phase10-command-center.js
+          node android-web-shell/tests/phase10-command-center.test.cjs
+
+      - name: Build static PWA
+        run: |
+          mkdir -p dist/assets
+          cp pwa/index.html pwa/manifest.webmanifest pwa/sw.js pwa/icon.svg pwa/og.svg pwa/field-hero.webp dist/
+          cp android-web-shell/app/src/main/assets/index.html dist/assets/
+          cp android-web-shell/app/src/main/assets/phase*.js dist/assets/
+          test -s dist/index.html
+          test -s dist/assets/phase10-command-center.js
+          test -s dist/field-hero.webp
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

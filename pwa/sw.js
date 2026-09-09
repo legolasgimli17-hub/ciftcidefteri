@@ -1,6 +1,6 @@
 const VERSION='ekincep-pwa-v3';
 const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather';
-const SHELL=['/','/index.html','/manifest.webmanifest','/icon.svg','/og.svg','/field-hero.webp'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg','./field-hero.webp'];
 
 self.addEventListener('install',e=>e.waitUntil(
   caches.open(STATIC).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())
@@ -36,7 +36,7 @@ async function networkFirst(req,name){
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const u=new URL(e.request.url);
-  if(u.origin===self.location.origin){e.respondWith(networkFirst(e.request,STATIC).catch(()=>caches.match('/')));return;}
+  if(u.origin===self.location.origin){e.respondWith(networkFirst(e.request,STATIC).catch(()=>caches.match('./')));return;}
   if(isAppAsset(u)){e.respondWith(cacheFirst(e.request,RUNTIME));return;}
   if(isWeather(u))e.respondWith(networkFirst(e.request,WEATHER));
 });
