@@ -1,11 +1,12 @@
 'use strict';
 
-const VERSION='ekincep-pwa-v3';
+const VERSION='ekincep-pwa-v4';
 const STATIC=`${VERSION}-static`;
 const RUNTIME=`${VERSION}-runtime`;
 const DATA=`${VERSION}-data`;
 const WEATHER=`${VERSION}-weather`;
 const SATELLITE=`${VERSION}-satellite`;
+const PHOTOS=`${VERSION}-photos`;
 const SHELL=['/','/index.html','/app-loader.js','/manifest.webmanifest','/icon.svg','/og.svg'];
 
 self.addEventListener('install',event=>{
@@ -22,6 +23,7 @@ function isAppAsset(url){
 }
 function isWeather(url){return url.hostname==='api.open-meteo.com'||url.hostname==='geocoding-api.open-meteo.com';}
 function isSatellite(url){return url.hostname==='server.arcgisonline.com'&&url.pathname.includes('/World_Imagery/MapServer/tile/');}
+function isFarmPhoto(url){return url.hostname==='commons.wikimedia.org'||url.hostname==='upload.wikimedia.org';}
 function isLiveData(url){return url.origin===self.location.origin&&(url.pathname==='/api/market'||url.pathname==='/api/fuel');}
 
 async function trim(name,max){
@@ -36,7 +38,7 @@ async function cacheFirst(request,name,maxEntries){
   const hit=await cache.match(request);
   if(hit)return hit;
   const response=await fetch(request);
-  if(response?.ok){await cache.put(request,response.clone());if(maxEntries)void trim(name,maxEntries);}
+  if(response&&(response.ok||response.type==='opaque')){await cache.put(request,response.clone());if(maxEntries)void trim(name,maxEntries);}
   return response;
 }
 
@@ -58,8 +60,9 @@ self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(isLiveData(url)){event.respondWith(networkFirst(event.request,DATA));return;}
   if(isSatellite(url)){event.respondWith(cacheFirst(event.request,SATELLITE,160));return;}
+  if(isFarmPhoto(url)){event.respondWith(cacheFirst(event.request,PHOTOS,24));return;}
   if(isWeather(url)){event.respondWith(networkFirst(event.request,WEATHER));return;}
-  if(isAppAsset(url)){event.respondWith(cacheFirst(event.request,RUNTIME,80));return;}
+  if(isAppAsset(url)){event.respondWith(cacheFirst(event.request,RUNTIME,96));return;}
   if(url.origin===self.location.origin){
     event.respondWith(networkFirst(event.request,STATIC).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('/'))));
   }
