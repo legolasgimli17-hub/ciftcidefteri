@@ -1,0 +1,46 @@
+name: phase11-native-shell
+
+on:
+  pull_request:
+    paths:
+      - "android-web-shell/**"
+      - "pwa/**"
+      - ".github/workflows/phase11-native-shell.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22"
+      - name: Check EkinCep 13 JavaScript syntax
+        run: |
+          node --check android-web-shell/app/src/main/assets/phase11-app-shell.js
+          node --check pwa/sw.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('pwa/index.html').read_text()
+          m=re.search(r'<script>(.*)</script>', text, re.S)
+          assert m, 'PWA script missing'
+          Path('/tmp/ekincep-v13-pwa.js').write_text(m.group(1))
+          PY
+          node --check /tmp/ekincep-v13-pwa.js
+      - name: Verify native navigation and visual contract
+        run: node android-web-shell/tests/phase11-native-shell.test.cjs
+      - name: Verify Android asset integration
+        run: |
+          grep -q "phase11-app-shell.js" android-web-shell/app/src/main/assets/phase9-field-ui.js
+          grep -q "handleNativeBack" android-web-shell/app/src/main/assets/phase11-app-shell.js
+          grep -q "history.pushState" android-web-shell/app/src/main/assets/phase11-app-shell.js
+          grep -q "World_Imagery" android-web-shell/app/src/main/assets/phase11-app-shell.js
+          grep -q "images.unsplash.com" android-web-shell/app/src/main/assets/phase11-app-shell.js
