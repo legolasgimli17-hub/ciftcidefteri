@@ -5,9 +5,11 @@ const root=path.join(__dirname,'../..');
 const assetRoot=path.join(__dirname,'../app/src/main/assets');
 const ui=fs.readFileSync(path.join(assetRoot,'phase10-command-center.js'),'utf8');
 const android=fs.readFileSync(path.join(__dirname,'../app/src/main/java/app/ciftcidefteri/web/MainActivity.java'),'utf8');
+const manifest=fs.readFileSync(path.join(__dirname,'../app/src/main/AndroidManifest.xml'),'utf8');
 const pwa=fs.readFileSync(path.join(root,'pwa/index.html'),'utf8');
 const sw=fs.readFileSync(path.join(root,'pwa/sw.js'),'utf8');
 
+// Product shell: the home screen is now field-first, while finance remains real data.
 assert.match(ui,/__EKINCEP_PHASE10_COMMAND_CENTER__/);
 assert.match(ui,/Bu sezon cebinde kalan/);
 assert.match(ui,/ec10-financeHero/);
@@ -22,15 +24,50 @@ assert.match(ui,/corn/);
 assert.match(ui,/wheat/);
 assert.match(ui,/Piyasa/);
 assert.match(ui,/Elindekiler/);
-assert.match(ui,/Tarla havası/);
+assert.match(ui,/Canlı saha/);
 assert.match(ui,/prefers-reduced-motion/);
-assert.match(ui,/min-height:72px/);
 assert.doesNotMatch(ui,/field-hero\.webp/);
+
+// Real field workflow: satellite + map tiles, parcel geometry and dekar calculation.
+assert.match(ui,/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/World_Imagery/);
+assert.match(ui,/tile\.openstreetmap\.org/);
+assert.match(ui,/catalogue\.dataspace\.copernicus\.eu\/odata\/v1\/Products/);
+assert.match(ui,/SENTINEL-2/);
+assert.match(ui,/app\.fields/);
+assert.match(ui,/function areaDa\(/);
+assert.match(ui,/Tarla sınırını çiz/);
+assert.match(ui,/En az 3 köşe/);
+assert.match(ui,/prefill\('expense'/);
+assert.match(ui,/prefill\('income'/);
+
+// Turkey-specific operating layer: supports and simple field task plan.
+assert.match(ui,/app\.supports/);
+assert.match(ui,/app\.tasks/);
+assert.match(ui,/Mazot-gübre desteği/);
+assert.match(ui,/Fark ödemesi desteği/);
+assert.match(ui,/supportExempt:true/);
+assert.match(ui,/Saha planı/);
+
+// Android field location is permission-gated and only granted to the local app origin.
 assert.match(android,/readAssetText\("phase10-command-center\.js"\)/);
+assert.match(android,/setGeolocationEnabled\(true\)/);
+assert.match(android,/onGeolocationPermissionsShowPrompt/);
+assert.match(android,/origin\.startsWith\("file:\/\/"\)/);
+assert.match(android,/ACCESS_FINE_LOCATION/);
+assert.match(manifest,/android\.permission\.ACCESS_COARSE_LOCATION/);
+assert.match(manifest,/android\.permission\.ACCESS_FINE_LOCATION/);
+
+// PWA keeps code fresh while retaining a bounded amount of recent field-map imagery offline.
 assert.match(pwa,/'phase10-command-center\.js'/);
 assert.match(pwa,/raw\.githack\.com/);
 assert.match(pwa,/new URL\('\.\/assets\/'/);
-assert.match(sw,/ekincep-pwa-v4/);
+assert.match(sw,/ekincep-pwa-v6/);
 assert.match(sw,/api\.open-meteo\.com/);
+assert.match(sw,/server\.arcgisonline\.com/);
+assert.match(sw,/tile\.openstreetmap\.org/);
+assert.match(sw,/catalogue\.dataspace\.copernicus\.eu/);
+assert.match(sw,/MAX_MAP_ENTRIES=120/);
+assert.match(sw,/staleWhileRevalidate/);
+assert.match(sw,/networkFirst\(e\.request,RUNTIME\)/);
 
-console.log('Phase 10 EkinCep command center assertions: 24 passed');
+console.log('Phase 10 EkinCep field operating system assertions passed');
