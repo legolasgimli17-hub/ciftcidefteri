@@ -16,11 +16,12 @@ style.textContent=`
 html,body{background:linear-gradient(180deg,#f8faf7 0,#f3f6f1 60%,#eef3ee 100%)!important;color:var(--ink)!important}
 body{padding-bottom:96px!important}
 .wrap{max-width:860px!important;padding:18px 15px 34px!important}
-.top{margin:2px 0 18px!important;align-items:center!important}
-.brand{font-size:0!important;display:flex!important;align-items:center!important;gap:11px!important}
-.brand:before{content:'';width:42px;height:42px;border-radius:15px;background:linear-gradient(145deg,#1f7c53,#0f4e33);box-shadow:0 8px 20px rgba(23,103,68,.24);display:inline-block;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M14 42c13-2 22-11 28-27 8 13 10 25 1 34-8 8-21 7-29-7Z' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M20 43c8-3 14-8 20-18' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E")!important;background-size:28px 28px!important;background-position:center!important;background-repeat:no-repeat!important}
-.brand:after{content:'${BRAND}';font-size:25px;font-weight:950;letter-spacing:-.6px;color:var(--ink)}
-.status{background:#e7f3eb!important;color:#176744!important;border:1px solid #cce4d5!important;padding:7px 10px!important}
+.top{margin:2px 0 18px!important;align-items:center!important;gap:10px!important}
+.tp-topCopy{display:flex;flex-direction:column;gap:0;min-width:0;flex:1}
+.brand{font-size:0!important;display:flex!important;align-items:center!important;gap:11px!important;min-width:0}
+.brand:before{content:'';width:42px;height:42px;flex:0 0 42px;border-radius:15px;background:linear-gradient(145deg,#1f7c53,#0f4e33);box-shadow:0 8px 20px rgba(23,103,68,.24);display:inline-block;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M14 42c13-2 22-11 28-27 8 13 10 25 1 34-8 8-21 7-29-7Z' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M20 43c8-3 14-8 20-18' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E")!important;background-size:28px 28px!important;background-position:center!important;background-repeat:no-repeat!important}
+.brand:after{content:'${BRAND}';font-size:25px;font-weight:950;letter-spacing:-.6px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{flex:0 0 auto;background:#e7f3eb!important;color:#176744!important;border:1px solid #cce4d5!important;padding:7px 10px!important}
 .hero{position:relative;overflow:hidden;border-radius:27px!important;padding:23px!important;background:linear-gradient(145deg,#1e7650,#0f4d34)!important;box-shadow:0 18px 45px rgba(19,79,52,.22)!important}
 .hero:after{content:'';position:absolute;width:180px;height:180px;border-radius:50%;right:-60px;top:-80px;background:rgba(255,255,255,.08)}
 .hero small{letter-spacing:.07em!important}
@@ -69,11 +70,10 @@ label{font-size:13px!important;color:#5e6c63!important;margin-top:15px!important
 .tp-navIcon svg{width:20px;height:20px;display:block;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
 #nTx{background:linear-gradient(145deg,#1f7751,#176744)!important;color:#fff!important;box-shadow:0 8px 18px rgba(23,103,68,.22)!important}
 #nTx.active{background:linear-gradient(145deg,#1f7751,#176744)!important;color:#fff!important}
-.tp-subtitle{font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
-.tp-topCopy{display:flex;flex-direction:column;gap:0}
+.tp-subtitle{font-size:11.5px;color:var(--muted);font-weight:700;margin:2px 0 0 53px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tp-sectionLead{font-size:13px;color:var(--muted);line-height:1.45;margin:-4px 0 11px}
 .toast{border-radius:14px!important;box-shadow:0 12px 30px rgba(0,0,0,.18)!important}
-@media(max-width:420px){.wrap{padding-left:12px!important;padding-right:12px!important}.brand:after{font-size:22px}.brand:before{width:39px;height:39px;border-radius:14px}.metric b{font-size:14px!important}.p5-grid{gap:8px!important}.p5-stat{padding:13px!important}.p5-stat b{font-size:17px!important}}
+@media(max-width:420px){.wrap{padding-left:12px!important;padding-right:12px!important}.brand:after{font-size:22px}.brand:before{width:39px;height:39px;flex-basis:39px;border-radius:14px}.tp-subtitle{margin-left:50px;font-size:10.5px}.status{font-size:10px!important;padding:6px 8px!important}.metric b{font-size:14px!important}.p5-grid{gap:8px!important}.p5-stat{padding:13px!important}.p5-stat b{font-size:17px!important}}
 `;
 document.head.appendChild(style);
 
@@ -87,14 +87,15 @@ const icons={
 };
 
 function polishBrand(){
+ const top=document.querySelector('.top');
  const brand=document.querySelector('.brand');
  if(brand){brand.textContent='';brand.setAttribute('aria-label',BRAND);}
  const status=document.getElementById('storageStatus');
  if(status) status.textContent='İnternetsiz hazır';
- const top=document.querySelector('.top');
- if(top&&!document.getElementById('tpSubtitle')){
-   const copy=document.createElement('div');copy.className='tp-subtitle';copy.id='tpSubtitle';copy.textContent='Tarlanın parası, hava durumu ve ürün değeri tek yerde';
-   brand?.insertAdjacentElement('afterend',copy);
+ if(top&&brand&&!document.querySelector('.tp-topCopy')){
+   const wrap=document.createElement('div');wrap.className='tp-topCopy';
+   top.insertBefore(wrap,brand);wrap.appendChild(brand);
+   const copy=document.createElement('div');copy.className='tp-subtitle';copy.id='tpSubtitle';copy.textContent='Tarlanın parası, hava durumu ve ürün değeri tek yerde';wrap.appendChild(copy);
  }
 }
 
@@ -104,6 +105,12 @@ function polishNav(){
 }
 
 function polishCopy(){
+ const heroLabels=document.querySelectorAll('#home .hero small');
+ if(heroLabels[0]) heroLabels[0].textContent='NET DURUM';
+ if(heroLabels[1]) heroLabels[1].textContent='GELİR';
+ if(heroLabels[2]) heroLabels[2].textContent='MASRAF';
+ const incomeButton=document.querySelector('#home .action.income');if(incomeButton) incomeButton.textContent='+ Gelir ekle';
+ const expenseButton=document.querySelector('#home .action.expense');if(expenseButton) expenseButton.textContent='− Masraf ekle';
  const ledgerCard=document.querySelector('#ledger .card');
  if(ledgerCard&&!ledgerCard.querySelector('.tp-sectionLead')){
    ledgerCard.querySelector('h2')?.insertAdjacentHTML('afterend','<div class="tp-sectionLead">Masraflar kategori kategori gösterilir. Her kaydı silmeden düzenleyebilirsin.</div>');
