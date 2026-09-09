@@ -1,0 +1,73 @@
+name: phase11-security
+
+on:
+  pull_request:
+    paths:
+      - "pwa/**"
+      - "android-web-shell/**"
+      - ".github/workflows/phase11-security.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase11-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-and-productization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Syntax checks
+        run: |
+          node --check pwa/app-loader.js
+          node --check pwa/sw.js
+          node --check pwa/api/fuel.js
+          node --check pwa/api/market.js
+          node --check pwa/api/ndvi.js
+          node --check android-web-shell/app/src/main/assets/phase11-home.js
+          node --check android-web-shell/app/src/main/assets/phase11-satellite.js
+          node --check pwa/assets/phase11-home.js
+          node --check pwa/assets/phase11-satellite.js
+      - name: Run every WebView phase test
+        run: |
+          set -euo pipefail
+          for test_file in android-web-shell/tests/phase*.test.cjs; do
+            echo "==> $test_file"
+            node "$test_file"
+          done
+      - name: Production runtime must be self-hosted
+        run: |
+          set -euo pipefail
+          if grep -Eq 'raw\.githubusercontent\.com|cdn\.jsdelivr\.net|raw\.githack\.com' pwa/app-loader.js pwa/sw.js; then
+            echo "Production runtime references remote executable app code" >&2
+            exit 1
+          fi
+          if grep -Eq '\beval\s*\(' pwa/app-loader.js; then
+            echo "Production runtime uses eval" >&2
+            exit 1
+          fi
+          grep -q "ASSET_ROOT='/assets/'" pwa/app-loader.js
+          grep -q "/assets/phase11-home.js" pwa/sw.js
+          grep -q "/assets/phase11-satellite.js" pwa/sw.js
+      - name: Satellite secrets stay server-side
+        run: |
+          set -euo pipefail
+          grep -q 'process.env.CDSE_CLIENT_ID' pwa/api/ndvi.js
+          grep -q 'process.env.CDSE_CLIENT_SECRET' pwa/api/ndvi.js
+          if grep -REq 'CDSE_CLIENT_(ID|SECRET)[[:space:]]*=[[:space:]]*["'"'][^"'"']+["'"']' pwa android-web-shell/app/src/main/assets; then
+            echo "Hard-coded Copernicus credential detected" >&2
+            exit 1
+          fi
+      - name: Honest-data contract
+        run: |
+          set -euo pipefail
+          grep -q 'ESKİ VERİ' android-web-shell/app/src/main/assets/phase11-home.js
+          grep -q 'Canlı kamera değildir' android-web-shell/app/src/main/assets/phase11-satellite.js
+          grep -q 'Türkiye geneli resmî bülten' pwa/api/fuel.js
+          grep -q 'raporTarihi' pwa/api/fuel.js
