@@ -96,7 +96,8 @@ jobs:
           grep -q "EkinCep" android-web-shell/app/src/main/assets/phase8-redesign.js
           grep -q "EkinCep" android-web-shell/app/src/main/assets/phase9-field-ui.js
           grep -q "phase10-command-center.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "Çiftliğinin bugünkü görünümü" android-web-shell/app/src/main/assets/phase10-command-center.js
+          grep -q "Bu sezon cebinde kalan" android-web-shell/app/src/main/assets/phase10-command-center.js
+          grep -q "ec10-toolChest" android-web-shell/app/src/main/assets/phase10-command-center.js
           grep -q 'android:label="EkinCep"' android-web-shell/app/src/main/AndroidManifest.xml
           grep -q 'meta name="description"' pwa/index.html
           grep -q 'property="og:image"' pwa/index.html
