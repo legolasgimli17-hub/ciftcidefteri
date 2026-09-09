@@ -41,6 +41,7 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         webView = new WebView(this);
+        webView.setVisibility(android.view.View.INVISIBLE);
         setContentView(webView);
 
         WebView.setWebContentsDebuggingEnabled(false);
@@ -76,10 +77,19 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase4-compat.js") + "\n"
                         + readAssetText("phase5-core.js") + "\n"
                         + readAssetText("phase5.js") + "\n"
-                        + readAssetText("phase6-polish.js");
-                    view.evaluateJavascript(enhancements, null);
+                        + readAssetText("phase6-polish.js") + "\n"
+                        + readAssetText("phase7-core.js") + "\n"
+                        + readAssetText("phase7-security.js") + "\n"
+                        + "window.__TARLAPUSULA_SECURITY_READY__===true;";
+                    view.evaluateJavascript(enhancements, result -> {
+                        if ("true".equals(result)) {
+                            if (webView != null) webView.setVisibility(android.view.View.VISIBLE);
+                        } else {
+                            showSafeFailure(view);
+                        }
+                    });
                 } catch (Exception ignored) {
-                    // The base ledger stays usable even if an optional enhancement layer cannot load.
+                    showSafeFailure(view);
                 }
             }
         });
@@ -100,6 +110,15 @@ public final class MainActivity extends Activity {
             }
         });
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void showSafeFailure(WebView view) {
+        if (view == null) return;
+        String html = "<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+            + "<body style='font-family:system-ui;background:#f4f7f2;color:#142119;padding:28px'>"
+            + "<h2>TarlaPusula güvenli kilidi açılamadı</h2><p>Veriler güvenlik nedeniyle gösterilmedi. Uygulamayı kapatıp yeniden aç.</p></body>";
+        view.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        view.setVisibility(android.view.View.VISIBLE);
     }
 
     private String readAssetText(String name) throws Exception {
@@ -231,7 +250,7 @@ public final class MainActivity extends Activity {
             ContentValues values = new ContentValues();
             values.put(MediaStore.Downloads.DISPLAY_NAME, filename);
             values.put(MediaStore.Downloads.MIME_TYPE, "application/json");
-            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/CiftciDefteri");
+            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/TarlaPusula");
             ContentResolver resolver = getContentResolver();
             Uri uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
             if (uri == null) throw new IllegalStateException();
@@ -239,7 +258,7 @@ public final class MainActivity extends Activity {
                 if (output == null) throw new IllegalStateException();
                 output.write(bytes);
             }
-            return "İndirilenler/CiftciDefteri/" + filename;
+            return "İndirilenler/TarlaPusula/" + filename;
         }
         File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         if (dir == null) throw new IllegalStateException();
@@ -252,7 +271,7 @@ public final class MainActivity extends Activity {
     }
 
     private String sanitizeFilename(String value) {
-        String fallback = "ciftci-defteri-yedek.json";
+        String fallback = "tarlapusula-yedek.json";
         if (value == null) return fallback;
         String cleaned = value.replaceAll("[^a-zA-Z0-9._-]", "-");
         if (cleaned.isEmpty() || cleaned.length() > 96) return fallback;
