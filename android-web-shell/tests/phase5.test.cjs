@@ -23,6 +23,6 @@ let top=Core.topExpenseCategories(tx,eff,1);assert.equal(top.length,1);assert.eq
 let s=Core.calcInitial();assert.equal(s.display,'0');s=Core.calculatorPress(s,'1');s=Core.calculatorPress(s,'2');assert.equal(s.display,'12');s=Core.calculatorPress(s,'+');s=Core.calculatorPress(s,'3');s=Core.calculatorPress(s,'=');assert.equal(s.display,'15');
 s=Core.calcInitial();s=Core.calculatorPress(s,'9');s=Core.calculatorPress(s,'÷');s=Core.calculatorPress(s,'3');s=Core.calculatorPress(s,'=');assert.equal(s.display,'3');
 s=Core.calcInitial();s=Core.calculatorPress(s,'5');s=Core.calculatorPress(s,'0');s=Core.calculatorPress(s,'%');assert.equal(s.display,'0,5');
-s=Core.calcInitial();s=Core.calculatorPress(s,'8');s=Core.calculatorPress(s,'±');assert.equal(s.display,'-8');s=Core.calculatorPress(s,'⌫');assert.equal(s.display,'-');
+s=Core.calcInitial();s=Core.calculatorPress(s,'8');s=Core.calculatorPress(s,'±');assert.equal(s.display,'-8');s=Core.calculatorPress(s,'⌫');assert.equal(s.display,'0');
 s=Core.calcInitial();s=Core.calculatorPress(s,'9');s=Core.calculatorPress(s,'÷');s=Core.calculatorPress(s,'0');s=Core.calculatorPress(s,'=');assert.equal(s.display,'Hata');assert.equal(s.error,true);
 console.log('Phase 5 tests: 31 assertions passed');
