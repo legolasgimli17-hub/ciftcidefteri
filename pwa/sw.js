@@ -1,4 +1,4 @@
-const VERSION='ekincep-pwa-v4';
+const VERSION='ekincep-pwa-v5';
 const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg'];
 
@@ -37,6 +37,6 @@ self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const u=new URL(e.request.url);
   if(u.origin===self.location.origin){e.respondWith(networkFirst(e.request,STATIC).catch(()=>caches.match('./')));return;}
-  if(isAppAsset(u)){e.respondWith(cacheFirst(e.request,RUNTIME));return;}
+  if(isAppAsset(u)){e.respondWith(networkFirst(e.request,RUNTIME));return;}
   if(isWeather(u))e.respondWith(networkFirst(e.request,WEATHER));
 });
