@@ -82,6 +82,7 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase7-security.js") + "\n"
                         + readAssetText("phase8-guard.js") + "\n"
                         + readAssetText("phase8-redesign.js") + "\n"
+                        + readAssetText("phase9-field-ui.js") + "\n"
                         + "window.__TARLAPUSULA_SECURITY_READY__===true;";
                     view.evaluateJavascript(enhancements, result -> {
                         if ("true".equals(result)) {
@@ -118,7 +119,7 @@ public final class MainActivity extends Activity {
         if (view == null) return;
         String html = "<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<body style='font-family:system-ui;background:#0d131a;color:#f4efe6;padding:28px'>"
-            + "<h2>EkinCep güvenli kilidi açılamadı</h2><p style='color:#9faab7'>Veriler güvenlik nedeniyle gösterilmedi. Uygulamayı kapatıp yeniden aç.</p></body>";
+            + "<h2>EkinCep güvenli kilidi açılamadı</h2><p style='color:#c2cbd3;line-height:1.55'>Veriler güvenlik nedeniyle gösterilmedi. Uygulamayı kapatıp yeniden aç. Kayıtların silinmedi.</p></body>";
         view.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
         view.setVisibility(android.view.View.VISIBLE);
     }
@@ -276,6 +277,7 @@ public final class MainActivity extends Activity {
         String fallback = "ekincep-yedek.json";
         if (value == null) return fallback;
         String cleaned = value.replaceAll("[^a-zA-Z0-9._-]", "-");
+        cleaned = cleaned.replaceAll("(?i)tarlapusula", "ekincep");
         if (cleaned.isEmpty() || cleaned.length() > 96) return fallback;
         if (!cleaned.endsWith(".json")) cleaned += ".json";
         return cleaned;
