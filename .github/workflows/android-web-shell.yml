@@ -63,6 +63,7 @@ jobs:
           node --check android-web-shell/app/src/main/assets/phase9-field-ui.js
           node --check android-web-shell/app/src/main/assets/phase10-core.js
           node --check android-web-shell/app/src/main/assets/phase10-command.js
+          node --check android-web-shell/app/src/main/assets/phase11-premium-home.js
       - name: Run Phase 3 unit tests
         env:
           TZ: Europe/Istanbul
@@ -79,6 +80,8 @@ jobs:
         run: node android-web-shell/tests/phase9.test.cjs
       - name: Run Phase 10 satellite and live-data tests
         run: node android-web-shell/tests/phase10.test.cjs
+      - name: Run Phase 11 premium design tests
+        run: node android-web-shell/tests/phase11.test.cjs
       - name: Verify product feature hooks
         run: |
           grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
@@ -87,6 +90,7 @@ jobs:
           grep -q "phase9-field-ui.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase10-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase10-command.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase11-premium-home.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "__TARLAPUSULA_SECURITY_READY__" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase5EditTx" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Piyasa & Ürün Değeri" android-web-shell/app/src/main/assets/phase5.js
@@ -99,11 +103,15 @@ jobs:
           grep -q "EkinCep" android-web-shell/app/src/main/assets/phase9-field-ui.js
           grep -q "Uydu & Tarlalar" android-web-shell/app/src/main/assets/phase10-command.js
           grep -q "server.arcgisonline.com" android-web-shell/app/src/main/assets/phase10-core.js
+          grep -q "Çiftlik komuta merkezi" android-web-shell/app/src/main/assets/phase11-premium-home.js
+          grep -q "commons.wikimedia.org" android-web-shell/app/src/main/assets/phase11-premium-home.js
           grep -q "apigateway.epdk.gov.tr" pwa/api/fuel.js
-          grep -q "borsa.tobb.org.tr" pwa/api/market.js
+          grep -q "www.gtb.org.tr/salon-satis-fiyatlari" pwa/api/market.js
           grep -q "phase10-core.js" pwa/app-loader.js
           grep -q "phase10-command.js" pwa/app-loader.js
+          grep -q "phase11-premium-home.js" pwa/app-loader.js
           grep -q "server.arcgisonline.com" pwa/sw.js
+          grep -q "commons.wikimedia.org" pwa/sw.js
           grep -q "/api/market" pwa/sw.js
           grep -q "/api/fuel" pwa/sw.js
           grep -q 'android:label="EkinCep"' android-web-shell/app/src/main/AndroidManifest.xml
@@ -112,6 +120,10 @@ jobs:
           grep -q 'class="skeleton"' pwa/index.html
           grep -q 'api.open-meteo.com' pwa/sw.js
           grep -q 'raw.githubusercontent.com' pwa/sw.js
+          if grep -q "borsa.tobb.org.tr" pwa/api/market.js; then
+            echo "Broken TOBB TLS source must not return to the production adapter" >&2
+            exit 1
+          fi
           if grep -q "delTx" android-web-shell/app/src/main/assets/phase5.js; then
             echo "Phase 5 ledger itself must stay edit-only; secure delete is injected by Phase 7" >&2
             exit 1
@@ -139,6 +151,7 @@ jobs:
           unzip -l "$APK" | grep -q "assets/phase9-field-ui.js"
           unzip -l "$APK" | grep -q "assets/phase10-core.js"
           unzip -l "$APK" | grep -q "assets/phase10-command.js"
+          unzip -l "$APK" | grep -q "assets/phase11-premium-home.js"
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
