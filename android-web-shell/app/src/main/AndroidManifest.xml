@@ -5,7 +5,7 @@
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
-        android:label="Çiftçi Defteri Faz 5"
+        android:label="TarlaPusula"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
