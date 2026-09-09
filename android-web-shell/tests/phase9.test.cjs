@@ -2,9 +2,11 @@ const fs=require('node:fs');const assert=require('node:assert/strict');const pat
 const root=path.join(__dirname,'../..');
 const ui=fs.readFileSync(path.join(__dirname,'../app/src/main/assets/phase9-field-ui.js'),'utf8');
 const pwa=fs.readFileSync(path.join(root,'pwa/index.html'),'utf8');
+const loader=fs.readFileSync(path.join(root,'pwa/app-loader.js'),'utf8');
+const runtime=pwa+'\n'+loader;
 const sw=fs.readFileSync(path.join(root,'pwa/sw.js'),'utf8');
 const manifest=fs.readFileSync(path.join(root,'pwa/manifest.webmanifest'),'utf8');
 assert.match(ui,/const BRAND='EkinCep'/);assert.match(ui,/min-height:52px/);assert.match(ui,/prefers-contrast:more/);assert.equal(ui.includes("replace(/Tarla\\s*Pusula/gi,BRAND)"),true);
-assert.match(pwa,/<title>EkinCep — Tarla defteri ve saha takibi<\/title>/);assert.match(pwa,/meta name="description"/);assert.match(pwa,/property="og:image"/);assert.match(pwa,/class="skeleton"/);assert.match(pwa,/indexedDB/);assert.match(pwa,/ekincep-last-weather-v1/);
+assert.match(pwa,/<title>EkinCep — Tarla defteri ve saha takibi<\/title>/);assert.match(pwa,/meta name="description"/);assert.match(pwa,/property="og:image"/);assert.match(pwa,/class="skeleton"/);assert.match(runtime,/indexedDB/);assert.match(runtime,/ekincep-last-weather-v1/);
 assert.match(sw,/caches\.open/);assert.match(sw,/api\.open-meteo\.com/);assert.match(sw,/raw\.githubusercontent\.com/);assert.match(sw,/networkFirst/);assert.match(manifest,/"short_name":"EkinCep"/);
 console.log('Phase 9 assertions: 15 passed');

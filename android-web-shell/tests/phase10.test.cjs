@@ -1,0 +1,59 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const Core=require('../app/src/main/assets/phase10-core.js');
+
+assert.equal(Core.validLatLon(37.91,40.23),true);
+assert.equal(Core.validLatLon(100,40),false);
+const p=Core.panLatLon(39,35,10,100,-50);assert.ok(Core.validLatLon(p.lat,p.lon));assert.equal(p.zoom,10);
+const tiles=Core.tileLayout(39,35,10,360,300,1);assert.ok(tiles.length>=9);assert.match(Core.esriTileUrl(tiles[0]),/World_Imagery\/MapServer\/tile\/10\//);
+assert.equal(Core.freshnessLabel('2026-09-09T10:00:00Z',Date.parse('2026-09-09T12:00:00Z')),'2 saat önce');
+assert.deepEqual(Core.parcelNames([{parcel:'B Tarla'},{parcel:'A Tarla'},{parcel:'A Tarla',deletedAt:1},{parcel:''}]),['A Tarla','B Tarla']);
+assert.equal(Core.activeTransactions([{id:1},{id:2,deletedAt:1}]).length,1);
+assert.equal(Core.safeLivePayload({source:'EPDK',updatedAt:'2026-09-09T10:00:00Z'}).source,'EPDK');
+assert.equal(Core.safeLivePayload({source:'',updatedAt:'x'}),null);
+
+const ui=fs.readFileSync(path.join(__dirname,'../app/src/main/assets/phase10-command.js'),'utf8');
+assert.match(ui,/Uydu & Tarlalar/);
+assert.match(ui,/canlı kamera değildir/);
+assert.match(ui,/const API='https:\/\/ekincep\.vercel\.app\/api'/);
+assert.match(ui,/requestMarket\(\).*fetchJson\(API\+'\/market'/s);
+assert.match(ui,/requestFuel\(\).*fetchJson\(API\+'\/fuel'/s);
+assert.match(ui,/nativeJson\('Market','fetchMarket'\)/);
+assert.match(ui,/nativeJson\('Fuel','fetchFuel'\)/);
+assert.match(ui,/nativeJson\('Geocode','fetchGeocode',q\)/);
+assert.match(ui,/window\.onNativeMarket/);
+assert.match(ui,/liveRefreshPromise/);
+assert.match(ui,/Resmî borsa verisi bağlanıyor/);
+assert.match(ui,/Imagery © Esri/);
+
+const fuel=fs.readFileSync(path.join(__dirname,'../../pwa/api/fuel.js'),'utf8');
+assert.match(fuel,/apigateway\.epdk\.gov\.tr/);
+assert.match(fuel,/petrolBayiSatisFiyatBulten/);
+assert.match(fuel,/\$\{o\.day\}\.\$\{o\.month\}\.\$\{o\.year\}/);
+
+const market=fs.readFileSync(path.join(__dirname,'../../pwa/api/market.js'),'utf8');
+assert.match(market,/www\.gtb\.org\.tr\/salon-satis-fiyatlari/);
+assert.match(market,/Gaziantep Ticaret Borsası/);
+assert.match(market,/priceType:'salon_range_midpoint'/);
+
+const native=fs.readFileSync(path.join(__dirname,'../app/src/main/java/app/ciftcidefteri/web/MainActivity.java'),'utf8');
+assert.match(native,/setAllowUniversalAccessFromFileURLs\(false\)/);
+assert.match(native,/public void fetchMarket\(\)/);
+assert.match(native,/public void fetchFuel\(\)/);
+assert.match(native,/public void fetchGeocode\(String requestedLocation\)/);
+assert.match(native,/API_BASE \+ "\/market"/);
+assert.match(native,/API_BASE \+ "\/fuel"/);
+assert.match(native,/geocoding-api\.open-meteo\.com/);
+assert.match(native,/dataCallback\("Geocode"/);
+assert.doesNotMatch(native,/setAllowUniversalAccessFromFileURLs\(true\)/);
+
+const loader=fs.readFileSync(path.join(__dirname,'../../pwa/app-loader.js'),'utf8');
+assert.match(loader,/phase10-core\.js/);
+assert.match(loader,/phase10-command\.js/);
+const sw=fs.readFileSync(path.join(__dirname,'../../pwa/sw.js'),'utf8');
+assert.match(sw,/server\.arcgisonline\.com/);
+assert.match(sw,/SATELLITE,160/);
+assert.match(sw,/\/api\/market/);
+assert.match(sw,/\/api\/fuel/);
+console.log('Phase 10 assertions: 40 passed');

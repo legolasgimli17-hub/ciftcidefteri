@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const ui=fs.readFileSync(path.join(__dirname,'../app/src/main/assets/phase11-premium-home.js'),'utf8');
+const loader=fs.readFileSync(path.join(__dirname,'../../pwa/app-loader.js'),'utf8');
+const sw=fs.readFileSync(path.join(__dirname,'../../pwa/sw.js'),'utf8');
+const native=fs.readFileSync(path.join(__dirname,'../app/src/main/java/app/ciftcidefteri/web/MainActivity.java'),'utf8');
+
+assert.match(ui,/Çiftlik komuta merkezi/);
+assert.match(ui,/Special:Redirect\/file\/Bu%C4%9Fday_Tarlas%C4%B1_-_Wheat_field\.jpg/);
+assert.match(ui,/Special:Redirect\/file\/Corn_Field_\(158758545\)\.jpeg/);
+assert.match(ui,/Special:Redirect\/file\/Tomato_-_plant\.jpg/);
+assert.match(ui,/CC0 \/ Wikimedia Commons/);
+assert.match(ui,/BU SEZON NET/);
+assert.match(ui,/Detaylı çiftlik özeti/);
+assert.match(ui,/prefers-reduced-motion:reduce/);
+assert.match(ui,/min-height:52px/);
+assert.match(ui,/ec11-rail/);
+assert.match(ui,/dataset\.signature===signature/);
+assert.match(ui,/Resmî borsa verisi bağlanıyor/);
+assert.match(loader,/phase11-premium-home\.js/);
+assert.match(native,/phase11-premium-home\.js/);
+assert.match(sw,/isFarmPhoto/);
+assert.match(sw,/PHOTOS/);
+assert.match(sw,/cacheFirst\(event\.request,PHOTOS,24\)/);
+console.log('Phase 11 premium design assertions: 17 passed');
