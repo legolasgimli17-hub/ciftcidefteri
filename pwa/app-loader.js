@@ -14,9 +14,10 @@ const FILES=[
   'phase7-core.js','phase7-security.js',
   'phase8-guard.js','phase8-redesign.js',
   'phase9-field-ui.js',
-  'phase10-core.js','phase10-command.js'
+  'phase10-core.js','phase10-command.js',
+  'phase11-premium-home.js'
 ];
-const CACHE_DB='ekincep-pwa-cache-v2';
+const CACHE_DB='ekincep-pwa-cache-v3';
 const CACHE_STORE='assets';
 const LAST_WEATHER='ekincep-last-weather-v1';
 
