@@ -1,72 +1,17 @@
 'use strict';
 
-const REF='main';
-const ROOT='android-web-shell/app/src/main/assets/';
-const BASES=[
-  `https://raw.githubusercontent.com/legolasgimli17-hub/ciftcidefteri/${REF}/${ROOT}`,
-  `https://cdn.jsdelivr.net/gh/legolasgimli17-hub/ciftcidefteri@${REF}/${ROOT}`
-];
-const FILES=[
-  'index.html',
+const ASSET_ROOT='/assets/';
+const SCRIPTS=[
   'phase3-core.js','phase3.js',
   'phase4-core.js','phase4.js','phase4-compat.js',
   'phase5-core.js','phase5.js','phase6-polish.js',
   'phase7-core.js','phase7-security.js',
   'phase8-guard.js','phase8-redesign.js',
   'phase9-field-ui.js',
-  'phase10-core.js','phase10-command.js'
+  'phase10-core.js','phase10-command.js',
+  'phase11-home.js'
 ];
-const CACHE_DB='ekincep-pwa-cache-v2';
-const CACHE_STORE='assets';
 const LAST_WEATHER='ekincep-last-weather-v1';
-
-function openCacheDb(){
-  return new Promise((resolve,reject)=>{
-    const request=indexedDB.open(CACHE_DB,1);
-    request.onupgradeneeded=()=>{
-      if(!request.result.objectStoreNames.contains(CACHE_STORE))request.result.createObjectStore(CACHE_STORE);
-    };
-    request.onsuccess=()=>resolve(request.result);
-    request.onerror=()=>reject(request.error);
-  });
-}
-
-async function idbGet(key){
-  try{
-    const db=await openCacheDb();
-    return await new Promise((resolve,reject)=>{
-      const request=db.transaction(CACHE_STORE,'readonly').objectStore(CACHE_STORE).get(key);
-      request.onsuccess=()=>resolve(request.result||null);
-      request.onerror=()=>reject(request.error);
-    });
-  }catch{return null;}
-}
-
-async function idbPut(key,value){
-  try{
-    const db=await openCacheDb();
-    await new Promise((resolve,reject)=>{
-      const request=db.transaction(CACHE_STORE,'readwrite').objectStore(CACHE_STORE).put(value,key);
-      request.onsuccess=()=>resolve();
-      request.onerror=()=>reject(request.error);
-    });
-  }catch{}
-}
-
-async function getAsset(name){
-  for(const base of BASES){
-    try{
-      const response=await fetch(base+name,{cache:'no-store'});
-      if(!response.ok)continue;
-      const text=await response.text();
-      void idbPut(name,text);
-      return text;
-    }catch{}
-  }
-  const cached=await idbGet(name);
-  if(cached)return cached;
-  throw new Error(`asset_unavailable:${name}`);
-}
 
 function installWebBridge(target){
   target.AndroidBridge={
@@ -108,10 +53,7 @@ function installWebBridge(target){
         const forecastResponse=await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
         if(!forecastResponse.ok)throw new Error('forecast_unavailable');
         const forecast=await forecastResponse.json();
-        const payload=JSON.stringify({
-          name:place.name||location,admin1:place.admin1||'',
-          latitude:place.latitude,longitude:place.longitude,forecast
-        });
+        const payload=JSON.stringify({name:place.name||location,admin1:place.admin1||'',latitude:place.latitude,longitude:place.longitude,forecast});
         localStorage.setItem(LAST_WEATHER,payload);
         target.onNativeWeather?.(true,payload);
       }catch{
@@ -131,39 +73,47 @@ function showBootError(message){
   if(retry)retry.style.display='block';
 }
 
+function loadScript(doc,name){
+  return new Promise((resolve,reject)=>{
+    const script=doc.createElement('script');
+    script.src=ASSET_ROOT+name;
+    script.async=false;
+    script.onload=()=>resolve();
+    script.onerror=()=>reject(new Error(`asset_unavailable:${name}`));
+    (doc.head||doc.documentElement).appendChild(script);
+  });
+}
+
+async function loadRuntime(target){
+  const doc=target.document;
+  await loadScript(doc,SCRIPTS[0]);
+  target.effective=target.eff;
+  target.renderAll=target.render;
+  await loadScript(doc,SCRIPTS[1]);
+  if(target.renderAll)target.render=target.renderAll;
+  for(let i=2;i<SCRIPTS.length;i++)await loadScript(doc,SCRIPTS[i]);
+}
+
 async function boot(){
   const frame=document.getElementById('app');
   const error=document.getElementById('error');
   const retry=document.getElementById('retry');
   if(error)error.style.display='none';
   if(retry)retry.style.display='none';
-  try{
-    const all=await Promise.all(FILES.map(getAsset));
-    const base=all[0];
-    const scripts=all.slice(1);
-    frame.onload=()=>{
-      try{
-        const target=frame.contentWindow;
-        installWebBridge(target);
-        let i=0;
-        target.eval(scripts[i++]);
-        target.eval('window.effective=window.eff;window.renderAll=window.render;');
-        target.eval(scripts[i++]);
-        target.eval('if(window.renderAll)window.render=window.renderAll;');
-        while(i<scripts.length)target.eval(scripts[i++]);
-        if(target.__TARLAPUSULA_SECURITY_READY__!==true)throw new Error('security_not_ready');
-        frame.style.visibility='visible';
-        document.getElementById('boot')?.remove();
-      }catch(error){
-        console.error(error);
-        showBootError('Güvenli uygulama katmanı açılamadı. Kayıtların silinmedi; tekrar deneyebilirsin.');
-      }
-    };
-    frame.srcdoc=base;
-  }catch(error){
-    console.error(error);
-    showBootError('Uygulama dosyaları açılamadı. İnternet yoksa uygulamanın bu sürümünün daha önce en az bir kez açılmış olması gerekir. Kayıtların silinmedi.');
-  }
+  frame.onload=async()=>{
+    try{
+      const target=frame.contentWindow;
+      installWebBridge(target);
+      await loadRuntime(target);
+      if(target.__TARLAPUSULA_SECURITY_READY__!==true)throw new Error('security_not_ready');
+      frame.style.visibility='visible';
+      document.getElementById('boot')?.remove();
+    }catch(runtimeError){
+      console.error(runtimeError);
+      showBootError('Güvenli uygulama katmanı açılamadı. Kayıtların silinmedi; tekrar deneyebilirsin.');
+    }
+  };
+  frame.src=ASSET_ROOT+'index.html';
 }
 
 document.getElementById('retry')?.addEventListener('click',()=>location.reload());
