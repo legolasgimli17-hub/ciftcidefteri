@@ -85,6 +85,7 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase9-field-ui.js") + "\n"
                         + readAssetText("phase10-core.js") + "\n"
                         + readAssetText("phase10-command.js") + "\n"
+                        + readAssetText("phase11-premium-home.js") + "\n"
                         + "window.__TARLAPUSULA_SECURITY_READY__===true;";
                     view.evaluateJavascript(enhancements, result -> {
                         if ("true".equals(result)) {
@@ -231,7 +232,7 @@ public final class MainActivity extends Activity {
         connection.setReadTimeout(10_000);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.5");
+        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.6");
         try {
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) throw new IllegalStateException("http_" + status);
