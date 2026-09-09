@@ -85,6 +85,10 @@ jobs:
       - name: Verify product feature hooks
         run: |
           grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "public void fetchMarket()" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "public void fetchFuel()" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "public void fetchGeocode" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "setAllowUniversalAccessFromFileURLs(false)" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase8-guard.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase8-redesign.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase9-field-ui.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
@@ -92,6 +96,9 @@ jobs:
           grep -q "phase10-command.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase11-premium-home.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "__TARLAPUSULA_SECURITY_READY__" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "nativeJson('Market','fetchMarket')" android-web-shell/app/src/main/assets/phase10-command.js
+          grep -q "nativeJson('Fuel','fetchFuel')" android-web-shell/app/src/main/assets/phase10-command.js
+          grep -q "nativeJson('Geocode','fetchGeocode',q)" android-web-shell/app/src/main/assets/phase10-command.js
           grep -q "phase5EditTx" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Piyasa & Ürün Değeri" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Hesap Makinesi" android-web-shell/app/src/main/assets/phase5.js
@@ -120,6 +127,10 @@ jobs:
           grep -q 'class="skeleton"' pwa/index.html
           grep -q 'api.open-meteo.com' pwa/sw.js
           grep -q 'raw.githubusercontent.com' pwa/sw.js
+          if grep -q "setAllowUniversalAccessFromFileURLs(true)" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java; then
+            echo "WebView file origin must never get universal network access" >&2
+            exit 1
+          fi
           if grep -q "borsa.tobb.org.tr" pwa/api/market.js; then
             echo "Broken TOBB TLS source must not return to the production adapter" >&2
             exit 1
