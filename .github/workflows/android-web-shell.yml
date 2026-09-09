@@ -51,6 +51,8 @@ jobs:
           node --check android-web-shell/app/src/main/assets/phase5-core.js
           node --check android-web-shell/app/src/main/assets/phase5.js
           node --check android-web-shell/app/src/main/assets/phase6-polish.js
+          node --check android-web-shell/app/src/main/assets/phase7-core.js
+          node --check android-web-shell/app/src/main/assets/phase7-security.js
       - name: Run Phase 3 unit tests
         env:
           TZ: Europe/Istanbul
@@ -59,6 +61,8 @@ jobs:
         run: node android-web-shell/tests/phase4.test.cjs
       - name: Run Phase 5 unit tests
         run: node android-web-shell/tests/phase5.test.cjs
+      - name: Run Phase 7 security tests
+        run: node android-web-shell/tests/phase7.test.cjs
       - name: Verify product feature hooks
         run: |
           grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
@@ -66,14 +70,23 @@ jobs:
           grep -q "phase5-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase5.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase6-polish.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase7-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase7-security.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "__TARLAPUSULA_SECURITY_READY__" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase5EditTx" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Piyasa & Ürün Değeri" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Hesap Makinesi" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Türkiye referans fiyatları" android-web-shell/app/src/main/assets/phase5.js
           grep -q "TarlaPusula" android-web-shell/app/src/main/assets/phase6-polish.js
+          grep -q "PBKDF2" android-web-shell/app/src/main/assets/phase7-core.js
+          grep -q "AES-GCM" android-web-shell/app/src/main/assets/phase7-core.js
+          grep -q "activeTransactions" android-web-shell/app/src/main/assets/phase7-security.js
+          grep -q "deletedAt" android-web-shell/app/src/main/assets/phase7-security.js
+          grep -q "Kayıt silindi" android-web-shell/app/src/main/assets/phase7-security.js
+          grep -q "PIN’inle korunuyor" android-web-shell/app/src/main/assets/phase7-security.js
           grep -q 'android:label="TarlaPusula"' android-web-shell/app/src/main/AndroidManifest.xml
           if grep -q "delTx" android-web-shell/app/src/main/assets/phase5.js; then
-            echo "Phase 5 ledger must not expose delete actions" >&2
+            echo "Phase 5 ledger itself must stay edit-only; secure delete is injected by Phase 7" >&2
             exit 1
           fi
       - name: Build standalone WebView APK
@@ -92,6 +105,8 @@ jobs:
           unzip -l "$APK" | grep -q "assets/phase5-core.js"
           unzip -l "$APK" | grep -q "assets/phase5.js"
           unzip -l "$APK" | grep -q "assets/phase6-polish.js"
+          unzip -l "$APK" | grep -q "assets/phase7-core.js"
+          unzip -l "$APK" | grep -q "assets/phase7-security.js"
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
