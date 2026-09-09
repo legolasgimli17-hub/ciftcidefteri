@@ -33,7 +33,8 @@ import java.util.Locale;
 
 public final class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 4107;
-    private static final int MAX_WEATHER_BYTES = 1_500_000;
+    private static final int MAX_NETWORK_BYTES = 1_500_000;
+    private static final String API_BASE = "https://ekincep.vercel.app/api";
     private WebView webView;
     private ValueCallback<Uri[]> pendingFileChooser;
 
@@ -181,8 +182,8 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface
         public void fetchWeather(String requestedLocation) {
-            final String location = requestedLocation == null ? "" : requestedLocation.trim();
-            if (location.length() < 2 || location.length() > 80) {
+            final String location = safeLocation(requestedLocation);
+            if (location == null) {
                 weatherCallback(false, "weather_location_invalid");
                 return;
             }
@@ -194,6 +195,51 @@ public final class MainActivity extends Activity {
                 }
             }).start();
         }
+
+        @JavascriptInterface
+        public void fetchMarket() {
+            fetchJsonForCallback(API_BASE + "/market", "Market", "market_unavailable");
+        }
+
+        @JavascriptInterface
+        public void fetchFuel() {
+            fetchJsonForCallback(API_BASE + "/fuel", "Fuel", "fuel_unavailable");
+        }
+
+        @JavascriptInterface
+        public void fetchGeocode(String requestedLocation) {
+            final String location = safeLocation(requestedLocation);
+            if (location == null) {
+                dataCallback("Geocode", false, "location_invalid");
+                return;
+            }
+            new Thread(() -> {
+                try {
+                    String encoded = URLEncoder.encode(location, StandardCharsets.UTF_8.name());
+                    String url = "https://geocoding-api.open-meteo.com/v1/search?name=" + encoded
+                        + "&count=1&language=tr&countryCode=TR&format=json";
+                    dataCallback("Geocode", true, readHttps(url));
+                } catch (Exception error) {
+                    dataCallback("Geocode", false, "geocode_unavailable");
+                }
+            }).start();
+        }
+    }
+
+    private String safeLocation(String requestedLocation) {
+        String location = requestedLocation == null ? "" : requestedLocation.trim();
+        if (location.length() < 2 || location.length() > 80) return null;
+        return location;
+    }
+
+    private void fetchJsonForCallback(String url, String callbackName, String failureCode) {
+        new Thread(() -> {
+            try {
+                dataCallback(callbackName, true, readHttps(url));
+            } catch (Exception error) {
+                dataCallback(callbackName, false, failureCode);
+            }
+        }).start();
     }
 
     private String fetchWeatherPayload(String location) throws Exception {
@@ -232,7 +278,7 @@ public final class MainActivity extends Activity {
         connection.setReadTimeout(10_000);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.6");
+        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.7");
         try {
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) throw new IllegalStateException("http_" + status);
@@ -241,7 +287,7 @@ public final class MainActivity extends Activity {
                 int read;
                 while ((read = input.read(buffer)) != -1) {
                     output.write(buffer, 0, read);
-                    if (output.size() > MAX_WEATHER_BYTES) throw new IllegalStateException("response_too_large");
+                    if (output.size() > MAX_NETWORK_BYTES) throw new IllegalStateException("response_too_large");
                 }
                 return output.toString(StandardCharsets.UTF_8.name());
             }
@@ -299,6 +345,16 @@ public final class MainActivity extends Activity {
             if (webView == null) return;
             String quoted = JSONObject.quote(payload == null ? "" : payload);
             webView.evaluateJavascript("window.onNativeWeather&&window.onNativeWeather(" + ok + ", " + quoted + ");", null);
+        });
+    }
+
+    private void dataCallback(String callbackName, boolean ok, String payload) {
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            if (!callbackName.matches("[A-Za-z]+")) return;
+            String quoted = JSONObject.quote(payload == null ? "" : payload);
+            String js = "window.onNative" + callbackName + "&&window.onNative" + callbackName + "(" + ok + ", " + quoted + ");";
+            webView.evaluateJavascript(js, null);
         });
     }
 }
