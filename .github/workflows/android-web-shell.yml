@@ -50,6 +50,8 @@ jobs:
           node --check /tmp/ciftci-app.js
           node --check /tmp/ekincep-pwa.js
           node --check pwa/sw.js
+          node --check pwa/api/fuel.js
+          node --check pwa/api/market.js
           node --check android-web-shell/app/src/main/assets/phase3-core.js
           node --check android-web-shell/app/src/main/assets/phase3.js
           node --check android-web-shell/app/src/main/assets/phase4-core.js
@@ -63,6 +65,8 @@ jobs:
           node --check android-web-shell/app/src/main/assets/phase8-guard.js
           node --check android-web-shell/app/src/main/assets/phase8-redesign.js
           node --check android-web-shell/app/src/main/assets/phase9-field-ui.js
+          node --check android-web-shell/app/src/main/assets/phase10-core.js
+          node --check android-web-shell/app/src/main/assets/phase10-command.js
       - name: Run Phase 3 unit tests
         env:
           TZ: Europe/Istanbul
@@ -77,11 +81,16 @@ jobs:
         run: node android-web-shell/tests/phase8.test.cjs
       - name: Run Phase 9 branding offline and field UX tests
         run: node android-web-shell/tests/phase9.test.cjs
+      - name: Run Phase 10 satellite and live-data tests
+        run: node android-web-shell/tests/phase10.test.cjs
       - name: Verify product feature hooks
         run: |
           grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase8-guard.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase8-redesign.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase9-field-ui.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase10-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase10-command.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "__TARLAPUSULA_SECURITY_READY__" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase5EditTx" android-web-shell/app/src/main/assets/phase5.js
           grep -q "Piyasa & Ürün Değeri" android-web-shell/app/src/main/assets/phase5.js
@@ -92,6 +101,10 @@ jobs:
           grep -q "deletedAt" android-web-shell/app/src/main/assets/phase7-security.js
           grep -q "EkinCep" android-web-shell/app/src/main/assets/phase8-redesign.js
           grep -q "EkinCep" android-web-shell/app/src/main/assets/phase9-field-ui.js
+          grep -q "Uydu & Tarlalar" android-web-shell/app/src/main/assets/phase10-command.js
+          grep -q "server.arcgisonline.com" android-web-shell/app/src/main/assets/phase10-core.js
+          grep -q "apigateway.epdk.gov.tr" pwa/api/fuel.js
+          grep -q "borsa.tobb.org.tr" pwa/api/market.js
           grep -q 'android:label="EkinCep"' android-web-shell/app/src/main/AndroidManifest.xml
           grep -q 'meta name="description"' pwa/index.html
           grep -q 'property="og:image"' pwa/index.html
@@ -122,6 +135,9 @@ jobs:
           unzip -l "$APK" | grep -q "assets/phase7-security.js"
           unzip -l "$APK" | grep -q "assets/phase8-guard.js"
           unzip -l "$APK" | grep -q "assets/phase8-redesign.js"
+          unzip -l "$APK" | grep -q "assets/phase9-field-ui.js"
+          unzip -l "$APK" | grep -q "assets/phase10-core.js"
+          unzip -l "$APK" | grep -q "assets/phase10-command.js"
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
