@@ -3,7 +3,15 @@
 if(window.__EKINCEP_PHASE9__)return;
 window.__EKINCEP_PHASE9__=true;
 const BRAND='EkinCep';
-const DESCRIPTION='Çiftçiler için tarla gideri, gelir, borç, stok, hava ve ürün değeri takibini tek yerde sunan güvenli ve çevrimdışı çalışabilen tarla defteri.';
+const DESCRIPTION='Çiftçiler için tarla gideri, gelir, borç, stok, hava, uydu ve ürün değeri takibini tek yerde sunan güvenli ve çevrimdışı çalışabilen tarla defteri.';
+const CROP_EXPENSES={
+  pamuk:['Çırçır / ginleme','Pamuk toplama işçiliği','Beyaz sinek / yaprak biti ilacı'],
+  misir:['Mısır kurutma','Koçan / dane hasadı','Azotlu üst gübre'],
+  bugday:['Buğday biçerdöveri','Lisanslı depo / nakliye','Sapa kalkma gübresi'],
+  findik:['Budama işçiliği','Fındık toplama işçiliği','Kurutma / patoz'],
+  tutun:['Kırma / dizme işçiliği','Tütün kurutma yakıtı','Fide / dikim'],
+  sebze:['Hal / komisyoncu kesintisi','Sera / örtü masrafı','Sık hasat işçiliği']
+};
 
 document.title=BRAND+' — Tarla defteri ve saha takibi';
 function meta(name,content,property){let el=document.head.querySelector(property?`meta[property="${name}"]`:`meta[name="${name}"]`);if(!el){el=document.createElement('meta');el.setAttribute(property?'property':'name',name);document.head.appendChild(el);}el.setAttribute('content',content);}
@@ -25,7 +33,10 @@ document.head.appendChild(css);
 
 function replaceBrandText(root=document.body){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const n of nodes){const before=n.nodeValue||'';const after=before.replace(/Tarla\s*Pusula/gi,BRAND).replace(/TarlaPusula/g,BRAND).replace(/Çiftçi Defteri/g,BRAND);if(after!==before)n.nodeValue=after;}}
 function decorateStatus(){const s=document.getElementById('storageStatus');if(!s)return;s.textContent=s.textContent.replace(/Offline/gi,'Çevrimdışı hazır').replace(/İnternetsiz çalışır/gi,'Çevrimdışı hazır');s.classList.add('ec-fieldBadge');}
-function run(){replaceBrandText();decorateStatus();}
+function normCrop(value){return String(value||'').toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');}
+function cropSuggestions(value){const n=normCrop(value);if(n.includes('pamuk'))return CROP_EXPENSES.pamuk;if(n.includes('misir'))return CROP_EXPENSES.misir;if(n.includes('bugday')||n.includes('arpa'))return CROP_EXPENSES.bugday;if(n.includes('findik'))return CROP_EXPENSES.findik;if(n.includes('tutun'))return CROP_EXPENSES.tutun;if(/domates|biber|patlican|salatalik|kabak|sogan|sarımsak|patates|fasulye|bezelye|bamya|lahana|karnabahar|brokoli|marul|ispanak|havuc|turp|kavun|karpuz/.test(n))return CROP_EXPENSES.sebze;return[];}
+function applyCropAwareCategories(){const category=document.getElementById('txCategory'),crop=document.getElementById('cropItem'),segOut=document.getElementById('segOut');if(!category||!crop)return;if(!crop.dataset.ekCropBound){crop.dataset.ekCropBound='1';crop.addEventListener('change',()=>{category.dataset.ekCropSig='';applyCropAwareCategories();});}const isExpense=!!segOut?.classList.contains('on'),items=isExpense?cropSuggestions(crop.value):[],sig=(isExpense?'expense:':'other:')+normCrop(crop.value);if(category.dataset.ekCropSig===sig&&(!items.length||category.querySelector('option[data-ek-crop="1"]')))return;category.querySelectorAll('option[data-ek-crop="1"]').forEach(o=>o.remove());category.dataset.ekCropSig=sig;if(!items.length)return;const existing=new Set([...category.options].map(o=>o.value));for(const item of [...items].reverse()){if(existing.has(item))continue;const option=document.createElement('option');option.value=item;option.textContent=item;option.dataset.ekCrop='1';category.insertBefore(option,category.firstChild);}}
+function run(){replaceBrandText();decorateStatus();applyCropAwareCategories();}
 run();let queued=false;const mo=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});});mo.observe(document.body,{childList:true,subtree:true,characterData:true});
 window.addEventListener('offline',()=>{decorateStatus();try{toast('İnternet yok — kayıtların cihazında çalışmaya devam eder.')}catch{}});
 window.addEventListener('online',()=>{try{toast('İnternet bağlantısı geri geldi.')}catch{}});
