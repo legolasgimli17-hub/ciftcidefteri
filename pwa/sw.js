@@ -16,7 +16,7 @@ const SHELL=[
   '/assets/phase8-guard.js','/assets/phase8-redesign.js',
   '/assets/phase9-field-ui.js',
   '/assets/phase10-core.js','/assets/phase10-command.js','/assets/phase11-premium-home.js',
-  '/assets/phase11-home.js','/assets/phase11-satellite.js'
+  '/assets/phase11-home.js','/assets/phase11-home-polish.js','/assets/phase11-satellite.js'
 ];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(STATIC).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>!key.startsWith(VERSION)).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
