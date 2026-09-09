@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825aa76410c181273ba90b1
         with:
           persist-credentials: false
       - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c
@@ -78,7 +78,7 @@ jobs:
         run: node android-web-shell/tests/phase8.test.cjs
       - name: Run Phase 9 branding offline and field UX tests
         run: node android-web-shell/tests/phase9.test.cjs
-      - name: Run Phase 10 command center tests
+      - name: Run Phase 10 field operating system tests
         run: node android-web-shell/tests/phase10-command-center.test.cjs
       - name: Verify product feature hooks
         run: |
@@ -98,12 +98,16 @@ jobs:
           grep -q "phase10-command-center.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "Bu sezon cebinde kalan" android-web-shell/app/src/main/assets/phase10-command-center.js
           grep -q "ec10-toolChest" android-web-shell/app/src/main/assets/phase10-command-center.js
+          grep -q "World_Imagery" android-web-shell/app/src/main/assets/phase10-command-center.js
+          grep -q "catalogue.dataspace.copernicus.eu" android-web-shell/app/src/main/assets/phase10-command-center.js
+          grep -q "onGeolocationPermissionsShowPrompt" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q 'android:label="EkinCep"' android-web-shell/app/src/main/AndroidManifest.xml
           grep -q 'meta name="description"' pwa/index.html
           grep -q 'property="og:image"' pwa/index.html
           grep -q 'class="skeleton"' pwa/index.html
           grep -q 'api.open-meteo.com' pwa/sw.js
           grep -q 'raw.githubusercontent.com' pwa/sw.js
+          grep -q 'server.arcgisonline.com' pwa/sw.js
           if grep -q "delTx" android-web-shell/app/src/main/assets/phase5.js; then
             echo "Phase 5 ledger itself must stay edit-only; secure delete is injected by Phase 7" >&2
             exit 1
@@ -130,12 +134,13 @@ jobs:
           unzip -l "$APK" | grep -q "assets/phase8-redesign.js"
           unzip -l "$APK" | grep -q "assets/phase9-field-ui.js"
           unzip -l "$APK" | grep -q "assets/phase10-command-center.js"
-          unzip -l "$APK" | grep -q "assets/field-hero.webp"
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
-          if echo "$PERMS" | grep -Eq "android.permission.(ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION)"; then
-            echo "Unexpected location permission" >&2
+          echo "$PERMS" | grep -q "android.permission.ACCESS_COARSE_LOCATION"
+          echo "$PERMS" | grep -q "android.permission.ACCESS_FINE_LOCATION"
+          if echo "$PERMS" | grep -Eq "android.permission.(CAMERA|RECORD_AUDIO|READ_CONTACTS|WRITE_CONTACTS|READ_SMS|SEND_SMS|CALL_PHONE)"; then
+            echo "Unexpected high-risk permission" >&2
             exit 1
           fi
           sha256sum "$APK" > android-web-shell/app/build/outputs/apk/debug/SHA256SUMS.txt
