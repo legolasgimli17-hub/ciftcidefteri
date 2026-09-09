@@ -1,4 +1,4 @@
-const VERSION='ekincep-pwa-v6';
+const VERSION='ekincep-pwa-v7';
 const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather',MAPS=VERSION+'-maps',SATMETA=VERSION+'-satmeta';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg'];
 const MAX_MAP_ENTRIES=120;
@@ -26,7 +26,7 @@ async function trimCache(name,maxEntries){
 async function networkFirst(req,name){
   const c=await caches.open(name);
   try{
-    const r=await fetch(req);
+    const r=await fetch(req,{cache:'no-store'});
     if(cacheable(r))c.put(req,r.clone());
     return r;
   }catch{
