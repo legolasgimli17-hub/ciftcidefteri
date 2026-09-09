@@ -1,6 +1,6 @@
 const VERSION='ekincep-pwa-v4';
 const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather';
-const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg','./field-hero.webp'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg'];
 
 self.addEventListener('install',e=>e.waitUntil(
   caches.open(STATIC).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())
