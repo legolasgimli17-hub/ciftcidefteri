@@ -29,11 +29,14 @@ assert.match(ui,/rawShowPage/);
 assert.match(ui,/rawOpenTx/);
 assert.match(ui,/rawOpenField/);
 
-// Android asset mode and PWA must load the same Phase 11 shell.
+// Android asset mode and PWA must load the same Phase 11 shell, and visible overlays must close on popstate.
 assert.match(phase9,/phase11-app-shell\.js/);
 assert.match(phase9,/location\.protocol!==\'file:\'/);
+assert.match(phase9,/closeVisibleOverlayOnBack/);
+assert.match(phase9,/addEventListener\('popstate',closeVisibleOverlayOnBack,true\)/);
 assert.match(pwa,/'phase11-app-shell\.js'/);
 assert.match(pwa,/ekincep-pwa-assets-v13/);
+assert.match(pwa,/closeVisibleOverlayOnBack/);
 assert.match(pwa,/__EKINCEP_PHASE11_NATIVE_SHELL__/);
 assert.match(pwa,/EkinCep 13/);
 
