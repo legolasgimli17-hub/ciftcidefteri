@@ -1,0 +1,28 @@
+(function(){
+'use strict';
+if(window.__EKINCEP_PHASE8_GUARD__)return;
+window.__EKINCEP_PHASE8_GUARD__=true;
+const NativeMutationObserver=window.MutationObserver;
+if(typeof NativeMutationObserver!=='function')return;
+class GuardedMutationObserver{
+  constructor(callback){
+    this.callback=callback;
+    this.targets=[];
+    this.native=new NativeMutationObserver((records)=>{
+      this.native.disconnect();
+      try{this.callback(records,this);}finally{
+        for(const item of this.targets)this.native.observe(item.target,item.options);
+      }
+    });
+  }
+  observe(target,options){
+    const existing=this.targets.find(item=>item.target===target);
+    if(existing)existing.options=options;else this.targets.push({target,options});
+    this.native.observe(target,options);
+  }
+  disconnect(){this.targets=[];this.native.disconnect();}
+  takeRecords(){return this.native.takeRecords();}
+}
+window.MutationObserver=GuardedMutationObserver;
+queueMicrotask(()=>{if(window.MutationObserver===GuardedMutationObserver)window.MutationObserver=NativeMutationObserver;});
+})();
