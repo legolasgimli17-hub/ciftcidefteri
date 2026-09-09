@@ -83,6 +83,8 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase8-guard.js") + "\n"
                         + readAssetText("phase8-redesign.js") + "\n"
                         + readAssetText("phase9-field-ui.js") + "\n"
+                        + readAssetText("phase10-core.js") + "\n"
+                        + readAssetText("phase10-command.js") + "\n"
                         + "window.__TARLAPUSULA_SECURITY_READY__===true;";
                     view.evaluateJavascript(enhancements, result -> {
                         if ("true".equals(result)) {
@@ -229,16 +231,16 @@ public final class MainActivity extends Activity {
         connection.setReadTimeout(10_000);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.4");
+        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.5");
         try {
             int status = connection.getResponseCode();
-            if (status < 200 || status >= 300) throw new IllegalStateException("weather_http_" + status);
+            if (status < 200 || status >= 300) throw new IllegalStateException("http_" + status);
             try (InputStream input = connection.getInputStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
                 byte[] buffer = new byte[8192];
                 int read;
                 while ((read = input.read(buffer)) != -1) {
                     output.write(buffer, 0, read);
-                    if (output.size() > MAX_WEATHER_BYTES) throw new IllegalStateException("weather_response_too_large");
+                    if (output.size() > MAX_WEATHER_BYTES) throw new IllegalStateException("response_too_large");
                 }
                 return output.toString(StandardCharsets.UTF_8.name());
             }
