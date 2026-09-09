@@ -2,7 +2,7 @@ name: Deploy EkinCep P10
 
 on:
   push:
-    branches: [phase10-command-center]
+    branches: [phase10-command-center, main]
   workflow_dispatch:
 
 permissions:
