@@ -14,7 +14,12 @@ assert.equal(Core.safeLivePayload({source:'EPDK',updatedAt:'2026-09-09T10:00:00Z
 assert.equal(Core.safeLivePayload({source:'',updatedAt:'x'}),null);
 
 const ui=fs.readFileSync(path.join(__dirname,'../app/src/main/assets/phase10-command.js'),'utf8');
-assert.match(ui,/Uydu & Tarlalar/);assert.match(ui,/canlı kamera değildir/);assert.match(ui,/api\/market/);assert.match(ui,/api\/fuel/);assert.match(ui,/Imagery © Esri/);
+assert.match(ui,/Uydu & Tarlalar/);
+assert.match(ui,/canlı kamera değildir/);
+assert.match(ui,/const API='https:\/\/ekincep\.vercel\.app\/api'/);
+assert.match(ui,/API\+'\/market'/);
+assert.match(ui,/API\+'\/fuel'/);
+assert.match(ui,/Imagery © Esri/);
 const fuel=fs.readFileSync(path.join(__dirname,'../../pwa/api/fuel.js'),'utf8');assert.match(fuel,/apigateway\.epdk\.gov\.tr/);assert.match(fuel,/petrolBayiSatisFiyatBulten/);
 const market=fs.readFileSync(path.join(__dirname,'../../pwa/api/market.js'),'utf8');assert.match(market,/borsa\.tobb\.org\.tr/);assert.match(market,/TOBB Ticaret Borsaları/);
-console.log('Phase 10 assertions: 16 passed');
+console.log('Phase 10 assertions: 18 passed');
