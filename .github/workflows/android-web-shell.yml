@@ -48,19 +48,30 @@ jobs:
           node --check android-web-shell/app/src/main/assets/phase4-core.js
           node --check android-web-shell/app/src/main/assets/phase4.js
           node --check android-web-shell/app/src/main/assets/phase4-compat.js
+          node --check android-web-shell/app/src/main/assets/phase5-core.js
+          node --check android-web-shell/app/src/main/assets/phase5.js
       - name: Run Phase 3 unit tests
         env:
           TZ: Europe/Istanbul
         run: node android-web-shell/tests/phase3.test.cjs
       - name: Run Phase 4 unit tests
         run: node android-web-shell/tests/phase4.test.cjs
-      - name: Verify Phase 4 feature hooks
+      - name: Run Phase 5 unit tests
+        run: node android-web-shell/tests/phase5.test.cjs
+      - name: Verify product feature hooks
         run: |
-          grep -q "editTx" android-web-shell/app/src/main/assets/phase4.js
           grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "calculator" android-web-shell/app/src/main/assets/phase4.js
-          grep -q "phase4-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "phase4-compat.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase5-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase5.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "phase5EditTx" android-web-shell/app/src/main/assets/phase5.js
+          grep -q "Piyasa & Ürün Değeri" android-web-shell/app/src/main/assets/phase5.js
+          grep -q "Hesap Makinesi" android-web-shell/app/src/main/assets/phase5.js
+          grep -q "Türkiye referans fiyatları" android-web-shell/app/src/main/assets/phase5.js
+          if grep -q "delTx" android-web-shell/app/src/main/assets/phase5.js; then
+            echo "Phase 5 ledger must not expose delete actions" >&2
+            exit 1
+          fi
       - name: Build standalone WebView APK
         working-directory: android-web-shell
         run: gradle :app:assembleDebug --no-daemon --stacktrace
@@ -74,6 +85,8 @@ jobs:
           unzip -l "$APK" | grep -q "assets/phase4-core.js"
           unzip -l "$APK" | grep -q "assets/phase4.js"
           unzip -l "$APK" | grep -q "assets/phase4-compat.js"
+          unzip -l "$APK" | grep -q "assets/phase5-core.js"
+          unzip -l "$APK" | grep -q "assets/phase5.js"
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
