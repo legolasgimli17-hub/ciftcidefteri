@@ -75,7 +75,8 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase4.js") + "\n"
                         + readAssetText("phase4-compat.js") + "\n"
                         + readAssetText("phase5-core.js") + "\n"
-                        + readAssetText("phase5.js");
+                        + readAssetText("phase5.js") + "\n"
+                        + readAssetText("phase6-polish.js");
                     view.evaluateJavascript(enhancements, null);
                 } catch (Exception ignored) {
                     // The base ledger stays usable even if an optional enhancement layer cannot load.
@@ -206,7 +207,7 @@ public final class MainActivity extends Activity {
         connection.setReadTimeout(10_000);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "CiftciDefteri-Android/1.3");
+        connection.setRequestProperty("User-Agent", "TarlaPusula-Android/1.3");
         try {
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) throw new IllegalStateException("weather_http_" + status);
