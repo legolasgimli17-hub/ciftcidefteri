@@ -1,14 +1,17 @@
 package app.ciftcidefteri.web;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -33,9 +36,12 @@ import java.util.Locale;
 
 public final class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 4107;
+    private static final int LOCATION_PERMISSION_REQUEST = 4108;
     private static final int MAX_WEATHER_BYTES = 1_500_000;
     private WebView webView;
     private ValueCallback<Uri[]> pendingFileChooser;
+    private String pendingGeolocationOrigin;
+    private GeolocationPermissions.Callback pendingGeolocationCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +55,7 @@ public final class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+        settings.setGeolocationEnabled(true);
         settings.setAllowContentAccess(false);
         settings.setAllowFileAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
@@ -112,8 +119,49 @@ public final class MainActivity extends Activity {
                     return false;
                 }
             }
+
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                if (origin == null || !origin.startsWith("file://")) {
+                    callback.invoke(origin, false, false);
+                    return;
+                }
+                if (hasLocationPermission()) {
+                    callback.invoke(origin, true, false);
+                    return;
+                }
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                    callback.invoke(origin, true, false);
+                    return;
+                }
+                if (pendingGeolocationCallback != null) {
+                    pendingGeolocationCallback.invoke(pendingGeolocationOrigin, false, false);
+                }
+                pendingGeolocationOrigin = origin;
+                pendingGeolocationCallback = callback;
+                requestPermissions(
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST
+                );
+            }
         });
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private boolean hasLocationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != LOCATION_PERMISSION_REQUEST || pendingGeolocationCallback == null) return;
+        boolean granted = hasLocationPermission();
+        pendingGeolocationCallback.invoke(pendingGeolocationOrigin, granted, false);
+        pendingGeolocationCallback = null;
+        pendingGeolocationOrigin = null;
     }
 
     private void showSafeFailure(WebView view) {
@@ -150,6 +198,11 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (pendingGeolocationCallback != null) {
+            pendingGeolocationCallback.invoke(pendingGeolocationOrigin, false, false);
+            pendingGeolocationCallback = null;
+            pendingGeolocationOrigin = null;
+        }
         if (webView != null) {
             webView.removeJavascriptInterface("AndroidBridge");
             webView.stopLoading();

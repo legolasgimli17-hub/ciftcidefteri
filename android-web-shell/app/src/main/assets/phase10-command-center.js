@@ -2,277 +2,78 @@
 'use strict';
 if(window.__EKINCEP_PHASE10_COMMAND_CENTER__)return;
 window.__EKINCEP_PHASE10_COMMAND_CENTER__=true;
-
-const P5=window.CiftciPhase5Core;
-const P4=window.CiftciPhase4Core;
-const H=value=>String(value??'').replace(/[&<>"']/g,ch=>({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-}[ch]));
-const TL=kurus=>new Intl.NumberFormat('tr-TR',{
-  style:'currency',currency:'TRY',maximumFractionDigits:0
-}).format((Number(kurus)||0)/100);
-const N=value=>new Intl.NumberFormat('tr-TR',{maximumFractionDigits:1}).format(Number(value)||0);
-
-const style=document.createElement('style');
-style.textContent=`
-/* EkinCep identity — bazalt / pamuk / tarla çizgileri */
-#home>.hero,#home>.actions,#home>#p5Home,#home>#p4WeatherCard,#home>.card,#ec10FieldHero,#ec10Tools{display:none!important}
-#home{padding-bottom:10px}.ec10-canvas{display:block}.ec10-canvas *{box-sizing:border-box}
-.ec10-financeHero{position:relative;overflow:hidden;min-height:244px;background:#fff;border:1px solid var(--ec-line);border-left:6px solid var(--ec-basalt);padding:22px 20px 0;margin-bottom:0;isolation:isolate}
-.ec10-financeHero:after{content:'';position:absolute;left:20px;right:20px;bottom:71px;height:1px;background:var(--ec-line-soft);z-index:-1}.ec10-heroCopy{position:relative;z-index:2;max-width:68%}.ec10-heroLabel{font-size:13px;font-weight:800;color:var(--ec-muted);margin-bottom:7px}.ec10-heroValue{font-family:Georgia,"Times New Roman",serif;font-size:47px;line-height:.98;letter-spacing:-2px;font-weight:700;color:var(--ec-basalt);font-variant-numeric:tabular-nums}.ec10-heroValue.negative{color:var(--ec-dry)}.ec10-heroNote{margin-top:8px;font-size:12.5px;line-height:1.45;color:var(--ec-muted);font-weight:650}.ec10-cropArt{position:absolute;right:-14px;top:22px;width:150px;height:150px;opacity:.92;z-index:1}.ec10-cropArt svg{width:100%;height:100%;fill:none;stroke:var(--ec-leaf);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ec10-cropArt .accent{stroke:var(--ec-wheat)}.ec10-cropArt .cotton{fill:#fff;stroke:var(--ec-basalt);stroke-width:1.4}
-.ec10-financeRail{position:absolute;left:20px;right:20px;bottom:0;height:71px;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--ec-line-soft)}.ec10-financeCell{padding:12px 12px 10px;border-left:1px solid var(--ec-line-soft);min-width:0}.ec10-financeCell:first-child{border-left:0;padding-left:0}.ec10-financeCell span{display:block;font-size:11px;color:var(--ec-muted);font-weight:750}.ec10-financeCell b{display:block;margin-top:4px;font-size:15px;color:var(--ec-basalt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ec10-financeCell.income b{color:var(--ec-leaf)}.ec10-financeCell.debt b{color:var(--ec-dry)}
-.ec10-today{border-bottom:1px solid var(--ec-line);padding:18px 0 0}.ec10-sectionHead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 2px 10px}.ec10-sectionHead h2{font-size:22px;line-height:1.1;letter-spacing:-.5px;margin:0;color:var(--ec-basalt)}.ec10-sectionHead span{font-size:11.5px;color:var(--ec-muted);font-weight:700;text-align:right}.ec10-todayRail{display:grid;grid-template-columns:1.15fr 1fr .8fr;border-top:1px solid var(--ec-line-soft)}.ec10-todayCell{min-height:82px;padding:13px 12px;border:0;border-left:1px solid var(--ec-line-soft);background:transparent;text-align:left;color:var(--ec-ink)}.ec10-todayCell:first-child{border-left:0;padding-left:2px}.ec10-todayCell span{display:block;font-size:10.5px;color:var(--ec-muted);font-weight:750}.ec10-todayCell b{display:block;margin-top:6px;font-size:14px;line-height:1.25;color:var(--ec-basalt)}.ec10-todayCell small{display:block;margin-top:3px;font-size:10.5px;color:var(--ec-muted);line-height:1.3}
-.ec10-section{padding:23px 0 1px;border-bottom:1px solid var(--ec-line)}.ec10-cropLines{border-top:1px solid var(--ec-line-soft)}.ec10-cropRow{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:68px;border-bottom:1px solid var(--ec-line-soft)}.ec10-cropRow:last-child{border-bottom:0}.ec10-cropGlyph{width:34px;height:34px;display:grid;place-items:center}.ec10-cropGlyph svg{width:30px;height:30px;fill:none;stroke:var(--ec-leaf);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.ec10-cropInfo{min-width:0}.ec10-cropInfo b{font-size:14px;color:var(--ec-basalt)}.ec10-cropInfo small{display:block;font-size:10.5px;color:var(--ec-muted);margin-top:2px}.ec10-lineTrack{height:5px;background:#E3E8E3;margin-top:7px;overflow:hidden}.ec10-lineFill{height:100%;background:var(--ec-leaf);min-width:4px}.ec10-lineFill.negative{background:var(--ec-dry)}.ec10-cropResult{font-family:Georgia,"Times New Roman",serif;font-size:15px;font-weight:700;color:var(--ec-leaf);white-space:nowrap}.ec10-cropResult.negative{color:var(--ec-dry)}
-.ec10-fieldGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.ec10-field{position:relative;min-height:126px;padding:15px 15px 18px;border:1px solid #BFD0C2;background:#F7FAF7;color:var(--ec-ink);text-align:left;clip-path:polygon(0 0,100% 0,100% calc(100% - 17px),calc(100% - 17px) 100%,0 100%);overflow:hidden}.ec10-field:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ec-leaf)}.ec10-fieldTop{display:flex;align-items:center;gap:8px}.ec10-fieldTop .ec10-cropGlyph{width:30px;height:30px}.ec10-fieldName{font-size:15px;font-weight:900;color:var(--ec-basalt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ec10-fieldMeta{font-size:11px;color:var(--ec-muted);margin-top:7px;line-height:1.35}.ec10-fieldResult{font-family:Georgia,"Times New Roman",serif;font-size:18px;font-weight:700;color:var(--ec-leaf);margin-top:13px}.ec10-fieldResult.negative{color:var(--ec-dry)}
-.ec10-dataRail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--ec-line);border-bottom:1px solid var(--ec-line)}.ec10-dataItem{min-height:105px;border:0;border-left:1px solid var(--ec-line-soft);background:transparent;padding:14px 11px;text-align:left;color:var(--ec-ink)}.ec10-dataItem:first-child{border-left:0;padding-left:2px}.ec10-dataMark{width:9px;height:9px;border-radius:50%;background:var(--ec-water);display:block;margin-bottom:11px}.ec10-dataItem.market .ec10-dataMark{background:var(--ec-wheat)}.ec10-dataItem.value .ec10-dataMark{background:var(--ec-leaf)}.ec10-dataItem span{display:block;font-size:10.5px;color:var(--ec-muted);font-weight:750}.ec10-dataItem b{display:block;margin-top:5px;font-size:14px;line-height:1.25;color:var(--ec-basalt)}.ec10-dataItem small{display:block;margin-top:4px;font-size:10px;line-height:1.3;color:var(--ec-muted)}
-.ec10-toolChest{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ec-line);background:#fff}.ec10-quick{min-height:72px;border:0;border-right:1px solid var(--ec-line-soft);border-bottom:1px solid var(--ec-line-soft);background:#fff;padding:13px 14px;text-align:left;color:var(--ec-basalt);font-weight:900;font-size:14px}.ec10-quick:nth-child(2n){border-right:0}.ec10-quick:nth-last-child(-n+2){border-bottom:0}.ec10-quick small{display:block;font-size:10.5px;color:var(--ec-muted);font-weight:650;margin-top:4px}.ec10-quick.expense{box-shadow:inset 4px 0 0 var(--ec-dry)}.ec10-quick.income{box-shadow:inset 4px 0 0 var(--ec-leaf)}.ec10-quick.market{box-shadow:inset 4px 0 0 var(--ec-wheat)}.ec10-quick.stock{box-shadow:inset 4px 0 0 var(--ec-water)}
-.ec10-empty{padding:15px 2px 17px;color:var(--ec-muted);font-size:12.5px;line-height:1.45}.ec10-empty button{display:block;min-height:48px;margin-top:10px;border:1px solid var(--ec-line);background:#fff;color:var(--ec-basalt);border-radius:7px;padding:10px 13px;font-weight:850}
-@media(max-width:520px){.ec10-financeHero{min-height:232px;padding:19px 16px 0}.ec10-heroCopy{max-width:72%}.ec10-heroValue{font-size:39px;letter-spacing:-1.5px}.ec10-cropArt{width:122px;height:122px;right:-10px;top:28px}.ec10-financeRail{left:16px;right:16px;height:70px}.ec10-financeCell{padding-left:8px;padding-right:8px}.ec10-financeCell:first-child{padding-left:0}.ec10-financeCell b{font-size:13px}.ec10-todayRail{grid-template-columns:1.1fr 1fr .8fr}.ec10-todayCell{padding-left:8px;padding-right:8px}.ec10-fieldGrid{grid-template-columns:1fr 1fr}.ec10-field{min-height:120px;padding:13px 12px 17px}.ec10-dataItem{padding-left:8px;padding-right:8px}.ec10-dataItem b{font-size:12.5px}.ec10-sectionHead h2{font-size:20px}}
-@media(max-width:360px){.ec10-heroCopy{max-width:78%}.ec10-cropArt{opacity:.55}.ec10-heroValue{font-size:35px}.ec10-fieldGrid{grid-template-columns:1fr}.ec10-dataRail{grid-template-columns:1fr}.ec10-dataItem{min-height:76px;border-left:0;border-top:1px solid var(--ec-line-soft);padding-left:2px}.ec10-dataItem:first-child{border-top:0}.ec10-dataMark{display:inline-block;margin:0 7px 0 0;vertical-align:middle}.ec10-dataItem span{display:inline}.ec10-dataItem b{font-size:14px}.ec10-todayRail{grid-template-columns:1fr}.ec10-todayCell{min-height:62px;border-left:0;border-top:1px solid var(--ec-line-soft);padding-left:2px}.ec10-todayCell:first-child{border-top:0}}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
-`;
-document.head.appendChild(style);
-
-function effective(t){
-  if(typeof window.eff==='function')return Number(window.eff(t))||0;
-  if(typeof window.effective==='function')return Number(window.effective(t))||0;
-  return t&&t.ownership==='partnership'?Math.round((Number(t.amount)||0)*(Number(t.share)||0)/100):Number(t?.amount)||0;
-}
-
-function seasonRows(){
-  const year=String(new Date().getFullYear());
-  return (app.transactions||[]).filter(t=>String(t.date||'').startsWith(year));
-}
-
-function openDebtTotal(){
-  return (app.debts||[]).filter(d=>d.type==='owe').reduce((sum,d)=>sum+Math.max(0,(Number(d.amount)||0)-(Number(d.paid)||0)),0);
-}
-
-function totals(rows){
-  const income=rows.filter(t=>t.type==='income').reduce((s,t)=>s+effective(t),0);
-  const expense=rows.filter(t=>t.type==='expense').reduce((s,t)=>s+effective(t),0);
-  return {income,expense,result:income-expense,debt:openDebtTotal()};
-}
-
-function dominantCrop(rows){
-  const counts=new Map();
-  for(const t of rows){
-    const crop=String(t.crop||'').trim();
-    if(!crop||crop==='Genel')continue;
-    counts.set(crop,(counts.get(crop)||0)+1);
-  }
-  return [...counts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||'Tarla';
-}
-
-function cropKind(crop){
-  const s=String(crop||'').toLocaleLowerCase('tr');
-  if(s.includes('pamuk'))return 'cotton';
-  if(s.includes('mısır')||s.includes('misir'))return 'corn';
-  if(s.includes('buğday')||s.includes('bugday')||s.includes('arpa'))return 'wheat';
-  return 'field';
-}
-
-function cropSvg(crop,large=false){
-  const kind=cropKind(crop);
-  const cls=large?'ec10-cropArt':'ec10-cropGlyph';
-  const body=kind==='cotton'
-    ? `<path d="M24 42V22M24 29l-9-7M24 32l10-8M15 22c-4 1-6 4-6 8 5 0 8-2 10-6M34 24c4 1 6 4 6 8-5 0-8-2-10-6" class="accent"/><circle class="cotton" cx="24" cy="14" r="6"/><circle class="cotton" cx="17" cy="17" r="5"/><circle class="cotton" cx="31" cy="17" r="5"/>`
-    : kind==='corn'
-    ? `<path d="M24 43V8M24 28c-8-1-12-5-14-11 8 0 12 4 14 9M24 34c8-1 12-5 14-11-8 0-12 4-14 9"/><path class="accent" d="M25 15c7 1 10 6 8 14-6 0-9-5-8-14Z"/><path class="accent" d="M28 17l4 9M27 21l5-1M28 24l5-1"/>`
-    : kind==='wheat'
-    ? `<path d="M16 43V12M24 43V8M32 43V14"/><path class="accent" d="M24 10l-5 4 5 2 5-4-5-2Zm0 7-5 4 5 2 5-4-5-2Zm-8-3-4 3 4 2 4-3-4-2Zm16 2-4 3 4 2 4-3-4-2Zm0 7-4 3 4 2 4-3-4-2Z"/>`
-    : `<path d="M7 37c9-8 20-12 34-11M7 43c10-7 21-9 34-7M10 31c7-7 15-11 25-13"/><circle class="accent" cx="36" cy="12" r="4"/>`;
-  return `<span class="${cls}" aria-hidden="true"><svg viewBox="0 0 48 48">${body}</svg></span>`;
-}
-
-function friendlyDate(){
-  try{return new Intl.DateTimeFormat('tr-TR',{weekday:'long',day:'numeric',month:'long'}).format(new Date());}
-  catch{return 'Bugün';}
-}
-
-function latestActivity(){
-  const row=(app.transactions||[])[0];
-  if(!row)return {main:'Henüz kayıt yok',sub:'İlk gelir veya masrafını ekleyebilirsin.'};
-  const place=String(row.parcel||'').trim();
-  return {main:String(row.category||'Son kayıt'),sub:[place,row.crop].filter(Boolean).join(' · ')||'Son hareket'};
-}
-
-function weatherSnapshot(){
-  const location=String(app.weatherLocation||'').trim();
-  const cache=app.weatherCache;
-  const forecast=cache&&cache.data&&cache.data.forecast;
-  const current=forecast&&forecast.current;
-  if(current){
-    const temp=Number(current.temperature_2m);
-    const label=P4&&typeof P4.weatherLabel==='function'?P4.weatherLabel(current.weather_code):'Güncel tahmin';
-    return {main:Number.isFinite(temp)?Math.round(temp)+'°':(cache.data.name||location||'Hava'),sub:String(label||'Güncel tahmin'),location:cache.data.name||location||''};
-  }
-  if(location)return {main:location,sub:'Tahmini yenile',location};
-  return {main:'Konum seçilmedi',sub:'İl veya ilçeni ekle',location:''};
-}
-
-function cropSummaries(rows){
-  const map=new Map();
-  for(const t of rows){
-    const crop=String(t.crop||'Genel').trim()||'Genel';
-    if(!map.has(crop))map.set(crop,{crop,income:0,expense:0,count:0});
-    const x=map.get(crop);x.count++;
-    if(t.type==='income')x.income+=effective(t);else x.expense+=effective(t);
-  }
-  return [...map.values()].map(x=>({...x,result:x.income-x.expense})).sort((a,b)=>Math.abs(b.result)-Math.abs(a.result));
-}
-
-function parcelSummaries(rows){
-  if(P5&&typeof P5.parcelSummaries==='function')return P5.parcelSummaries(rows,effective);
-  const map=new Map();
-  for(const t of rows){
-    const parcel=String(t.parcel||'').trim();if(!parcel)continue;
-    if(!map.has(parcel))map.set(parcel,{parcel,crop:t.crop||'Genel',income:0,expense:0,count:0,lastCategory:''});
-    const p=map.get(parcel);p.crop=t.crop||p.crop;p.count++;p.lastCategory=t.category||p.lastCategory;
-    if(t.type==='income')p.income+=effective(t);else p.expense+=effective(t);
-  }
-  return [...map.values()].map(p=>({...p,result:p.income-p.expense}));
-}
-
-function marketSnapshot(crop){
-  if(!P5||typeof P5.marketFor!=='function')return {main:'Piyasa tablosu',sub:'Kaynaklı referanslar'};
-  const entry=P5.marketFor(crop);
-  if(!entry)return {main:'Piyasa tablosu',sub:'Kaynaklı referanslar'};
-  let main='Referans yok';
-  if(Number.isFinite(entry.ref))main=`${N(entry.ref)} TL/kg`;
-  else if(Number.isFinite(entry.low)&&Number.isFinite(entry.high))main=`${N(entry.low)}–${N(entry.high)} TL/kg`;
-  const date=entry.date?entry.date.split('-').reverse().join('.'):'';
-  return {main,sub:[crop,date].filter(Boolean).join(' · ')};
-}
-
-function holdingsTotal(){
-  if(!P5||typeof P5.productValue!=='function')return 0;
-  let tl=0;
-  for(const [crop,qty] of Object.entries(app.productHoldings||{})){
-    try{
-      const value=P5.productValue(qty,P5.marketFor(crop),(app.marketOverrides||{})[crop]);
-      if(value)tl+=Number(value.mid)||0;
-    }catch{}
-  }
-  return Math.round(tl*100);
-}
-
-function renderCropLines(rows){
-  const data=cropSummaries(rows).slice(0,4);
-  if(!data.length)return `<div class="ec10-empty">Bu sezon için henüz ürün kaydı yok.<button type="button" onclick="openTx('expense')">İlk masrafı ekle</button></div>`;
-  const max=Math.max(1,...data.map(x=>Math.abs(x.result)));
-  return `<div class="ec10-cropLines">${data.map(x=>{
-    const width=Math.max(5,Math.round(Math.abs(x.result)/max*100));
-    const neg=x.result<0?' negative':'';
-    return `<div class="ec10-cropRow">${cropSvg(x.crop)}<div class="ec10-cropInfo"><b>${H(x.crop)}</b><small>${x.count} kayıt · gelir ${TL(x.income)} · masraf ${TL(x.expense)}</small><div class="ec10-lineTrack"><div class="ec10-lineFill${neg}" style="width:${width}%"></div></div></div><div class="ec10-cropResult${neg}">${H(TL(x.result))}</div></div>`;
-  }).join('')}</div>`;
-}
-
-function renderFields(rows){
-  const fields=parcelSummaries(rows).slice(0,4);
-  if(!fields.length)return `<div class="ec10-empty">Tarla adı yazılmış bir kayıt gelince parseller burada ayrı görünür.<button type="button" onclick="openTx('expense')">Tarla kaydı ekle</button></div>`;
-  return `<div class="ec10-fieldGrid">${fields.map(p=>{
-    const neg=p.result<0?' negative':'';
-    return `<button class="ec10-field" type="button" data-parcel="${H(p.parcel)}" onclick="ec10OpenParcel(this.dataset.parcel)"><div class="ec10-fieldTop">${cropSvg(p.crop)}<span class="ec10-fieldName">${H(p.parcel)}</span></div><div class="ec10-fieldMeta">${H(p.crop||'Genel')} · ${p.count} kayıt<br>${H(p.lastCategory||'Son hareket yok')}</div><div class="ec10-fieldResult${neg}">${H(TL(p.result))}</div></button>`;
-  }).join('')}</div>`;
-}
-
-function canvasMarkup(){
-  const rows=seasonRows();
-  const sum=totals(rows);
-  const crop=dominantCrop(rows);
-  const recent=latestActivity();
-  const weather=weatherSnapshot();
-  const market=marketSnapshot(crop);
-  const stockValue=holdingsTotal();
-  const resultClass=sum.result<0?' negative':'';
-  const resultNote=sum.result>=0?'Gelirden masraf çıktıktan sonra kalan':'Masraf, sezon gelirinin üzerinde';
-  return `
-    <section class="ec10-financeHero" aria-labelledby="ec10ResultTitle">
-      <div class="ec10-heroCopy"><div class="ec10-heroLabel" id="ec10ResultTitle">Bu sezon cebinde kalan</div><div class="ec10-heroValue${resultClass}">${H(TL(sum.result))}</div><div class="ec10-heroNote">${H(resultNote)} · ${H(crop)}</div></div>
-      ${cropSvg(crop,true)}
-      <div class="ec10-financeRail"><div class="ec10-financeCell income"><span>Sezon geliri</span><b>${H(TL(sum.income))}</b></div><div class="ec10-financeCell"><span>Sezon masrafı</span><b>${H(TL(sum.expense))}</b></div><div class="ec10-financeCell debt"><span>Açık borç</span><b>${H(TL(sum.debt))}</b></div></div>
-    </section>
-
-    <section class="ec10-today" aria-labelledby="ec10TodayTitle">
-      <div class="ec10-sectionHead"><h2 id="ec10TodayTitle">Bugün</h2><span>${H(friendlyDate())}</span></div>
-      <div class="ec10-todayRail">
-        <button class="ec10-todayCell" type="button" onclick="showPage('ledger')"><span>Son hareket</span><b>${H(recent.main)}</b><small>${H(recent.sub)}</small></button>
-        <button class="ec10-todayCell" type="button" onclick="ec10OpenWeather()"><span>Tarla havası</span><b>${H(weather.main)}</b><small>${H(weather.sub)}</small></button>
-        <button class="ec10-todayCell" type="button" onclick="showPage('ledger')"><span>Sezon kaydı</span><b>${rows.length}</b><small>${new Date().getFullYear()} yılı</small></button>
-      </div>
-    </section>
-
-    <section class="ec10-section" aria-labelledby="ec10SeasonTitle"><div class="ec10-sectionHead"><h2 id="ec10SeasonTitle">Bu sezon</h2><span>Ürünler birbirine karışmaz</span></div>${renderCropLines(rows)}</section>
-
-    <section class="ec10-section" aria-labelledby="ec10FieldsTitle"><div class="ec10-sectionHead"><h2 id="ec10FieldsTitle">Tarlalar</h2><span>Parsel parsel hesap</span></div>${renderFields(rows)}</section>
-
-    <section class="ec10-section" aria-labelledby="ec10LiveTitle"><div class="ec10-sectionHead"><h2 id="ec10LiveTitle">Canlı veriler</h2><span>Kaynağı belli olan veri</span></div>
-      <div class="ec10-dataRail">
-        <button class="ec10-dataItem" type="button" onclick="ec10OpenWeather()"><i class="ec10-dataMark"></i><span>Hava</span><b>${H(weather.main)}</b><small>${H(weather.location||weather.sub)}</small></button>
-        <button class="ec10-dataItem market" type="button" onclick="ec10OpenMarket()"><i class="ec10-dataMark"></i><span>Piyasa</span><b>${H(market.main)}</b><small>${H(market.sub)}</small></button>
-        <button class="ec10-dataItem value" type="button" onclick="ec10OpenMarket()"><i class="ec10-dataMark"></i><span>Ürün değeri</span><b>${H(TL(stockValue))}</b><small>Elindeki ürünlere göre</small></button>
-      </div>
-    </section>
-
-    <section class="ec10-section" aria-labelledby="ec10QuickTitle"><div class="ec10-sectionHead"><h2 id="ec10QuickTitle">Hızlı işler</h2><span>Sık kullanılanlar</span></div>
-      <div class="ec10-toolChest">
-        <button class="ec10-quick expense" type="button" onclick="openTx('expense')">Masraf ekle<small>Tarlaya çıkan para</small></button>
-        <button class="ec10-quick income" type="button" onclick="openTx('income')">Gelir ekle<small>Satış ve tahsilat</small></button>
-        <button class="ec10-quick market" type="button" onclick="ec10OpenMarket()">Piyasaya bak<small>Ürün fiyatı ve değer</small></button>
-        <button class="ec10-quick stock" type="button" onclick="ec10OpenStock()">Elindekiler<small>Stok ve ürün miktarı</small></button>
-      </div>
-    </section>`;
-}
-
-function renderCanvas(){
-  const home=document.getElementById('home');if(!home)return;
-  document.getElementById('ec10FieldHero')?.remove();
-  document.getElementById('ec10Tools')?.remove();
-  let canvas=document.getElementById('ec10Canvas');
-  if(!canvas){
-    canvas=document.createElement('div');canvas.id='ec10Canvas';canvas.className='ec10-canvas';
-    home.insertBefore(canvas,home.firstChild);
-  }
-  const markup=canvasMarkup();
-  if(canvas.innerHTML!==markup)canvas.innerHTML=markup;
-}
-
-window.ec10OpenMarket=function(){
-  const button=document.getElementById('p5MarketBtn');
-  if(button){button.click();return;}
-  if(document.getElementById('market'))showPage('market');
-};
-window.ec10OpenStock=function(){showPage('more');showSub('inventory');};
-window.ec10OpenWeather=function(){
-  if(!app.weatherLocation){showPage('more');showSub('weather');return;}
-  if(typeof window.requestP4Weather==='function'){
-    window.requestP4Weather(true);
-    try{toast('Hava tahmini yenileniyor.');}catch{}
-  }else{showPage('more');showSub('weather');}
-};
-window.ec10OpenParcel=function(parcel){
-  showPage('ledger');
-  requestAnimationFrame(()=>{
-    const search=document.getElementById('p5LedgerSearch');
-    if(search){
-      search.value=parcel;
-      search.dispatchEvent(new Event('input',{bubbles:true}));
-      search.focus();
-    }
-  });
-};
-
-const previousRender=window.render;
-if(typeof previousRender==='function')window.render=function(){previousRender();renderCanvas();};
-const previousRenderAll=window.renderAll;
-if(typeof previousRenderAll==='function'&&previousRenderAll!==previousRender)window.renderAll=function(){previousRenderAll();renderCanvas();};
-
-renderCanvas();
-let queued=false;
-const observer=new MutationObserver(()=>{
-  if(queued)return;queued=true;
-  requestAnimationFrame(()=>{queued=false;renderCanvas();});
-});
-observer.observe(document.getElementById('home')||document.body,{childList:true,subtree:true});
+const H=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]||c));
+const TL=k=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:0}).format((Number(k)||0)/100);
+const N=v=>new Intl.NumberFormat('tr-TR',{maximumFractionDigits:1}).format(Number(v)||0);
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2);
+const year=()=>String(new Date().getFullYear());
+const today=()=>new Date().toISOString().slice(0,10);
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+function ensure(){if(!Array.isArray(app.fields))app.fields=[];if(!Array.isArray(app.supports))app.supports=[];if(!Array.isArray(app.tasks))app.tasks=[];if(!app.fieldPrefs)app.fieldPrefs={lat:37.9144,lon:40.2306,zoom:14,layer:'satellite'};}
+ensure();
+const css=document.createElement('style');css.textContent=`
+:root{--v12-ink:#121a15;--v12-muted:#657169;--v12-line:#d7ded8;--v12-soft:#f1f5f0;--v12-green:#2f6d43;--v12-red:#a43d36;--v12-water:#176c77;--v12-wheat:#b98925;--v12-night:#162019}
+#home>.hero,#home>.actions,#home>.card,#home>#p5Home,#home>#p4WeatherCard,#home>#ec10FieldHero,#home>#ec10Tools{display:none!important}#home{padding:0!important}.wrap{max-width:900px!important;padding:10px 12px 30px!important}.top{margin:2px 0 9px!important}.brand{font-size:25px!important;letter-spacing:-.5px}.ec-fieldBadge{border-radius:9px!important}
+#ec10Canvas{display:block}.v12-hero{position:relative;height:292px;margin:0 -12px;overflow:hidden;background:#29372e;border-top:1px solid #c8d1ca;border-bottom:1px solid #c8d1ca}.v12-map,.v12-tiles{position:absolute;inset:0;overflow:hidden}.v12-tile{position:absolute;width:256px;height:256px;object-fit:cover;user-select:none;-webkit-user-drag:none}.v12-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,10,.03) 30%,rgba(7,12,9,.8) 100%);pointer-events:none}.v12-top{position:absolute;left:13px;right:13px;top:13px;z-index:4;display:flex;justify-content:space-between;gap:8px}.v12-pill{min-height:40px;display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(14,23,17,.78);backdrop-filter:blur(7px);color:#fff;font-size:12px;font-weight:850}.v12-dot{width:8px;height:8px;border-radius:50%;background:#8bd19c;box-shadow:0 0 0 4px rgba(139,209,156,.16)}.v12-bottom{position:absolute;left:16px;right:16px;bottom:16px;z-index:4;color:#fff;display:flex;align-items:end;justify-content:space-between;gap:14px}.v12-bottom h1{margin:3px 0;font-size:29px;line-height:1.02;letter-spacing:-1px}.v12-bottom p{margin:0;color:#dde7df;font-size:12px;line-height:1.35}.v12-kicker{font-size:10.5px;font-weight:900;color:#d9e4dc}.v12-open{min-height:49px;border:1px solid rgba(255,255,255,.38);background:#f5f7f4;color:#162019;border-radius:10px;padding:0 14px;font-weight:900;white-space:nowrap}
+.v12-actions{display:grid;grid-template-columns:repeat(4,1fr);margin:0 -12px;border-bottom:1px solid var(--v12-line);background:#fff}.v12-action{min-height:76px;border:0;border-right:1px solid var(--v12-line);background:#fff;color:var(--v12-ink);font-weight:900;font-size:12px}.v12-action:last-child{border-right:0}.v12-action i{display:grid;place-items:center;width:30px;height:30px;margin:0 auto 5px;border-radius:8px;background:var(--v12-soft);font-style:normal;font-size:17px}.v12-action.exp i{background:#f8eded;color:var(--v12-red)}.v12-action.inc i{background:#edf6ef;color:var(--v12-green)}.v12-action.map i{background:#eaf3eb;color:#244e32}.v12-action.market i{background:#f8f2e4;color:#8a6418}
+.v12-section{padding:22px 0 1px;border-bottom:1px solid var(--v12-line)}.v12-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px}.v12-head h2{margin:0;font-size:20px;letter-spacing:-.45px}.v12-head small{font-size:11px;color:var(--v12-muted);text-align:right}.ec10-todayRail{border-top:1px solid var(--v12-line)}.v12-priority{width:100%;display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;min-height:70px;padding:10px 2px;border:0;border-bottom:1px solid var(--v12-line);background:transparent;text-align:left;color:var(--v12-ink)}.v12-picon{width:38px;height:38px;border-radius:11px;background:#eef5ef;display:grid;place-items:center;font-size:18px}.v12-priority b{display:block;font-size:14px}.v12-priority span span{display:block;color:var(--v12-muted);font-size:11.5px;line-height:1.35;margin-top:2px}.v12-priority em{font-style:normal;color:var(--v12-muted);font-size:10.5px;white-space:nowrap}
+.ec10-financeHero{display:grid!important;grid-template-columns:1.35fr 1fr;min-height:0!important;border:1px solid var(--v12-line)!important;border-left:5px solid var(--v12-night)!important;background:#fff!important;padding:0!important;overflow:hidden}.v12-finMain{padding:18px;border-right:1px solid var(--v12-line)}.v12-finMain span{font-size:11px;color:var(--v12-muted);font-weight:800}.v12-finValue{font-family:Georgia,"Times New Roman",serif;font-size:38px;line-height:1;margin:6px 0 10px;letter-spacing:-1.2px}.v12-finValue.neg{color:var(--v12-red)}.v12-bar{height:7px;background:#edf0ed;display:flex}.v12-bar .in{background:var(--v12-green)}.v12-bar .out{background:var(--v12-red)}.v12-finSide{display:grid;grid-template-rows:repeat(3,1fr)}.v12-kpi{padding:11px 13px;border-bottom:1px solid var(--v12-line)}.v12-kpi:last-child{border-bottom:0}.v12-kpi span{display:block;font-size:10.5px;color:var(--v12-muted)}.v12-kpi b{display:block;margin-top:3px;font-size:14px}
+.ec10-cropLines{border-top:1px solid var(--v12-line)}.v12-crop{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;min-height:65px;border-bottom:1px solid var(--v12-line)}.v12-crop:last-child{border-bottom:0}.v12-cropGlyph{width:34px;height:34px;display:grid;place-items:center}.v12-cropGlyph svg{width:30px;height:30px;fill:none;stroke:var(--v12-green);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.v12-crop b{font-size:14px}.v12-crop small{display:block;color:var(--v12-muted);font-size:10.5px;margin-top:2px}.v12-cropMoney{font-family:Georgia,"Times New Roman",serif;font-size:14px;font-weight:700;color:var(--v12-green)}.v12-cropMoney.neg{color:var(--v12-red)}
+.ec10-fieldGrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v12-field{position:relative;min-height:112px;border:1px solid var(--v12-line);background:#fff;padding:13px 13px 15px;text-align:left;color:var(--v12-ink);overflow:hidden;clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%)}.v12-field:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--v12-green)}.v12-field b{display:block;font-size:14px}.v12-field small{display:block;color:var(--v12-muted);font-size:10.5px;line-height:1.35;margin-top:4px}.v12-field strong{display:block;margin-top:13px;font-family:Georgia,"Times New Roman",serif;font-size:17px;color:var(--v12-green)}.v12-field strong.neg{color:var(--v12-red)}
+.ec10-dataRail{display:grid!important;grid-template-columns:repeat(3,1fr);border:1px solid var(--v12-line);background:#fff}.v12-data{min-height:108px;padding:14px 12px;border:0;border-right:1px solid var(--v12-line);background:#fff;text-align:left;color:var(--v12-ink)}.v12-data:last-child{border-right:0}.v12-mark{width:25px;height:4px;background:var(--v12-water);display:block;margin-bottom:10px}.v12-data.market .v12-mark{background:var(--v12-wheat)}.v12-data.stock .v12-mark{background:var(--v12-green)}.v12-data span{font-size:10.5px;color:var(--v12-muted);font-weight:800}.v12-data b{display:block;font-size:14px;margin-top:5px}.v12-data small{display:block;color:var(--v12-muted);font-size:10.5px;line-height:1.3;margin-top:4px}.ec10-toolChest{display:grid!important;grid-template-columns:repeat(4,1fr);border:1px solid var(--v12-line);background:#fff}.v12-tool{min-height:72px;border:0;border-right:1px solid var(--v12-line);background:#fff;font-size:11px;font-weight:900;color:var(--v12-ink)}.v12-tool:last-child{border-right:0}.v12-empty{padding:16px;border:1px dashed #b8c4ba;background:#fbfcfa;color:var(--v12-muted);font-size:12px;line-height:1.5}.v12-empty button{min-height:48px;margin-top:10px;border:0;border-radius:9px;background:var(--v12-night);color:#fff;padding:0 14px;font-weight:900}
+#v12MapPanel,#v12SimplePanel{position:fixed;inset:0;z-index:150;background:#f4f6f2;display:none}#v12MapPanel.on,#v12SimplePanel.on{display:block}.v12-panelTop{height:62px;display:grid;grid-template-columns:50px 1fr auto;align-items:center;gap:8px;padding:7px 10px;background:#fff;border-bottom:1px solid var(--v12-line)}.v12-icon{width:48px;height:48px;border:1px solid var(--v12-line);border-radius:10px;background:#fff;color:var(--v12-ink);font-weight:950;font-size:20px}.v12-panelTop h2{font-size:18px;margin:0}.v12-panelTop small{display:block;color:var(--v12-muted);font-size:10.5px;margin-top:2px}.v12-switch{display:flex;border:1px solid var(--v12-line);border-radius:9px;overflow:hidden}.v12-switch button{min-height:44px;border:0;background:#fff;padding:0 10px;font-size:11px;font-weight:850}.v12-switch button.on{background:var(--v12-night);color:#fff}.v12-bigMap{position:absolute;left:0;right:0;top:62px;bottom:196px;overflow:hidden;background:#243025;touch-action:none}.v12-svg{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}.v12-svg polygon{fill:rgba(139,209,156,.22);stroke:#e2ffe9;stroke-width:2.4;vector-effect:non-scaling-stroke}.v12-svg polygon.sel{fill:rgba(199,155,53,.28);stroke:#ffe7ac;stroke-width:3}.v12-svg polyline{fill:rgba(70,175,99,.2);stroke:#e4ffea;stroke-width:2.5}.v12-svg circle{fill:#fff;stroke:#1d4e31;stroke-width:2}.v12-attr{position:absolute;left:7px;bottom:6px;z-index:5;background:rgba(255,255,255,.8);padding:3px 5px;font-size:8px;color:#26322a;max-width:75%}.v12-controls{position:absolute;right:10px;top:74px;z-index:165;display:grid;gap:6px}.v12-controls button{width:48px;height:48px;border:1px solid rgba(0,0,0,.15);border-radius:10px;background:rgba(255,255,255,.95);font-size:20px;font-weight:950}.v12-drawMsg{position:absolute;left:10px;right:70px;top:74px;z-index:165;display:none;background:rgba(15,24,18,.9);color:#fff;border-radius:10px;padding:10px 12px;font-size:11px;line-height:1.35}.v12-drawMsg.on{display:block}.v12-sheet{position:absolute;left:0;right:0;bottom:0;height:196px;background:#fff;border-top:1px solid var(--v12-line);padding:12px 13px}.v12-sheetHead{display:flex;justify-content:space-between;gap:10px;align-items:start}.v12-sheetHead h3{margin:0;font-size:18px}.v12-sheetHead p{margin:3px 0 0;color:var(--v12-muted);font-size:11px}.v12-sheetGrid{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px;border-top:1px solid var(--v12-line)}.v12-sheetGrid div{padding:9px 7px;border-right:1px solid var(--v12-line)}.v12-sheetGrid div:last-child{border-right:0}.v12-sheetGrid span{display:block;color:var(--v12-muted);font-size:9.5px}.v12-sheetGrid b{display:block;font-size:12px;margin-top:3px}.v12-sheetBtns{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:7px;margin-top:9px}.v12-sheetBtns button{min-height:43px;border:1px solid var(--v12-line);border-radius:8px;background:#fff;font-size:11px;font-weight:850}.v12-sheetBtns .primary{margin:0;width:auto;background:var(--v12-night);color:#fff;border-color:var(--v12-night)}.v12-modal{position:absolute;inset:0;z-index:180;display:none;align-items:end;background:rgba(8,13,10,.56)}.v12-modal.on{display:flex}.v12-modalCard{width:100%;background:#fff;border-radius:18px 18px 0 0;padding:18px 16px 24px}.v12-modalCard h3{margin:0}.v12-modalCard p{color:var(--v12-muted);font-size:11.5px;line-height:1.45}.v12-modalCard label{font-size:11px;margin:10px 0 5px}.v12-modalCard input,.v12-modalCard select{min-height:51px!important;border-radius:9px!important}.v12-modalBtns{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:13px}.v12-modalBtns button{min-height:50px;border:1px solid var(--v12-line);border-radius:9px;background:#fff;font-weight:900}.v12-modalBtns .save{background:var(--v12-night);color:#fff;border-color:var(--v12-night)}
+.v12-simpleScroll{height:calc(100% - 62px);overflow:auto;padding:14px}.v12-simpleBody{max-width:760px;margin:auto}.v12-simpleCard,.v12-form{background:#fff;border:1px solid var(--v12-line);padding:14px;margin-bottom:10px}.v12-simpleCard h3,.v12-form h3{margin:0;font-size:15px}.v12-simpleCard p{margin:4px 0 0;color:var(--v12-muted);font-size:11.5px}.v12-simpleCard .amt{display:block;margin-top:8px;font-size:18px}.v12-form label{font-size:11px;margin:10px 0 5px}.v12-form input,.v12-form select{min-height:51px!important;border-radius:9px!important}.v12-form button{width:100%;min-height:50px;border:0;border-radius:9px;background:var(--v12-night);color:#fff;font-weight:900;margin-top:12px}
+@media(max-width:520px){.v12-hero{height:272px}.v12-bottom h1{font-size:25px}.ec10-financeHero{grid-template-columns:1fr!important}.v12-finMain{border-right:0;border-bottom:1px solid var(--v12-line)}.v12-finSide{grid-template-columns:repeat(3,1fr);grid-template-rows:1fr}.v12-kpi{border-bottom:0;border-right:1px solid var(--v12-line)}.ec10-dataRail{grid-template-columns:1fr!important}.v12-data{min-height:78px;border-right:0;border-bottom:1px solid var(--v12-line)}.ec10-toolChest{grid-template-columns:repeat(2,1fr)!important}.v12-tool:nth-child(2){border-right:0}.ec10-fieldGrid{grid-template-columns:1fr 1fr!important}.v12-bigMap{bottom:205px}.v12-sheet{height:205px}}@media(max-width:360px){.v12-action{font-size:10.5px}.v12-bottom{align-items:start;flex-direction:column}.v12-open{min-height:42px}.ec10-fieldGrid{grid-template-columns:1fr!important}.v12-panelTop{grid-template-columns:48px 1fr}.v12-switch{position:absolute;right:10px;top:66px;z-index:170}.v12-controls,.v12-drawMsg{top:120px}}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+`;document.head.appendChild(css);
+function effective(t){if(typeof window.eff==='function')return Number(window.eff(t))||0;if(typeof window.effective==='function')return Number(window.effective(t))||0;return t&&t.ownership==='partnership'?Math.round((Number(t.amount)||0)*(Number(t.share)||0)/100):Number(t?.amount)||0;}
+function rows(){const y=year();return(app.transactions||[]).filter(t=>String(t.date||'').startsWith(y));}
+function totals(rs=rows()){const income=rs.filter(t=>t.type==='income').reduce((s,t)=>s+effective(t),0),expense=rs.filter(t=>t.type==='expense').reduce((s,t)=>s+effective(t),0),debt=(app.debts||[]).filter(d=>d.type==='owe').reduce((s,d)=>s+Math.max(0,(Number(d.amount)||0)-(Number(d.paid)||0)),0);return{income,expense,result:income-expense,debt};}
+function frows(name){const k=String(name||'').trim().toLocaleLowerCase('tr');return rows().filter(t=>String(t.parcel||'').trim().toLocaleLowerCase('tr')===k);}
+function fresult(name){return totals(frows(name)).result;}
+function fields(){const m=new Map();for(const t of app.transactions||[]){const n=String(t.parcel||'').trim();if(!n)continue;const k=n.toLocaleLowerCase('tr');if(!m.has(k))m.set(k,{id:'inferred:'+k,name:n,crop:t.crop||'Genel',points:[],inferred:true});}for(const f of app.fields||[])m.delete(String(f.name||'').trim().toLocaleLowerCase('tr'));return[...(app.fields||[]),...m.values()];}
+function dominantCrop(){const m=new Map();for(const t of rows()){const c=String(t.crop||'').trim();if(c&&c!=='Genel')m.set(c,(m.get(c)||0)+1);}for(const f of app.fields||[]){if(f.crop)m.set(f.crop,(m.get(f.crop)||0)+2);}return[...m.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||'Tarla';}
+function cropKind(c){c=String(c||'').toLocaleLowerCase('tr');if(c.includes('pamuk'))return'cotton';if(c.includes('mısır')||c.includes('misir'))return'corn';if(c.includes('buğday')||c.includes('bugday')||c.includes('arpa'))return'wheat';return'field';}
+function cropSvg(c){const k=cropKind(c),b=k==='cotton'?'<path d="M24 42V22M24 29l-9-7M24 32l10-8"/><circle cx="24" cy="14" r="6"/><circle cx="17" cy="17" r="5"/><circle cx="31" cy="17" r="5"/>':k==='corn'?'<path d="M24 43V8M24 28c-8-1-12-5-14-11M24 34c8-1 12-5 14-11"/><path d="M25 15c7 1 10 6 8 14-6 0-9-5-8-14Z"/>':k==='wheat'?'<path d="M16 43V12M24 43V8M32 43V14M24 10l-5 4 5 2 5-4-5-2Zm0 7-5 4 5 2 5-4-5-2Z"/>':'<path d="M8 36c9-12 22-17 32-13M10 42c10-9 22-12 32-9M16 31c6-6 13-10 21-12"/>';return`<span class="v12-cropGlyph ${k}"><svg viewBox="0 0 48 48" aria-hidden="true">${b}</svg></span>`;}
+function cropPlan(c){c=String(c||'').toLocaleLowerCase('tr');if(c.includes('pamuk'))return'Hasat ve çırçır giderlerini ayrı kaydet.';if(c.includes('mısır')||c.includes('misir'))return'I. ürün / II. ürün ayrımını kayıtta belirt.';if(c.includes('buğday')||c.includes('bugday'))return'Gübre, mazot ve biçerdöver giderlerini ayrı izle.';if(c.includes('fındık'))return'Budama, toplama ve kurutmayı ayrı izle.';if(c.includes('tütün'))return'Kırma, dizme ve kurutma işçiliğini ayrı kaydet.';return'Masrafı doğru tarla ve ürüne bağla.';}
+function weather(){const a=[app.weatherCache,app.weather,window.__EKINCEP_WEATHER_CACHE__];try{a.push(JSON.parse(localStorage.getItem('ekincep-last-weather-v1')||'null'));}catch{}const w=a.find(x=>x&&typeof x==='object');if(!w)return null;const f=w.forecast||w,d=f.daily||{},c=f.current||{};return{name:w.name||'',lat:Number(w.latitude),lon:Number(w.longitude),temp:Number(c.temperature_2m),code:c.weather_code,rain:Number(d.precipitation_sum?.[0]),chance:Number(d.precipitation_probability_max?.[0]),wind:Number(d.wind_gusts_10m_max?.[0])};}
+function wlabel(code){const n=Number(code);if(n===0)return'Açık';if(n<=3)return'Parçalı bulutlu';if(n<=67)return'Yağışlı';if(n<=77)return'Karlı';if(n>=95)return'Fırtına';return'Hava';}
+function market(){try{const C=window.CiftciPhase5Core,fn=C&&(C.getMarketReference||C.marketReference||C.getMarket);if(typeof fn==='function'){const m=fn(dominantCrop());if(m)return{label:m.product||m.name||dominantCrop(),value:m.price||m.value||m.average,unit:m.unit||'TL/kg',source:m.source||m.market||'Piyasa'};}}catch{}const m=app.marketReference||app.market;if(m)return{label:m.product||dominantCrop(),value:m.price||m.value,unit:m.unit||'TL/kg',source:m.source||'Piyasa'};return null;}
+function stock(){const r=app.inventory||[],p=r.filter(x=>String(x.crop||'').trim()||/ürün|mahsul|hasat/i.test(String(x.type||x.category||x.name||''))),qty=p.reduce((s,x)=>s+(Number(x.qty)||Number(x.quantity)||0),0);return{count:r.length,qty};}
+function center(f){if(f?.points?.length){return{lat:f.points.reduce((s,p)=>s+Number(p.lat),0)/f.points.length,lon:f.points.reduce((s,p)=>s+Number(p.lon),0)/f.points.length};}const w=weather();if(Number.isFinite(w?.lat)&&Number.isFinite(w?.lon))return{lat:w.lat,lon:w.lon};return{lat:Number(app.fieldPrefs.lat)||37.9144,lon:Number(app.fieldPrefs.lon)||40.2306};}
+function priorities(){const out=[],w=weather(),fs=fields(),t=totals(),crop=dominantCrop();if(!fs.some(f=>f.points?.length>=3))out.push(['⌖','İlk tarlanı haritada çiz','Uydu üzerinde sınırı işaretle; masraf ve gelir o tarlada birleşsin.','Tarlalar','map']);if(w&&((w.chance||0)>=60||(w.rain||0)>=8))out.push(['☔','Yağış ihtimali yüksek',`${w.name||'Konum'} · %${Math.round(w.chance||0)} yağış · ${N(w.rain||0)} mm`,'Bugün','weather']);if(w&&(w.wind||0)>=45)out.push(['≋','Rüzgâr kuvvetli',`Rüzgâr hamlesi ${N(w.wind)} km/sa. İlaçlama için kontrol et.`,'Hava','weather']);if(t.debt>0)out.push(['₺','Açık borcu gözden geçir',`Açık borç toplamı ${TL(t.debt)}.`,'Finans','debts']);out.push(['◒',`${crop} için sezon notu`,cropPlan(crop),'Bu sezon','map']);return out.slice(0,3);}
+function cropSummary(){const m=new Map();for(const t of rows()){const c=t.crop||'Genel';if(!m.has(c))m.set(c,{income:0,expense:0});const x=m.get(c);if(t.type==='income')x.income+=effective(t);else if(t.type==='expense')x.expense+=effective(t);}return[...m.entries()].map(([crop,x])=>({crop,result:x.income-x.expense,...x})).sort((a,b)=>Math.abs(b.result)-Math.abs(a.result)).slice(0,5);}
+function refreshWeather(){try{if(typeof window.requestP4Weather==='function')window.requestP4Weather();else if(typeof requestP4Weather==='function')requestP4Weather();else toast('Hava için konum seç.');}catch{toast('Hava yenilenemedi.');}}
+function openMarket(){try{showPage('more');if(typeof window.openP5Market==='function')window.openP5Market();else if(typeof openP5Market==='function')openP5Market();else showSub('market');}catch{showPage('more');}}
+function renderHome(){ensure();const home=document.getElementById('home');if(!home)return;let root=document.getElementById('ec10Canvas');if(!root){root=document.createElement('div');root.id='ec10Canvas';home.appendChild(root);}const t=totals(),w=weather(),fs=fields(),located=fs.filter(f=>f.points?.length>=3),focus=located[0]||fs[0],m=market(),s=stock(),ps=priorities(),cs=cropSummary(),den=Math.max(1,t.income+t.expense),ip=Math.round(t.income/den*100);root.innerHTML=`<div class="v12-hero" id="v12Hero"><div class="v12-map" id="v12Mini"><div class="v12-tiles"></div><svg class="v12-svg"></svg></div><div class="v12-shade"></div><div class="v12-top"><span class="v12-pill"><i class="v12-dot"></i>Arazim · uydu</span><span class="v12-pill">${w?`${Number.isFinite(w.temp)?Math.round(w.temp)+'° · ':''}${H(wlabel(w.code))}`:'Hava konumu seçilmedi'}</span></div><div class="v12-bottom"><div><div class="v12-kicker">${located.length?located.length+' KONUMLU TARLA':'TARLANI HARİTADA TANIT'}</div><h1>${focus?H(focus.name):'Tarlanı uydu üzerinde çiz'}</h1><p>${focus?`${H(focus.crop||dominantCrop())} · ${focus.areaDa?N(focus.areaDa)+' dekar · ':''}sezon sonucu ${TL(fresult(focus.name))}`:'Bir kez sınırı çiz; hava, masraf, gelir ve uydu aynı yerde birleşsin.'}</p></div><button class="v12-open">Tarlayı aç</button></div></div><div class="v12-actions"><button class="v12-action exp" data-a="expense"><i>−</i>Masraf</button><button class="v12-action inc" data-a="income"><i>+</i>Gelir</button><button class="v12-action map" data-a="map"><i>⌖</i>Tarlalar</button><button class="v12-action market" data-a="market"><i>↟</i>Piyasa</button></div><section class="v12-section"><div class="v12-head"><h2>Bugün</h2><small>Sadece önemli olanlar</small></div><div class="ec10-todayRail">${ps.map(p=>`<button class="v12-priority" data-p="${p[4]}"><span class="v12-picon">${p[0]}</span><span><b>${H(p[1])}</b><span>${H(p[2])}</span></span><em>${H(p[3])}</em></button>`).join('')}</div></section><section class="v12-section"><div class="v12-head"><h2>Bu sezon</h2><small>${year()} · gerçek kayıtların</small></div><div class="ec10-financeHero"><div class="v12-finMain"><span>Bu sezon cebinde kalan</span><div class="v12-finValue ${t.result<0?'neg':''}">${TL(t.result)}</div><div class="v12-bar"><i class="in" style="width:${ip}%"></i><i class="out" style="width:${100-ip}%"></i></div></div><div class="v12-finSide"><div class="v12-kpi"><span>Giren</span><b style="color:var(--v12-green)">${TL(t.income)}</b></div><div class="v12-kpi"><span>Çıkan</span><b style="color:var(--v12-red)">${TL(t.expense)}</b></div><div class="v12-kpi"><span>Açık borç</span><b>${TL(t.debt)}</b></div></div></div><div class="ec10-cropLines">${cs.length?cs.map(x=>`<div class="v12-crop">${cropSvg(x.crop)}<div><b>${H(x.crop)}</b><small>Giren ${TL(x.income)} · çıkan ${TL(x.expense)}</small></div><span class="v12-cropMoney ${x.result<0?'neg':''}">${TL(x.result)}</span></div>`).join(''):'<div class="v12-empty">Sezon kaydı geldikçe ürün sonuçları burada oluşacak.</div>'}</div></section><section class="v12-section"><div class="v12-head"><h2>Tarlalarım</h2><small>${fs.length?fs.length+' tarla / parsel':'uyduda başla'}</small></div><div class="ec10-fieldGrid">${fs.length?fs.slice(0,6).map(f=>{const r=fresult(f.name);return`<button class="v12-field" data-f="${H(f.id)}"><b>${H(f.name)}</b><small>${H(f.crop||'Ürün seçilmedi')} · ${f.points?.length>=3?(f.areaDa?N(f.areaDa)+' dekar':'haritada kayıtlı'):'konumu eklenmedi'}</small><strong class="${r<0?'neg':''}">${TL(r)}</strong></button>`}).join(''):`<div class="v12-empty" style="grid-column:1/-1">Henüz tarla tanımlamadın.<button data-a="map">İlk tarlayı çiz</button></div>`}</div></section><section class="v12-section"><div class="v12-head"><h2>Canlı saha</h2><small>hava · piyasa · elindekiler</small></div><div class="ec10-dataRail"><button class="v12-data" data-a="weather"><i class="v12-mark"></i><span>Hava</span><b>${w?(Number.isFinite(w.temp)?Math.round(w.temp)+'° · ':'')+H(wlabel(w.code)):'Konum seç'}</b><small>${w?`Yağış %${Math.round(w.chance||0)} · rüzgâr ${N(w.wind||0)} km/sa`:'Tarlanın hava riskini görmek için konum seç.'}</small></button><button class="v12-data market" data-a="market"><i class="v12-mark"></i><span>Piyasa</span><b>${m&&m.value?`${H(m.label)} · ${H(m.value)} ${H(m.unit||'')}`:'Fiyatları aç'}</b><small>${m?H(m.source||'Kaynaklı piyasa verisi'):'Kaynak bilgisiyle ürün fiyatları.'}</small></button><button class="v12-data stock" data-a="stock"><i class="v12-mark"></i><span>Elindekiler</span><b>${s.qty?N(s.qty)+' birim':s.count?s.count+' stok kaydı':'Stok ekle'}</b><small>Ürün, gübre, ilaç ve mazot kayıtların.</small></button></div></section><section class="v12-section"><div class="v12-head"><h2>Hızlı işler</h2><small>tek dokunuş</small></div><div class="ec10-toolChest"><button class="v12-tool" data-a="supports">Destekler</button><button class="v12-tool" data-a="tasks">Saha planı</button><button class="v12-tool" data-a="debts">Borçlar</button><button class="v12-tool" data-a="stock">Stok</button></div></section>`;wireHome();renderMini(focus);}
+function wireHome(){const r=document.getElementById('ec10Canvas');if(!r)return;r.querySelector('#v12Hero')?.addEventListener('click',()=>openMap());r.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const a=b.dataset.a;if(a==='expense')openTx('expense');else if(a==='income')openTx('income');else if(a==='map')openMap();else if(a==='market')openMarket();else if(a==='weather')refreshWeather();else if(a==='stock'){showPage('more');try{showSub('inventory');}catch{}}else if(a==='debts')showPage('debts');else if(a==='supports'||a==='tasks')openSimple(a);}));r.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.p;if(a==='map')openMap();else if(a==='weather')refreshWeather();else if(a==='debts')showPage('debts');}));r.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();openMap(b.dataset.f);}));}
+function lonX(l,z){return(Number(l)+180)/360*Math.pow(2,z)*256}function latY(l,z){const s=Math.sin(clamp(Number(l),-85.0511,85.0511)*Math.PI/180);return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*Math.pow(2,z)*256}function xLon(x,z){return x/(Math.pow(2,z)*256)*360-180}function yLat(y,z){const n=Math.PI-2*Math.PI*y/(Math.pow(2,z)*256);return 180/Math.PI*Math.atan(.5*(Math.exp(n)-Math.exp(-n)))}
+function tile(layer,z,x,y){return layer==='road'?`https://tile.openstreetmap.org/${z}/${x}/${y}.png`:`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`}
+function tiles(el,c,z,layer){if(!el)return;const box=el.querySelector('.v12-tiles')||el,w=el.clientWidth||390,h=el.clientHeight||280,zz=Math.round(z),world=Math.pow(2,zz),cx=lonX(c.lon,zz),cy=latY(c.lat,zz),left=cx-w/2,top=cy-h/2,minX=Math.floor(left/256)-1,maxX=Math.floor((left+w)/256)+1,minY=Math.floor(top/256)-1,maxY=Math.floor((top+h)/256)+1;box.innerHTML='';for(let yy=minY;yy<=maxY;yy++){if(yy<0||yy>=world)continue;for(let xx=minX;xx<=maxX;xx++){const img=document.createElement('img');img.className='v12-tile';img.alt='';img.draggable=false;img.src=tile(layer,zz,((xx%world)+world)%world,yy);img.style.left=(xx*256-left)+'px';img.style.top=(yy*256-top)+'px';box.appendChild(img)}}}
+function proj(p,el,c,z){const w=el.clientWidth||390,h=el.clientHeight||280,cx=lonX(c.lon,z),cy=latY(c.lat,z);return{x:lonX(p.lon,z)-cx+w/2,y:latY(p.lat,z)-cy+h/2}}function unproj(x,y,el,c,z){const w=el.clientWidth||390,h=el.clientHeight||280,cx=lonX(c.lon,z),cy=latY(c.lat,z);return{lon:xLon(cx+x-w/2,z),lat:yLat(cy+y-h/2,z)}}function poly(points,el,c,z,cls=''){return`<polygon class="${cls}" points="${points.map(p=>{const q=proj(p,el,c,z);return q.x.toFixed(1)+','+q.y.toFixed(1)}).join(' ')}"></polygon>`}
+function renderMini(f){const el=document.getElementById('v12Mini');if(!el)return;const c=center(f),z=f?.points?.length?15:12;tiles(el,c,z,'satellite');const svg=el.querySelector('svg');svg.innerHTML=(app.fields||[]).filter(x=>x.points?.length>=3).map(x=>poly(x.points,el,c,z,x===f?'sel':'')).join('')}
+const MS={c:{lat:37.9144,lon:40.2306},z:14,layer:'satellite',sel:null,draw:false,pts:[],drag:null,meta:new Map()};
+function buildMap(){let p=document.getElementById('v12MapPanel');if(p)return p;p=document.createElement('div');p.id='v12MapPanel';p.innerHTML=`<div class="v12-panelTop"><button class="v12-icon" id="v12Close">‹</button><div><h2>Tarlalarım</h2><small>Uydu · parsel · sezon hesabı</small></div><div class="v12-switch"><button id="v12Sat" class="on">Uydu</button><button id="v12Road">Harita</button></div></div><div class="v12-bigMap" id="v12Big"><div class="v12-tiles"></div><svg class="v12-svg"></svg><div class="v12-attr" id="v12Attr">Uydu © Esri, Maxar, Earthstar Geographics ve GIS User Community</div></div><div class="v12-controls"><button id="v12Plus">+</button><button id="v12Minus">−</button><button id="v12Locate">⌖</button></div><div class="v12-drawMsg" id="v12DrawMsg">Tarlanın köşelerine sırayla dokun. En az 3 nokta koy, sonra sınırı bitir.</div><div class="v12-sheet" id="v12Sheet"></div><div class="v12-modal" id="v12Modal"><div class="v12-modalCard"><h3>Tarlayı kaydet</h3><p>Sınır senin kayıtlarınla birlikte cihazda saklanır. Uydu yalnızca harita arka planıdır.</p><label>Tarla adı</label><input id="v12Name" maxlength="60" placeholder="Örn. Köy altı 18 dönüm"><label>Ne ekiyorsun?</label><select id="v12Crop"></select><div class="v12-modalBtns"><button id="v12Cancel">Vazgeç</button><button class="save" id="v12Save">Kaydet</button></div></div></div>`;document.body.appendChild(p);const cropsList=[];try{for(const a of Object.values(crops||{}))for(const c of a)if(c!=='Genel'&&!cropsList.includes(c))cropsList.push(c)}catch{}p.querySelector('#v12Crop').innerHTML=(cropsList.length?cropsList:['Pamuk','Mısır','Buğday','Fındık','Tütün','Diğer']).map(c=>`<option>${H(c)}</option>`).join('');p.querySelector('#v12Close').onclick=closeMap;p.querySelector('#v12Sat').onclick=()=>setLayer('satellite');p.querySelector('#v12Road').onclick=()=>setLayer('road');p.querySelector('#v12Plus').onclick=()=>{MS.z=clamp(MS.z+1,5,19);renderMap()};p.querySelector('#v12Minus').onclick=()=>{MS.z=clamp(MS.z-1,5,19);renderMap()};p.querySelector('#v12Locate').onclick=locate;p.querySelector('#v12Cancel').onclick=()=>p.querySelector('#v12Modal').classList.remove('on');p.querySelector('#v12Save').onclick=saveField;const map=p.querySelector('#v12Big');map.addEventListener('pointerdown',down);map.addEventListener('pointermove',move);map.addEventListener('pointerup',up);map.addEventListener('pointercancel',()=>MS.drag=null);map.addEventListener('wheel',e=>{e.preventDefault();MS.z=clamp(MS.z+(e.deltaY<0?1:-1),5,19);renderMap()},{passive:false});return p;}
+function setLayer(l){MS.layer=l;app.fieldPrefs.layer=l;document.getElementById('v12Sat')?.classList.toggle('on',l==='satellite');document.getElementById('v12Road')?.classList.toggle('on',l==='road');const a=document.getElementById('v12Attr');if(a)a.textContent=l==='road'?'© OpenStreetMap katkıda bulunanlar':'Uydu © Esri, Maxar, Earthstar Geographics ve GIS User Community';renderMap()}
+function openMap(id){ensure();const p=buildMap();p.classList.add('on');document.body.style.overflow='hidden';const fs=fields(),f=fs.find(x=>x.id===id)||fs.find(x=>x.points?.length>=3)||null;MS.sel=f?.id||null;MS.c=center(f);MS.z=f?.points?.length>=3?16:Number(app.fieldPrefs.zoom)||14;MS.layer=app.fieldPrefs.layer||'satellite';MS.draw=false;MS.pts=[];setLayer(MS.layer);sheet();setTimeout(()=>{renderMap();if(f?.points?.length)loadMeta(f)},30)}
+function closeMap(){document.getElementById('v12MapPanel')?.classList.remove('on');document.body.style.overflow='';MS.draw=false;MS.pts=[];renderHome()}
+function renderMap(){const el=document.getElementById('v12Big');if(!el)return;tiles(el,MS.c,MS.z,MS.layer);const svg=el.querySelector('svg');let h='';for(const f of app.fields||[])if(f.points?.length>=3)h+=poly(f.points,el,MS.c,MS.z,f.id===MS.sel?'sel':'');if(MS.pts.length){const pts=MS.pts.map(p=>{const q=proj(p,el,MS.c,MS.z);return q.x.toFixed(1)+','+q.y.toFixed(1)}).join(' ');h+=`<polyline points="${pts}"></polyline>`+MS.pts.map(p=>{const q=proj(p,el,MS.c,MS.z);return`<circle cx="${q.x}" cy="${q.y}" r="5"></circle>`}).join('')}svg.innerHTML=h;app.fieldPrefs.lat=MS.c.lat;app.fieldPrefs.lon=MS.c.lon;app.fieldPrefs.zoom=MS.z}
+function down(e){e.currentTarget.setPointerCapture?.(e.pointerId);MS.drag={id:e.pointerId,x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,c:{...MS.c}}}function move(e){if(!MS.drag||MS.drag.id!==e.pointerId||MS.draw)return;const dx=e.clientX-MS.drag.x,dy=e.clientY-MS.drag.y,cx=lonX(MS.drag.c.lon,MS.z)-dx,cy=latY(MS.drag.c.lat,MS.z)-dy;MS.c={lon:xLon(cx,MS.z),lat:yLat(cy,MS.z)};renderMap()}function up(e){const d=MS.drag;MS.drag=null;if(!d)return;if(Math.hypot(e.clientX-d.sx,e.clientY-d.sy)>9)return;const el=e.currentTarget,r=el.getBoundingClientRect(),p=unproj(e.clientX-r.left,e.clientY-r.top,el,MS.c,MS.z);if(MS.draw){MS.pts.push(p);renderMap();sheet();return}let best,dist=1e9;for(const f of app.fields||[]){if(!f.points?.length)continue;const q=proj(center(f),el,MS.c,MS.z),dd=Math.hypot(q.x-(e.clientX-r.left),q.y-(e.clientY-r.top));if(dd<dist){dist=dd;best=f}}if(best&&dist<90){MS.sel=best.id;renderMap();sheet();loadMeta(best)}}
+function startDraw(){MS.draw=true;MS.pts=[];MS.sel=null;document.getElementById('v12DrawMsg')?.classList.add('on');renderMap();sheet()}function cancelDraw(){MS.draw=false;MS.pts=[];document.getElementById('v12DrawMsg')?.classList.remove('on');renderMap();sheet()}function finishDraw(){if(MS.pts.length<3){toast('En az 3 köşe işaretle.');return}const suggested=[...new Set((app.transactions||[]).map(t=>String(t.parcel||'').trim()).filter(Boolean))].find(n=>!app.fields.some(f=>String(f.name).toLocaleLowerCase('tr')===n.toLocaleLowerCase('tr')))||'';document.getElementById('v12Name').value=suggested;document.getElementById('v12Crop').value=dominantCrop();document.getElementById('v12Modal').classList.add('on')}
+function areaDa(ps){if(ps.length<3)return 0;const lat0=ps.reduce((s,p)=>s+p.lat,0)/ps.length*Math.PI/180,R=6378137,xy=ps.map(p=>({x:R*p.lon*Math.PI/180*Math.cos(lat0),y:R*p.lat*Math.PI/180}));let a=0;for(let i=0,j=xy.length-1;i<xy.length;j=i++)a+=xy[j].x*xy[i].y-xy[i].x*xy[j].y;return Math.abs(a/2)/1000}
+function saveField(){const name=document.getElementById('v12Name').value.trim(),crop=document.getElementById('v12Crop').value;if(name.length<2){toast('Tarla adını yaz.');return}const f={id:uid(),name,crop,points:MS.pts.map(p=>({lat:+p.lat.toFixed(7),lon:+p.lon.toFixed(7)})),areaDa:+areaDa(MS.pts).toFixed(2),createdAt:new Date().toISOString()};app.fields.push(f);MS.sel=f.id;MS.draw=false;MS.pts=[];document.getElementById('v12Modal').classList.remove('on');document.getElementById('v12DrawMsg')?.classList.remove('on');Promise.resolve(save()).then(()=>toast('Tarla kaydedildi.'));renderMap();sheet();loadMeta(f)}
+function delField(id){const f=app.fields.find(x=>x.id===id);if(!f)return;if(!confirm(`${f.name} harita kaydını silmek istiyor musun? Gelir-gider kayıtların silinmez.`))return;app.fields=app.fields.filter(x=>x.id!==id);MS.sel=null;save();renderMap();sheet();toast('Tarla sınırı silindi.')}
+function prefill(type,f){closeMap();openTx(type);setTimeout(()=>{const p=document.getElementById('parcel');if(p)p.value=f.name;try{for(const g of Object.keys(crops||{}))if((crops[g]||[]).includes(f.crop)){cropGroup.value=g;fillCropItems();cropItem.value=f.crop;break}}catch{}},30)}
+function sheet(){const s=document.getElementById('v12Sheet');if(!s)return;if(MS.draw){s.innerHTML=`<div class="v12-sheetHead"><div><h3>Tarla sınırını çiz</h3><p>${MS.pts.length} köşe işaretlendi</p></div><button class="v12-icon" id="v12Stop">×</button></div><div class="v12-sheetBtns" style="grid-template-columns:1fr 1.4fr"><button id="v12Undo">Son noktayı sil</button><button class="primary" id="v12Finish">Sınırı bitir</button></div>`;s.querySelector('#v12Stop').onclick=cancelDraw;s.querySelector('#v12Undo').onclick=()=>{MS.pts.pop();renderMap();sheet()};s.querySelector('#v12Finish').onclick=finishDraw;return}const f=fields().find(x=>x.id===MS.sel);if(!f){s.innerHTML=`<div class="v12-sheetHead"><div><h3>Arazini tanıt</h3><p>Uydu üzerinde tarla sınırını çiz. Masraf, gelir, hava ve uydu bilgisi aynı tarlada birleşir.</p></div></div><div class="v12-sheetBtns" style="grid-template-columns:1fr 1fr"><button id="v12Locate2">Konumuma git</button><button class="primary" id="v12Start">+ Tarla çiz</button></div>`;s.querySelector('#v12Start').onclick=startDraw;s.querySelector('#v12Locate2').onclick=locate;return}const r=fresult(f.name),meta=MS.meta.get(f.id);s.innerHTML=`<div class="v12-sheetHead"><div><h3>${H(f.name)}</h3><p>${H(f.crop||'Ürün seçilmedi')} · ${f.areaDa?N(f.areaDa)+' dekar':'alan hesaplanmadı'}</p></div>${f.inferred?'<button class="v12-icon" id="v12Place">⌖</button>':'<button class="v12-icon" id="v12Del">⋯</button>'}</div><div class="v12-sheetGrid"><div><span>Sezon sonucu</span><b style="color:${r<0?'var(--v12-red)':'var(--v12-green)'}">${TL(r)}</b></div><div><span>Son Sentinel</span><b>${meta?H(meta.date):f.points?.length?'bakılıyor…':'—'}</b></div><div><span>Bulut</span><b>${meta&&Number.isFinite(meta.cloud)?'%'+Math.round(meta.cloud):'—'}</b></div></div><div class="v12-sheetBtns"><button class="primary" id="v12Exp">Masraf ekle</button><button id="v12Inc">Gelir ekle</button><button id="v12New">+ Tarla</button></div>`;s.querySelector('#v12Exp').onclick=()=>prefill('expense',f);s.querySelector('#v12Inc').onclick=()=>prefill('income',f);s.querySelector('#v12New').onclick=startDraw;if(f.inferred)s.querySelector('#v12Place').onclick=startDraw;else s.querySelector('#v12Del').onclick=()=>delField(f.id);if(!meta&&f.points?.length)loadMeta(f)}
+function locate(){const fallback=()=>{const w=weather();if(Number.isFinite(w?.lat)&&Number.isFinite(w?.lon)){MS.c={lat:w.lat,lon:w.lon};MS.z=15;renderMap();toast('Hava konumuna gidildi.')}else toast('Konum alınamadı. Hava bölümünden il/ilçe seçebilirsin.')};if(!navigator.geolocation){fallback();return}navigator.geolocation.getCurrentPosition(p=>{MS.c={lat:p.coords.latitude,lon:p.coords.longitude};MS.z=16;renderMap();toast('Konumuna gidildi.')},fallback,{enableHighAccuracy:true,timeout:9000,maximumAge:120000})}
+function fmtDate(x){try{return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'short'}).format(new Date(x))}catch{return'—'}}function cloud(p){for(const a of p?.Attributes||[])if(String(a.Name||'').toLowerCase()==='cloudcover')return Number(a.Value);return NaN}
+async function loadMeta(f){if(MS.meta.has(f.id)||!f.points?.length)return;const c=center(f);try{const start=new Date(Date.now()-55*86400000).toISOString().slice(0,19)+'Z',filter=`Collection/Name eq 'SENTINEL-2' and OData.CSC.Intersects(area=geography'SRID=4326;POINT(${c.lon.toFixed(6)} ${c.lat.toFixed(6)})') and ContentDate/Start gt ${start}`,url='https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter='+encodeURIComponent(filter)+'&$orderby=ContentDate/Start%20desc&$top=1&$expand=Attributes',res=await fetch(url,{cache:'no-store'});if(!res.ok)throw 0;const j=await res.json(),p=j.value?.[0];if(!p)throw 0;MS.meta.set(f.id,{date:fmtDate(p.ContentDate?.Start||p.PublicationDate),cloud:cloud(p)})}catch{MS.meta.set(f.id,{date:'erişilemedi',cloud:NaN})}sheet()}
+function buildSimple(){let p=document.getElementById('v12SimplePanel');if(p)return p;p=document.createElement('div');p.id='v12SimplePanel';p.innerHTML=`<div class="v12-panelTop"><button class="v12-icon" id="v12SBack">‹</button><div><h2 id="v12STitle">EkinCep</h2><small id="v12SSub"></small></div></div><div class="v12-simpleScroll"><div class="v12-simpleBody" id="v12SBody"></div></div>`;document.body.appendChild(p);p.querySelector('#v12SBack').onclick=()=>{p.classList.remove('on');document.body.style.overflow='';renderHome()};return p}
+function openSimple(type){ensure();const p=buildSimple();p.classList.add('on');document.body.style.overflow='hidden';type==='supports'?renderSupports():renderTasks()}
+function renderSupports(){const p=buildSimple(),b=p.querySelector('#v12SBody');p.querySelector('#v12STitle').textContent='Destekler';p.querySelector('#v12SSub').textContent='Bu yıl ne bekliyorsun, ne geldi?';b.innerHTML=`${[...(app.supports||[])].sort((a,c)=>String(c.year).localeCompare(String(a.year))).map(x=>`<div class="v12-simpleCard"><h3>${H(x.type)}</h3><p>${H(x.year)} · ${x.status==='paid'?'Geldi':x.status==='applied'?'Başvurdum':'Bekliyorum'}</p><b class="amt">${TL(x.amount)}</b></div>`).join('')||'<div class="v12-empty">Henüz destek kaydı yok.</div>'}<div class="v12-form"><h3>Destek ekle</h3><label>Destek</label><select id="v12SupType"><option>Mazot-gübre desteği</option><option>Fark ödemesi desteği</option><option>Bitkisel üretim desteği</option><option>Diğer destek</option></select><label>Durum</label><select id="v12SupStatus"><option value="expected">Bekliyorum</option><option value="applied">Başvurdum</option><option value="paid">Geldi</option></select><label>Tutar</label><input id="v12SupAmt" inputmode="decimal" placeholder="Örn. 12.500"><button id="v12SupSave">Kaydet</button></div>`;b.querySelector('#v12SupSave').onclick=()=>{const raw=b.querySelector('#v12SupAmt').value.trim().replace(/\./g,'').replace(',','.'),amount=Math.round((Number(raw)||0)*100);if(amount<=0){toast('Tutarı yaz.');return}const status=b.querySelector('#v12SupStatus').value,type=b.querySelector('#v12SupType').value;app.supports.push({id:uid(),type,status,amount,year:year(),date:today()});if(status==='paid')app.transactions.push({id:uid(),type:'income',amount,date:today(),crop:'Genel',parcel:'',category:'Destek ödemesi',status:'paid',note:type,supportExempt:true});save();renderSupports();toast('Destek kaydedildi.')}}
+function renderTasks(){const p=buildSimple(),b=p.querySelector('#v12SBody');p.querySelector('#v12STitle').textContent='Saha planı';p.querySelector('#v12SSub').textContent='Ekim, ilaçlama, hasat ve ödeme tarihleri';b.innerHTML=`${[...(app.tasks||[])].sort((a,c)=>String(a.date).localeCompare(String(c.date))).map(x=>`<div class="v12-simpleCard"><h3>${H(x.title)}</h3><p>${H(x.date)} · ${H(x.field||'Genel')} ${x.done?'· Tamamlandı':''}</p><button class="small" data-task="${H(x.id)}">${x.done?'Geri al':'Tamamlandı'}</button></div>`).join('')||'<div class="v12-empty">Henüz saha işi yok.</div>'}<div class="v12-form"><h3>İş ekle</h3><label>Ne yapılacak?</label><input id="v12TaskTitle" maxlength="80" placeholder="Örn. Pamuk 2. ilaçlama"><label>Tarih</label><input id="v12TaskDate" type="date" value="${today()}"><label>Tarla</label><select id="v12TaskField"><option value="">Genel</option>${fields().map(f=>`<option>${H(f.name)}</option>`).join('')}</select><button id="v12TaskSave">Kaydet</button></div>`;b.querySelectorAll('[data-task]').forEach(x=>x.onclick=()=>{const t=app.tasks.find(q=>q.id===x.dataset.task);if(t)t.done=!t.done;save();renderTasks()});b.querySelector('#v12TaskSave').onclick=()=>{const title=b.querySelector('#v12TaskTitle').value.trim(),date=b.querySelector('#v12TaskDate').value,field=b.querySelector('#v12TaskField').value;if(title.length<2||!date){toast('İş ve tarih gerekli.');return}app.tasks.push({id:uid(),title,date,field,done:false});save();renderTasks();toast('Saha işi eklendi.')}}
+function moreLinks(){const g=document.querySelector('#more .menuGrid');if(!g||g.dataset.v12)return;g.dataset.v12='1';[['Tarlalar','Uydu, parsel ve sezon hesabı','map'],['Borçlar','Borç ve alacak takibi','debts'],['Destekler','Başvurdum · bekliyorum · geldi','supports'],['Saha planı','Ekim, ilaçlama, hasat, taksit','tasks']].forEach(x=>{const b=document.createElement('button');b.className='menuBtn';b.innerHTML=`${x[0]}<span>${x[1]}</span>`;b.onclick=()=>x[2]==='map'?openMap():x[2]==='debts'?showPage('debts'):openSimple(x[2]);g.prepend(b)})}
+function nav(){const h=document.getElementById('nHome'),tx=document.getElementById('nTx'),l=document.getElementById('nLedger'),d=document.getElementById('nDebts'),m=document.getElementById('nMore');if(h)h.textContent='Bugün';if(tx)tx.textContent='Kayıt';if(l)l.textContent='Defter';if(d){d.textContent='Tarlalar';d.setAttribute('onclick','');d.onclick=e=>{e.preventDefault();openMap()}}if(m)m.textContent='Diğer'}
+function hook(){try{const old=window.render||render;if(old&&!old.__v12){const w=function(){const r=old.apply(this,arguments);ensure();renderHome();moreLinks();return r};w.__v12=true;window.render=w}}catch{}}
+function init(){nav();moreLinks();renderHome();hook();window.openFieldOps=openMap;window.openEkinCepSupports=()=>openSimple('supports');window.openEkinCepTasks=()=>openSimple('tasks');window.addEventListener('resize',()=>{renderMini(fields()[0]);if(document.getElementById('v12MapPanel')?.classList.contains('on'))renderMap()});window.addEventListener('online',renderHome)}
+init();
 })();
