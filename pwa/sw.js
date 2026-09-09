@@ -1,12 +1,22 @@
 'use strict';
 
-const VERSION='ekincep-pwa-v3';
+const VERSION='ekincep-pwa-v4';
 const STATIC=`${VERSION}-static`;
-const RUNTIME=`${VERSION}-runtime`;
 const DATA=`${VERSION}-data`;
 const WEATHER=`${VERSION}-weather`;
 const SATELLITE=`${VERSION}-satellite`;
-const SHELL=['/','/index.html','/app-loader.js','/manifest.webmanifest','/icon.svg','/og.svg'];
+const SHELL=[
+  '/','/index.html','/app-loader.js','/manifest.webmanifest','/icon.svg','/og.svg',
+  '/assets/index.html',
+  '/assets/phase3-core.js','/assets/phase3.js',
+  '/assets/phase4-core.js','/assets/phase4.js','/assets/phase4-compat.js',
+  '/assets/phase5-core.js','/assets/phase5.js','/assets/phase6-polish.js',
+  '/assets/phase7-core.js','/assets/phase7-security.js',
+  '/assets/phase8-guard.js','/assets/phase8-redesign.js',
+  '/assets/phase9-field-ui.js',
+  '/assets/phase10-core.js','/assets/phase10-command.js',
+  '/assets/phase11-home.js'
+];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(STATIC).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -16,13 +26,10 @@ self.addEventListener('activate',event=>{
   event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>!key.startsWith(VERSION)).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));
 });
 
-function isAppAsset(url){
-  return (url.hostname==='raw.githubusercontent.com'&&url.pathname.includes('/legolasgimli17-hub/ciftcidefteri/'))||
-    (url.hostname==='cdn.jsdelivr.net'&&url.pathname.includes('/legolasgimli17-hub/ciftcidefteri@'));
-}
 function isWeather(url){return url.hostname==='api.open-meteo.com'||url.hostname==='geocoding-api.open-meteo.com';}
 function isSatellite(url){return url.hostname==='server.arcgisonline.com'&&url.pathname.includes('/World_Imagery/MapServer/tile/');}
-function isLiveData(url){return url.origin===self.location.origin&&(url.pathname==='/api/market'||url.pathname==='/api/fuel');}
+function isLiveData(url){return url.origin===self.location.origin&&(/^\/api\/(market|fuel|ndvi)$/.test(url.pathname));}
+function isLocalAsset(url){return url.origin===self.location.origin&&url.pathname.startsWith('/assets/');}
 
 async function trim(name,max){
   const cache=await caches.open(name);
@@ -59,7 +66,7 @@ self.addEventListener('fetch',event=>{
   if(isLiveData(url)){event.respondWith(networkFirst(event.request,DATA));return;}
   if(isSatellite(url)){event.respondWith(cacheFirst(event.request,SATELLITE,160));return;}
   if(isWeather(url)){event.respondWith(networkFirst(event.request,WEATHER));return;}
-  if(isAppAsset(url)){event.respondWith(cacheFirst(event.request,RUNTIME,80));return;}
+  if(isLocalAsset(url)){event.respondWith(cacheFirst(event.request,STATIC));return;}
   if(url.origin===self.location.origin){
     event.respondWith(networkFirst(event.request,STATIC).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('/'))));
   }
