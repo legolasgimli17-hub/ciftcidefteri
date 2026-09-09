@@ -5,7 +5,7 @@
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
-        android:label="TarlaPusula"
+        android:label="EkinCep"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity

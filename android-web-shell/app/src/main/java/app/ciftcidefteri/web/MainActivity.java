@@ -80,6 +80,7 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase6-polish.js") + "\n"
                         + readAssetText("phase7-core.js") + "\n"
                         + readAssetText("phase7-security.js") + "\n"
+                        + readAssetText("phase8-redesign.js") + "\n"
                         + "window.__TARLAPUSULA_SECURITY_READY__===true;";
                     view.evaluateJavascript(enhancements, result -> {
                         if ("true".equals(result)) {
@@ -115,8 +116,8 @@ public final class MainActivity extends Activity {
     private void showSafeFailure(WebView view) {
         if (view == null) return;
         String html = "<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
-            + "<body style='font-family:system-ui;background:#f4f7f2;color:#142119;padding:28px'>"
-            + "<h2>TarlaPusula güvenli kilidi açılamadı</h2><p>Veriler güvenlik nedeniyle gösterilmedi. Uygulamayı kapatıp yeniden aç.</p></body>";
+            + "<body style='font-family:system-ui;background:#0d131a;color:#f4efe6;padding:28px'>"
+            + "<h2>EkinCep güvenli kilidi açılamadı</h2><p style='color:#9faab7'>Veriler güvenlik nedeniyle gösterilmedi. Uygulamayı kapatıp yeniden aç.</p></body>";
         view.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
         view.setVisibility(android.view.View.VISIBLE);
     }
@@ -226,7 +227,7 @@ public final class MainActivity extends Activity {
         connection.setReadTimeout(10_000);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "TarlaPusula-Android/1.3");
+        connection.setRequestProperty("User-Agent", "EkinCep-Android/1.4");
         try {
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) throw new IllegalStateException("weather_http_" + status);
@@ -250,7 +251,7 @@ public final class MainActivity extends Activity {
             ContentValues values = new ContentValues();
             values.put(MediaStore.Downloads.DISPLAY_NAME, filename);
             values.put(MediaStore.Downloads.MIME_TYPE, "application/json");
-            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/TarlaPusula");
+            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/EkinCep");
             ContentResolver resolver = getContentResolver();
             Uri uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
             if (uri == null) throw new IllegalStateException();
@@ -258,7 +259,7 @@ public final class MainActivity extends Activity {
                 if (output == null) throw new IllegalStateException();
                 output.write(bytes);
             }
-            return "İndirilenler/TarlaPusula/" + filename;
+            return "İndirilenler/EkinCep/" + filename;
         }
         File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         if (dir == null) throw new IllegalStateException();
@@ -271,7 +272,7 @@ public final class MainActivity extends Activity {
     }
 
     private String sanitizeFilename(String value) {
-        String fallback = "tarlapusula-yedek.json";
+        String fallback = "ekincep-yedek.json";
         if (value == null) return fallback;
         String cleaned = value.replaceAll("[^a-zA-Z0-9._-]", "-");
         if (cleaned.isEmpty() || cleaned.length() > 96) return fallback;
