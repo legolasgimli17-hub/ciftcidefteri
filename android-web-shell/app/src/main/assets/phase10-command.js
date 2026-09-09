@@ -2,7 +2,7 @@
 'use strict';
 if(window.__EKINCEP_PHASE10__)return;window.__EKINCEP_PHASE10__=true;
 const Core=window.EkinCepPhase10Core;if(!Core)throw new Error('phase10_core_missing');
-const API='https://ekincep.vercel.app/api';
+const API='https://ekincep-data-api.vercel.app/api';
 const LIVE_MARKET='ekincep-live-market-v1',LIVE_FUEL='ekincep-live-fuel-v1';
 let market=null,fuel=null,liveFresh=false,liveRefreshPromise=null,sat={lat:39.0,lon:35.0,zoom:6,drag:null};
 const H=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
