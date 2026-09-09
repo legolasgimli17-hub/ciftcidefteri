@@ -3,42 +3,18 @@
 const TOKEN_URL='https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token';
 const CATALOG_URL='https://sh.dataspace.copernicus.eu/catalog/v1/search';
 const PROCESS_URL='https://sh.dataspace.copernicus.eu/api/v1/process';
-
 function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
 function valid(lat,lon){return lat!==null&&lon!==null&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180;}
 function bbox(lat,lon,meters=300){const dLat=meters/111320;const dLon=meters/(111320*Math.max(.2,Math.cos(lat*Math.PI/180)));return [lon-dLon,lat-dLat,lon+dLon,lat+dLat];}
 function isoDate(d){return d.toISOString().slice(0,10);}
-async function token(){
-  const clientId=process.env.CDSE_CLIENT_ID,clientSecret=process.env.CDSE_CLIENT_SECRET;
-  if(!clientId||!clientSecret)throw new Error('credentials_missing');
-  const body=new URLSearchParams({grant_type:'client_credentials',client_id:clientId,client_secret:clientSecret});
-  const r=await fetch(TOKEN_URL,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(8000)});
-  if(!r.ok)throw new Error('token_'+r.status);
-  const j=await r.json();if(!j.access_token)throw new Error('token_missing');return j.access_token;
-}
-async function latestScene(accessToken,area){
-  const end=new Date(),start=new Date(Date.now()-35*86400000);
-  const body={collections:['sentinel-2-l2a'],bbox:area,datetime:`${isoDate(start)}T00:00:00Z/${isoDate(end)}T23:59:59Z`,limit:40,query:{'eo:cloud_cover':{lte:80}}};
-  const r=await fetch(CATALOG_URL,{method:'POST',headers:{authorization:`Bearer ${accessToken}`,'content-type':'application/json','accept':'application/geo+json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
-  if(!r.ok)throw new Error('catalog_'+r.status);
-  const j=await r.json(),features=Array.isArray(j.features)?j.features:[];
-  features.sort((a,b)=>Date.parse(b?.properties?.datetime||0)-Date.parse(a?.properties?.datetime||0));
-  return features.find(f=>Number(f?.properties?.['eo:cloud_cover'])<=45)||features[0]||null;
-}
+async function token(){const clientId=process.env.CDSE_CLIENT_ID,clientSecret=process.env.CDSE_CLIENT_SECRET;if(!clientId||!clientSecret)throw new Error('credentials_missing');const body=new URLSearchParams({grant_type:'client_credentials',client_id:clientId,client_secret:clientSecret});const r=await fetch(TOKEN_URL,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(8000)});if(!r.ok)throw new Error('token_'+r.status);const j=await r.json();if(!j.access_token)throw new Error('token_missing');return j.access_token;}
+async function latestScene(accessToken,area){const end=new Date(),start=new Date(Date.now()-35*86400000);const body={collections:['sentinel-2-l2a'],bbox:area,datetime:`${isoDate(start)}T00:00:00Z/${isoDate(end)}T23:59:59Z`,limit:40,query:{'eo:cloud_cover':{lte:80}}};const r=await fetch(CATALOG_URL,{method:'POST',headers:{authorization:`Bearer ${accessToken}`,'content-type':'application/json','accept':'application/geo+json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('catalog_'+r.status);const j=await r.json(),features=Array.isArray(j.features)?j.features:[];features.sort((a,b)=>Date.parse(b?.properties?.datetime||0)-Date.parse(a?.properties?.datetime||0));return features.find(f=>Number(f?.properties?.['eo:cloud_cover'])<=45)||features[0]||null;}
 const EVALSCRIPT=`//VERSION=3
 function setup(){return {input:[{bands:["B04","B08","dataMask"]}],output:{bands:4}};}
 function evaluatePixel(s){if(!s.dataMask)return [0,0,0,0];const d=s.B08+s.B04;const n=d===0?0:(s.B08-s.B04)/d;let c;if(n<0)c=[0.20,0.25,0.34];else if(n<0.20)c=[0.72,0.54,0.30];else if(n<0.40)c=[0.86,0.78,0.30];else if(n<0.60)c=[0.43,0.68,0.30];else c=[0.12,0.48,0.23];return [c[0],c[1],c[2],1];}`;
-async function ndviImage(accessToken,area,observedAt){
-  const day=String(observedAt).slice(0,10);
-  const body={input:{bounds:{bbox:area,properties:{crs:'http://www.opengis.net/def/crs/OGC/1.3/CRS84'}},data:[{type:'sentinel-2-l2a',dataFilter:{timeRange:{from:`${day}T00:00:00Z`,to:`${day}T23:59:59Z`},mosaickingOrder:'leastCC'}}]},output:{width:256,height:256,responses:[{identifier:'default',format:{type:'image/png'}}]},evalscript:EVALSCRIPT};
-  const r=await fetch(PROCESS_URL,{method:'POST',headers:{authorization:`Bearer ${accessToken}`,'content-type':'application/json','accept':'image/png'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
-  if(!r.ok)throw new Error('process_'+r.status);
-  const buf=Buffer.from(await r.arrayBuffer());if(buf.length>600000)throw new Error('image_too_large');return `data:image/png;base64,${buf.toString('base64')}`;
-}
-module.exports=async function handler(req,res){
-  res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Cache-Control','private, max-age=0, s-maxage=3600, stale-while-revalidate=21600');
-  if(req.method==='OPTIONS'){res.statusCode=204;return res.end();}if(req.method!=='GET'){res.statusCode=405;return res.end(JSON.stringify({error:'method_not_allowed'}));}
-  const lat=num(req.query?.lat),lon=num(req.query?.lon);if(!valid(lat,lon)){res.statusCode=400;return res.end(JSON.stringify({error:'invalid_coordinates'}));}
+async function ndviImage(accessToken,area,observedAt){const day=String(observedAt).slice(0,10);const body={input:{bounds:{bbox:area,properties:{crs:'http://www.opengis.net/def/crs/OGC/1.3/CRS84'}},data:[{type:'sentinel-2-l2a',dataFilter:{timeRange:{from:`${day}T00:00:00Z`,to:`${day}T23:59:59Z`},mosaickingOrder:'leastCC'}}]},output:{width:256,height:256,responses:[{identifier:'default',format:{type:'image/png'}}]},evalscript:EVALSCRIPT};const r=await fetch(PROCESS_URL,{method:'POST',headers:{authorization:`Bearer ${accessToken}`,'content-type':'application/json','accept':'image/png'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});if(!r.ok)throw new Error('process_'+r.status);const buf=Buffer.from(await r.arrayBuffer());if(buf.length>600000)throw new Error('image_too_large');return `data:image/png;base64,${buf.toString('base64')}`;}
+module.exports=async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Cache-Control','no-store');if(req.method==='OPTIONS'){res.statusCode=204;return res.end();}if(req.method!=='POST'){res.statusCode=405;return res.end(JSON.stringify({error:'method_not_allowed'}));}
+  const lat=num(req.body?.lat),lon=num(req.body?.lon);if(!valid(lat,lon)){res.statusCode=400;return res.end(JSON.stringify({error:'invalid_coordinates'}));}
   if(!process.env.CDSE_CLIENT_ID||!process.env.CDSE_CLIENT_SECRET){res.statusCode=503;res.setHeader('Content-Type','application/json; charset=utf-8');return res.end(JSON.stringify({error:'satellite_credentials_missing',source:'Copernicus Data Space',message:'Sunucu tarafı Copernicus kimliği yapılandırılmadan bitki sağlığı verisi sunulmaz.'}));}
   try{const area=bbox(lat,lon,300),accessToken=await token(),scene=await latestScene(accessToken,area);if(!scene)throw new Error('scene_not_found');const observedAt=scene.properties?.datetime||scene.properties?.start_datetime;const imageDataUrl=await ndviImage(accessToken,area,observedAt);res.setHeader('Content-Type','application/json; charset=utf-8');return res.end(JSON.stringify({source:'Copernicus Data Space · Sentinel-2 L2A',metric:'NDVI bitki sağlığı göstergesi',observedAt,cloudCover:Number(scene.properties?.['eo:cloud_cover']),resolutionMeters:10,imageDataUrl,note:'Bu bir canlı kamera görüntüsü değildir. Sentinel-2 uydu ölçümünden hesaplanan bitki sağlığı göstergesidir; bulutluluk nedeniyle en son uygun tarih gösterilebilir.'}));}catch(e){res.statusCode=502;res.setHeader('Content-Type','application/json; charset=utf-8');return res.end(JSON.stringify({error:'ndvi_unavailable',detail:e.message||'unavailable',source:'Copernicus Data Space'}));}
 };
