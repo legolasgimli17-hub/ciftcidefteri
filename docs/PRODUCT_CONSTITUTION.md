@@ -91,6 +91,17 @@ OCR, açık bankacılık, destekleme otomasyonu, hava durumu ve AI Faz 2 kapsam�
 - Hesap özeti her zaman ayrıntılı defterdeki gerçek kayıtlara kadar izlenebilir olmalı.
 - Pamuk, mısır, buğday, sebze ve diğer ürünler ayırt edilebilir kaliteli görsel kimliğe sahip olmalı; görseller sayıların okunmasını zorlaştırmamalı.
 
+## Premium görsel ve canlı saha verisi kapısı
+- Ana sayfa özellik kataloğu değil, çiftçinin o günkü kararlarını hızlandıran bir “çiftlik komuta merkezi” olmalıdır: sezon sonucu, saha/tarla durumu, hava, ürün fiyatı ve akaryakıt tek bakışta anlaşılır; ayrıntılar gerektiğinde açılır.
+- Tarım görselleri dekor olarak değil bağlam için kullanılır. Gerçek fotoğraf veya uydu görüntüsü kullanılan her yüzeyde metin/sayı kontrastı korunur; belirsiz stok görsel veya düşük çözünürlüklü görsel kabul edilmez.
+- Uygulama, başka ürünlerin marka/arayüzünü kopyalamaz; rakiplerin bilgi mimarisindeki güçlü tarafları ölçüp EkinCep'e özgü daha sade görev akışına dönüştürür.
+- Canlı fiyat alanında her sayı kaynak, veri tarihi ve güncellik bilgisi taşır. Kaynak doğrulanamazsa eski/veri yok durumu açıkça gösterilir; tahmini sayı gerçek fiyat gibi sunulmaz.
+- Akaryakıt fiyatı EPDK gibi doğrulanmış resmî kaynaktan gelir; istemciye API anahtarı veya gizli kimlik bilgisi gömülmez.
+- Ürün fiyatlarında HTTPS/TLS doğrulaması kapatılamaz. Kaynak sertifika veya erişim sorunu veriyorsa güvensiz bağlantı yerine doğrulanmış alternatif kaynak kullanılır.
+- Uydu yüzeyi “canlı kamera” diye sunulmaz. Görüntü sağlayıcısı ve görüntünün niteliği açıkça belirtilir; gerçek bitki sağlığı/NDVI katmanı yalnız güvenilir uydu verisi ve sunucu taraflı kimlik yönetimi hazır olduğunda eklenir.
+- Çevrimdışı modda son başarılı hava/fiyat/uydu cache'i gösterilebilir fakat bunun güncel çevrimiçi veri olmadığı kullanıcıya görünür biçimde anlatılır.
+- Görsel cache ve uydu tile cache sınırsız büyüyemez; cihaz depolamasını koruyan üst sınırlar bulunur.
+
 ## Ortaklık muhasebesi kapısı
 - Para ve pay hesabında kayan nokta kullanılmaz; tutar tam sayı kuruş, oran tam sayı baz puan (10.000 = %100) tutulur.
 - Ortaklık alacak/borcu elle çoğaltılmış ikinci veri değildir; kaynak işlem + pay + parayı ödeyen/alan kişiden deterministik olarak hesaplanır.
