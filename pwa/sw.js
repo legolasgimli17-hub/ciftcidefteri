@@ -1,3 +1,66 @@
-const VERSION='ekincep-pwa-v2';const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather';const SHELL=['/','/index.html','/manifest.webmanifest','/icon.svg','/og.svg'];self.addEventListener('install',e=>e.waitUntil(caches.open(STATIC).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>!k.startsWith(VERSION)).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-const isAppAsset=u=>(u.hostname==='raw.githubusercontent.com'&&u.pathname.includes('/legolasgimli17-hub/ciftcidefteri/'))||(u.hostname==='cdn.jsdelivr.net'&&u.pathname.includes('/legolasgimli17-hub/ciftcidefteri@'));const isWeather=u=>u.hostname==='api.open-meteo.com'||u.hostname==='geocoding-api.open-meteo.com';async function cacheFirst(req,name){const c=await caches.open(name),hit=await c.match(req);if(hit)return hit;const r=await fetch(req);if(r&&r.ok)c.put(req,r.clone());return r}async function networkFirst(req,name){const c=await caches.open(name);try{const r=await fetch(req);if(r&&r.ok)c.put(req,r.clone());return r}catch{const hit=await c.match(req);if(hit)return hit;throw new Error('offline_miss')}}
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);if(u.origin===self.location.origin){e.respondWith(networkFirst(e.request,STATIC).catch(()=>caches.match('/')));return}if(isAppAsset(u)){e.respondWith(cacheFirst(e.request,RUNTIME));return}if(isWeather(u)){e.respondWith(networkFirst(e.request,WEATHER));}});
+'use strict';
+
+const VERSION='ekincep-pwa-v3';
+const STATIC=`${VERSION}-static`;
+const RUNTIME=`${VERSION}-runtime`;
+const DATA=`${VERSION}-data`;
+const WEATHER=`${VERSION}-weather`;
+const SATELLITE=`${VERSION}-satellite`;
+const SHELL=['/','/index.html','/app-loader.js','/manifest.webmanifest','/icon.svg','/og.svg'];
+
+self.addEventListener('install',event=>{
+  event.waitUntil(caches.open(STATIC).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>!key.startsWith(VERSION)).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));
+});
+
+function isAppAsset(url){
+  return (url.hostname==='raw.githubusercontent.com'&&url.pathname.includes('/legolasgimli17-hub/ciftcidefteri/'))||
+    (url.hostname==='cdn.jsdelivr.net'&&url.pathname.includes('/legolasgimli17-hub/ciftcidefteri@'));
+}
+function isWeather(url){return url.hostname==='api.open-meteo.com'||url.hostname==='geocoding-api.open-meteo.com';}
+function isSatellite(url){return url.hostname==='server.arcgisonline.com'&&url.pathname.includes('/World_Imagery/MapServer/tile/');}
+function isLiveData(url){return url.origin===self.location.origin&&(url.pathname==='/api/market'||url.pathname==='/api/fuel');}
+
+async function trim(name,max){
+  const cache=await caches.open(name);
+  const keys=await cache.keys();
+  if(keys.length<=max)return;
+  await Promise.all(keys.slice(0,keys.length-max).map(key=>cache.delete(key)));
+}
+
+async function cacheFirst(request,name,maxEntries){
+  const cache=await caches.open(name);
+  const hit=await cache.match(request);
+  if(hit)return hit;
+  const response=await fetch(request);
+  if(response?.ok){await cache.put(request,response.clone());if(maxEntries)void trim(name,maxEntries);}
+  return response;
+}
+
+async function networkFirst(request,name){
+  const cache=await caches.open(name);
+  try{
+    const response=await fetch(request);
+    if(response?.ok)await cache.put(request,response.clone());
+    return response;
+  }catch{
+    const hit=await cache.match(request);
+    if(hit)return hit;
+    throw new Error('offline_miss');
+  }
+}
+
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  if(isLiveData(url)){event.respondWith(networkFirst(event.request,DATA));return;}
+  if(isSatellite(url)){event.respondWith(cacheFirst(event.request,SATELLITE,160));return;}
+  if(isWeather(url)){event.respondWith(networkFirst(event.request,WEATHER));return;}
+  if(isAppAsset(url)){event.respondWith(cacheFirst(event.request,RUNTIME,80));return;}
+  if(url.origin===self.location.origin){
+    event.respondWith(networkFirst(event.request,STATIC).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('/'))));
+  }
+});
