@@ -22,10 +22,11 @@ assert.match(ui,/min-height:52px/);
 assert.match(ui,/Çevrimdışı hazır/);
 assert.match(android,/readAssetText\("phase10-command-center\.js"\)/);
 assert.match(pwa,/'phase10-command-center\.js'/);
+assert.match(pwa,/raw\.githack\.com/);
 assert.match(sw,/'\/field-hero\.webp'/);
 assert.equal(fs.existsSync(androidPhoto),true);
 assert.equal(fs.existsSync(pwaPhoto),true);
 assert.ok(fs.statSync(androidPhoto).size<200_000,'Android hero görseli 200 KB altında olmalı');
 assert.equal(fs.readFileSync(androidPhoto).equals(fs.readFileSync(pwaPhoto)),true);
 
-console.log('Phase 10 command center assertions: 17 passed');
+console.log('Phase 10 command center assertions: 18 passed');
