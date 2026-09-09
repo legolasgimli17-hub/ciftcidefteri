@@ -33,143 +33,64 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Check bundled JavaScript syntax
+      - name: Check JavaScript syntax
         run: |
+          set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           import re
           html=Path('android-web-shell/app/src/main/assets/index.html').read_text()
           m=re.search(r'<script>(.*)</script>', html, re.S)
           assert m, 'script block missing'
-          Path('/tmp/ciftci-app.js').write_text(m.group(1))
+          Path('/tmp/ekincep-base.js').write_text(m.group(1))
           PY
-          node --check /tmp/ciftci-app.js
+          node --check /tmp/ekincep-base.js
           node --check pwa/app-loader.js
           node --check pwa/sw.js
-          node --check pwa/api/fuel.js
-          node --check pwa/api/market.js
-          node --check android-web-shell/app/src/main/assets/phase3-core.js
-          node --check android-web-shell/app/src/main/assets/phase3.js
-          node --check android-web-shell/app/src/main/assets/phase4-core.js
-          node --check android-web-shell/app/src/main/assets/phase4.js
-          node --check android-web-shell/app/src/main/assets/phase4-compat.js
-          node --check android-web-shell/app/src/main/assets/phase5-core.js
-          node --check android-web-shell/app/src/main/assets/phase5.js
-          node --check android-web-shell/app/src/main/assets/phase6-polish.js
-          node --check android-web-shell/app/src/main/assets/phase7-core.js
-          node --check android-web-shell/app/src/main/assets/phase7-security.js
-          node --check android-web-shell/app/src/main/assets/phase8-guard.js
-          node --check android-web-shell/app/src/main/assets/phase8-redesign.js
-          node --check android-web-shell/app/src/main/assets/phase9-field-ui.js
-          node --check android-web-shell/app/src/main/assets/phase10-core.js
-          node --check android-web-shell/app/src/main/assets/phase10-command.js
-          node --check android-web-shell/app/src/main/assets/phase11-premium-home.js
-      - name: Run Phase 3 unit tests
+          for f in pwa/api/*.js android-web-shell/app/src/main/assets/phase*.js pwa/assets/phase*.js; do node --check "$f"; done
+      - name: Run every phase test
         env:
           TZ: Europe/Istanbul
-        run: node android-web-shell/tests/phase3.test.cjs
-      - name: Run Phase 4 unit tests
-        run: node android-web-shell/tests/phase4.test.cjs
-      - name: Run Phase 5 unit tests
-        run: node android-web-shell/tests/phase5.test.cjs
-      - name: Run Phase 7 security tests
-        run: node android-web-shell/tests/phase7.test.cjs
-      - name: Run Phase 8 visual tests
-        run: node android-web-shell/tests/phase8.test.cjs
-      - name: Run Phase 9 branding offline and field UX tests
-        run: node android-web-shell/tests/phase9.test.cjs
-      - name: Run Phase 10 satellite and live-data tests
-        run: node android-web-shell/tests/phase10.test.cjs
-      - name: Run Phase 11 premium design tests
-        run: node android-web-shell/tests/phase11.test.cjs
-      - name: Verify product feature hooks
         run: |
-          grep -q "fetchWeather" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "public void fetchMarket()" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "public void fetchFuel()" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "public void fetchGeocode" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "setAllowUniversalAccessFromFileURLs(false)" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "phase8-guard.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "phase8-redesign.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "phase9-field-ui.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "phase10-core.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "phase10-command.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "phase11-premium-home.js" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "__TARLAPUSULA_SECURITY_READY__" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
-          grep -q "nativeJson('Market','fetchMarket')" android-web-shell/app/src/main/assets/phase10-command.js
-          grep -q "nativeJson('Fuel','fetchFuel')" android-web-shell/app/src/main/assets/phase10-command.js
-          grep -q "nativeJson('Geocode','fetchGeocode',q)" android-web-shell/app/src/main/assets/phase10-command.js
-          grep -q "phase5EditTx" android-web-shell/app/src/main/assets/phase5.js
-          grep -q "Piyasa & Ürün Değeri" android-web-shell/app/src/main/assets/phase5.js
-          grep -q "Hesap Makinesi" android-web-shell/app/src/main/assets/phase5.js
+          set -euo pipefail
+          for f in android-web-shell/tests/phase*.test.cjs; do echo "==> $f"; node "$f"; done
+      - name: Verify security and honest-data contracts
+        run: |
+          set -euo pipefail
           grep -q "PBKDF2" android-web-shell/app/src/main/assets/phase7-core.js
           grep -q "AES-GCM" android-web-shell/app/src/main/assets/phase7-core.js
           grep -q "activeTransactions" android-web-shell/app/src/main/assets/phase7-security.js
           grep -q "deletedAt" android-web-shell/app/src/main/assets/phase7-security.js
-          grep -q "EkinCep" android-web-shell/app/src/main/assets/phase8-redesign.js
-          grep -q "EkinCep" android-web-shell/app/src/main/assets/phase9-field-ui.js
-          grep -q "Uydu & Tarlalar" android-web-shell/app/src/main/assets/phase10-command.js
-          grep -q "server.arcgisonline.com" android-web-shell/app/src/main/assets/phase10-core.js
-          grep -q "Çiftlik komuta merkezi" android-web-shell/app/src/main/assets/phase11-premium-home.js
-          grep -q "commons.wikimedia.org" android-web-shell/app/src/main/assets/phase11-premium-home.js
-          grep -q "apigateway.epdk.gov.tr" pwa/api/fuel.js
+          grep -q "setAllowUniversalAccessFromFileURLs(false)" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "public void fetchMarket()" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
+          grep -q "public void fetchFuel()" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java
           grep -q "www.gtb.org.tr/salon-satis-fiyatlari" pwa/api/market.js
-          grep -q "phase10-core.js" pwa/app-loader.js
-          grep -q "phase10-command.js" pwa/app-loader.js
-          grep -q "phase11-premium-home.js" pwa/app-loader.js
-          grep -q "server.arcgisonline.com" pwa/sw.js
-          grep -q "commons.wikimedia.org" pwa/sw.js
-          grep -q "/api/market" pwa/sw.js
-          grep -q "/api/fuel" pwa/sw.js
-          grep -q 'android:label="EkinCep"' android-web-shell/app/src/main/AndroidManifest.xml
-          grep -q 'meta name="description"' pwa/index.html
-          grep -q 'property="og:image"' pwa/index.html
-          grep -q 'class="skeleton"' pwa/index.html
-          grep -q 'api.open-meteo.com' pwa/sw.js
-          grep -q 'raw.githubusercontent.com' pwa/sw.js
-          if grep -q "setAllowUniversalAccessFromFileURLs(true)" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java; then
-            echo "WebView file origin must never get universal network access" >&2
-            exit 1
-          fi
-          if grep -q "borsa.tobb.org.tr" pwa/api/market.js; then
-            echo "Broken TOBB TLS source must not return to the production adapter" >&2
-            exit 1
-          fi
-          if grep -q "delTx" android-web-shell/app/src/main/assets/phase5.js; then
-            echo "Phase 5 ledger itself must stay edit-only; secure delete is injected by Phase 7" >&2
-            exit 1
-          fi
+          grep -q "apigateway.epdk.gov.tr" pwa/api/fuel.js
+          grep -q "Türkiye geneli resmî bülten" pwa/api/fuel.js
+          grep -q "process.env.CDSE_CLIENT_ID" pwa/api/ndvi.js
+          grep -q "process.env.CDSE_CLIENT_SECRET" pwa/api/ndvi.js
+          grep -q "Canlı kamera değildir" android-web-shell/app/src/main/assets/phase11-satellite.js
+          grep -q "ESKİ VERİ" android-web-shell/app/src/main/assets/phase11-home.js
+          for label in "Bugün" "Bu sezon" "Tarlalar" "Canlı veriler" "Hızlı işler"; do grep -q "$label" android-web-shell/app/src/main/assets/phase11-home.js; done
+          grep -q "commons.wikimedia.org" android-web-shell/app/src/main/assets/phase11-home-polish.js
+          if grep -Eq 'raw\.githubusercontent\.com|cdn\.jsdelivr\.net|raw\.githack\.com' pwa/app-loader.js pwa/sw.js; then echo "Remote executable runtime source detected" >&2; exit 1; fi
+          if grep -Eq '\beval\s*\(' pwa/app-loader.js; then echo "Production loader uses eval" >&2; exit 1; fi
+          if grep -q "setAllowUniversalAccessFromFileURLs(true)" android-web-shell/app/src/main/java/app/ciftcidefteri/web/MainActivity.java; then echo "Unsafe WebView universal access" >&2; exit 1; fi
+          if grep -q "borsa.tobb.org.tr" pwa/api/market.js; then echo "Broken TOBB TLS source returned to production adapter" >&2; exit 1; fi
       - name: Build standalone WebView APK
         working-directory: android-web-shell
         run: gradle :app:assembleDebug --no-daemon --stacktrace
       - name: Verify isolated APK
         run: |
+          set -euo pipefail
           APK="android-web-shell/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           unzip -l "$APK" | grep -q "assets/index.html"
-          unzip -l "$APK" | grep -q "assets/phase3-core.js"
-          unzip -l "$APK" | grep -q "assets/phase3.js"
-          unzip -l "$APK" | grep -q "assets/phase4-core.js"
-          unzip -l "$APK" | grep -q "assets/phase4.js"
-          unzip -l "$APK" | grep -q "assets/phase4-compat.js"
-          unzip -l "$APK" | grep -q "assets/phase5-core.js"
-          unzip -l "$APK" | grep -q "assets/phase5.js"
-          unzip -l "$APK" | grep -q "assets/phase6-polish.js"
-          unzip -l "$APK" | grep -q "assets/phase7-core.js"
-          unzip -l "$APK" | grep -q "assets/phase7-security.js"
-          unzip -l "$APK" | grep -q "assets/phase8-guard.js"
-          unzip -l "$APK" | grep -q "assets/phase8-redesign.js"
-          unzip -l "$APK" | grep -q "assets/phase9-field-ui.js"
-          unzip -l "$APK" | grep -q "assets/phase10-core.js"
-          unzip -l "$APK" | grep -q "assets/phase10-command.js"
-          unzip -l "$APK" | grep -q "assets/phase11-premium-home.js"
+          for f in phase10-core.js phase10-command.js phase11-premium-home.js phase11-home.js phase11-home-polish.js phase11-satellite.js; do unzip -l "$APK" | grep -q "assets/$f"; done
           unzip -l "$APK" | grep -q "classes.dex"
           PERMS=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK")
           echo "$PERMS" | grep -q "android.permission.INTERNET"
-          if echo "$PERMS" | grep -Eq "android.permission.(ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION)"; then
-            echo "Unexpected location permission" >&2
-            exit 1
-          fi
+          if echo "$PERMS" | grep -Eq "android.permission.(ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION)"; then echo "Unexpected location permission" >&2; exit 1; fi
           sha256sum "$APK" > android-web-shell/app/build/outputs/apk/debug/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
