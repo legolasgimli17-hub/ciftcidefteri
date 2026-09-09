@@ -80,6 +80,7 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase6-polish.js") + "\n"
                         + readAssetText("phase7-core.js") + "\n"
                         + readAssetText("phase7-security.js") + "\n"
+                        + readAssetText("phase8-guard.js") + "\n"
                         + readAssetText("phase8-redesign.js") + "\n"
                         + "window.__TARLAPUSULA_SECURITY_READY__===true;";
                     view.evaluateJavascript(enhancements, result -> {
