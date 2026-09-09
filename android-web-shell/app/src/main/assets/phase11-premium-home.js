@@ -59,6 +59,7 @@ function hero(){
 }
 function renderFarmRail(){
   const home=document.getElementById('home');if(!home)return;let host=document.getElementById('ec11FarmBlock');if(!host){host=document.createElement('section');host.id='ec11FarmBlock';host.className='ec11-farmBlock';const live=document.getElementById('ec10Command');const actions=home.querySelector('.actions');(live||actions)?.insertAdjacentElement('afterend',host);}const fields=fieldModels();
+  const signature=fields.length?fields.map(f=>[f.parcel,f.crop,f.date,f.category].join('|')).join('||'):'empty';if(host.dataset.signature===signature)return;host.dataset.signature=signature;
   if(!fields.length){host.innerHTML=`<div class="ec11-sectionHead"><div><small>Tarlaların</small><h2>Sahadaki işler</h2></div></div><div class="ec11-emptyFarm"><b>İlk tarlanı ekle</b><p>Bir gelir veya masraf kaydıyla tarla adını gir. EkinCep o tarlanın maliyetini, uydu konumunu ve sezon sonucunu tek yerde toplayacak.</p><button type="button" onclick="openTx('expense')">İlk kaydı ekle</button></div>`;return;}
   host.innerHTML=`<div class="ec11-sectionHead"><div><small>Tarlaların</small><h2>Sahadaki işler</h2></div><span>${fields.length} tarla / parsel</span></div><div class="ec11-rail">${fields.map(f=>`<article class="ec11-field"><img loading="lazy" decoding="async" src="${photoFor(f.crop)}" alt="${String(f.crop||'Tarla').replace(/[&<>"']/g,'')}"><div class="ec11-fieldCopy"><small>${f.crop||'Genel'}</small><b>${String(f.parcel).replace(/[&<>"']/g,'')}</b><span>${[f.category,f.date].filter(Boolean).join(' · ')}</span></div></article>`).join('')}</div><div class="ec11-photoSource">Gerçek tarım fotoğrafları · CC0 / Wikimedia Commons</div>`;
 }
@@ -71,7 +72,10 @@ function nav(){
 function polishCards(){
   const home=document.getElementById('home');if(!home)return;for(const card of home.querySelectorAll(':scope>.card'))card.classList.add('ec11-sectionCard');
 }
-function run(){topIdentity();hero();renderFarmRail();collapseDeepSummary();nav();polishCards();}
+function cleanSourceLabels(){
+  const root=document.getElementById('ec10Command');if(!root)return;const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const before=node.nodeValue||'';const after=before.replace('TOBB günlük borsa verisi bağlanıyor.','Resmî borsa verisi bağlanıyor.');if(before!==after)node.nodeValue=after;}
+}
+function run(){topIdentity();hero();renderFarmRail();collapseDeepSummary();nav();polishCards();cleanSourceLabels();}
 run();
 let scheduled=false;const observer=new MutationObserver(()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;run();});});observer.observe(document.body,{childList:true,subtree:true});
 })();
