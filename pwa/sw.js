@@ -1,4 +1,4 @@
-const VERSION='ekincep-pwa-v3';
+const VERSION='ekincep-pwa-v4';
 const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg','./field-hero.webp'];
 
