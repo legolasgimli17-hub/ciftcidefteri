@@ -1,4 +1,5 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.CiftciPhase5Core=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
+if(typeof document!=='undefined'){document.title='TarlaPusula';const brand=document.querySelector('.brand');if(brand)brand.textContent='TarlaPusula';}
 const MARKET=[
 {crop:'Buğday',low:16.315,high:20.166,unit:'kg',date:'2026-09-08',source:'TOBB / Uzunköprü TB',kind:'borsa aralığı'},
 {crop:'Arpa',low:13.51,high:14.21,unit:'kg',date:'2026-09-02',source:'TOBB / Edirne TB',kind:'borsa referansı'},
