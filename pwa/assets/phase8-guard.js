@@ -18,7 +18,12 @@ if(location.protocol==='file:'&&!window.__EKINCEP_PHASE11_BOOTSTRAP__){
   setTimeout(()=>{
     if(window.__EKINCEP_PHASE11_HOME__)return;
     const home=document.createElement('script');home.src='phase11-home.js';
-    home.onload=()=>{if(window.__EKINCEP_PHASE11_SATELLITE__)return;const sat=document.createElement('script');sat.src='phase11-satellite.js';sat.onerror=()=>console.error('phase11_satellite_load_failed');document.head.appendChild(sat);};
+    home.onload=()=>{
+      const polish=document.createElement('script');polish.src='phase11-home-polish.js';
+      polish.onload=()=>{if(window.__EKINCEP_PHASE11_SATELLITE__)return;const sat=document.createElement('script');sat.src='phase11-satellite.js';sat.onerror=()=>console.error('phase11_satellite_load_failed');document.head.appendChild(sat);};
+      polish.onerror=()=>console.error('phase11_home_polish_load_failed');
+      document.head.appendChild(polish);
+    };
     home.onerror=()=>console.error('phase11_home_load_failed');
     document.head.appendChild(home);
   },0);
