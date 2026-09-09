@@ -1,0 +1,31 @@
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const root=path.join(__dirname,'../..');
+const assetRoot=path.join(__dirname,'../app/src/main/assets');
+const ui=fs.readFileSync(path.join(assetRoot,'phase10-command-center.js'),'utf8');
+const android=fs.readFileSync(path.join(__dirname,'../app/src/main/java/app/ciftcidefteri/web/MainActivity.java'),'utf8');
+const pwa=fs.readFileSync(path.join(root,'pwa/index.html'),'utf8');
+const sw=fs.readFileSync(path.join(root,'pwa/sw.js'),'utf8');
+const androidPhoto=path.join(assetRoot,'field-hero.webp');
+const pwaPhoto=path.join(root,'pwa/field-hero.webp');
+
+assert.match(ui,/__EKINCEP_PHASE10_COMMAND_CENTER__/);
+assert.match(ui,/Çiftliğinin bugünkü görünümü/);
+assert.match(ui,/BU SEZON CEBİNDE KALAN/);
+assert.match(ui,/Piyasa/);
+assert.match(ui,/Elindekiler/);
+assert.match(ui,/Tarla havası/);
+assert.match(ui,/field-hero\.webp/);
+assert.match(ui,/prefers-reduced-motion/);
+assert.match(ui,/min-height:52px/);
+assert.match(ui,/Çevrimdışı hazır/);
+assert.match(android,/readAssetText\("phase10-command-center\.js"\)/);
+assert.match(pwa,/'phase10-command-center\.js'/);
+assert.match(sw,/'\/field-hero\.webp'/);
+assert.equal(fs.existsSync(androidPhoto),true);
+assert.equal(fs.existsSync(pwaPhoto),true);
+assert.ok(fs.statSync(androidPhoto).size<200_000,'Android hero görseli 200 KB altında olmalı');
+assert.equal(fs.readFileSync(androidPhoto).equals(fs.readFileSync(pwaPhoto)),true);
+
+console.log('Phase 10 command center assertions: 17 passed');

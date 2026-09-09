@@ -83,6 +83,7 @@ public final class MainActivity extends Activity {
                         + readAssetText("phase8-guard.js") + "\n"
                         + readAssetText("phase8-redesign.js") + "\n"
                         + readAssetText("phase9-field-ui.js") + "\n"
+                        + readAssetText("phase10-command-center.js") + "\n"
                         + "window.__TARLAPUSULA_SECURITY_READY__===true;";
                     view.evaluateJavascript(enhancements, result -> {
                         if ("true".equals(result)) {
