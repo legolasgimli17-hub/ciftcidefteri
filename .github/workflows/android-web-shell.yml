@@ -42,13 +42,9 @@ jobs:
           m=re.search(r'<script>(.*)</script>', html, re.S)
           assert m, 'script block missing'
           Path('/tmp/ciftci-app.js').write_text(m.group(1))
-          pwa=Path('pwa/index.html').read_text()
-          m2=re.search(r'<script>(.*)</script>', pwa, re.S)
-          assert m2, 'pwa script block missing'
-          Path('/tmp/ekincep-pwa.js').write_text(m2.group(1))
           PY
           node --check /tmp/ciftci-app.js
-          node --check /tmp/ekincep-pwa.js
+          node --check pwa/app-loader.js
           node --check pwa/sw.js
           node --check pwa/api/fuel.js
           node --check pwa/api/market.js
@@ -105,6 +101,11 @@ jobs:
           grep -q "server.arcgisonline.com" android-web-shell/app/src/main/assets/phase10-core.js
           grep -q "apigateway.epdk.gov.tr" pwa/api/fuel.js
           grep -q "borsa.tobb.org.tr" pwa/api/market.js
+          grep -q "phase10-core.js" pwa/app-loader.js
+          grep -q "phase10-command.js" pwa/app-loader.js
+          grep -q "server.arcgisonline.com" pwa/sw.js
+          grep -q "/api/market" pwa/sw.js
+          grep -q "/api/fuel" pwa/sw.js
           grep -q 'android:label="EkinCep"' android-web-shell/app/src/main/AndroidManifest.xml
           grep -q 'meta name="description"' pwa/index.html
           grep -q 'property="og:image"' pwa/index.html
