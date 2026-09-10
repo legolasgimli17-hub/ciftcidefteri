@@ -3,7 +3,7 @@
 if(window.__EKINCEP_PHASE9__)return;
 window.__EKINCEP_PHASE9__=true;
 const BRAND='EkinCep';
-const BUILD='SAHA v12.1';
+const BUILD='SAHA v13.1';
 const DESCRIPTION='Çiftçiler için tarla gideri, gelir, borç, stok, hava, uydu ve ürün değeri takibini tek yerde sunan güvenli ve çevrimdışı çalışabilen tarla defteri.';
 const CROP_EXPENSES={
   pamuk:['Çırçır / ginleme','Pamuk toplama işçiliği','Beyaz sinek / yaprak biti ilacı'],
@@ -43,8 +43,29 @@ function enhanceDebtSource(){const party=document.getElementById('debtParty');if
 function installDebtCapture(){if(typeof window.addDebt!=='function'||window.addDebt.__ekDebtSource)return;const original=window.addDebt;const wrapped=async function(){const before=new Set((app.debts||[]).map(d=>d.id)),source=document.getElementById('debtCreditType')?.value||'Diğer',result=await original.apply(this,arguments),added=(app.debts||[]).find(d=>!before.has(d.id));if(added){added.creditType=source;added.note=added.note?source+' · '+added.note:source;await save();try{render();}catch{}}return result;};wrapped.__ekDebtSource=true;window.addDebt=wrapped;}
 function closeVisibleOverlayOnBack(){const map=document.getElementById('v12MapPanel');if(map?.classList.contains('on')){const b=map.querySelector('#v12Back')||map.querySelector('.v12-panelTop button');if(b)b.click();else map.classList.remove('on');return;}const simple=document.getElementById('v12SimplePanel');if(simple?.classList.contains('on')){const b=simple.querySelector('#v12SBack')||simple.querySelector('.v12-panelTop button');if(b)b.click();else simple.classList.remove('on');}}
 function installBackSurfaceFix(){if(window.__EKINCEP_BACK_SURFACE_FIX__)return;window.__EKINCEP_BACK_SURFACE_FIX__=true;window.addEventListener('popstate',closeVisibleOverlayOnBack,true);}
-function loadNativeShell(){if(location.protocol!=='file:'||window.__EKINCEP_PHASE11_NATIVE_SHELL__||document.getElementById('ekincepPhase11Loader'))return;const s=document.createElement('script');s.id='ekincepPhase11Loader';s.src='phase11-app-shell.js';s.async=false;s.onload=installBackSurfaceFix;s.onerror=()=>{try{toast('Yeni arayüz yüklenemedi. Uygulamayı yeniden aç.')}catch{}};document.head.appendChild(s);}
-function run(){replaceBrandText();decorateStatus();decorateBuild();applyCropAwareCategories();enhanceDebtSource();installDebtCapture();}
+function installUnifiedBackHandler(){
+  if(window.__EKINCEP_UNIFIED_BACK_PATCH__)return true;
+  if(!window.__EKINCEP_PHASE11_NATIVE_SHELL__||typeof window.handleNativeBack!=='function')return false;
+  const fallback=window.handleNativeBack;
+  const wrapped=function(){
+    const modal=document.getElementById('v12Modal');
+    if(modal?.classList.contains('on')){modal.classList.remove('on');return true;}
+    const mapOpen=document.getElementById('v12MapPanel')?.classList.contains('on');
+    const simpleOpen=document.getElementById('v12SimplePanel')?.classList.contains('on');
+    const active=document.querySelector('.page.active')?.id||'home';
+    const inside=mapOpen||simpleOpen||active!=='home';
+    if(!inside)return false;
+    if(history.state?.ek13){history.back();return true;}
+    return !!fallback();
+  };
+  wrapped.__ekUnified=true;
+  window.handleNativeBack=wrapped;
+  window.__EKINCEP_UNIFIED_BACK_PATCH__=true;
+  return true;
+}
+function armUnifiedBackHandler(){if(installUnifiedBackHandler())return;let tries=0;const timer=setInterval(()=>{tries++;if(installUnifiedBackHandler()||tries>=60)clearInterval(timer)},50);}
+function loadNativeShell(){if(location.protocol!=='file:'||window.__EKINCEP_PHASE11_NATIVE_SHELL__||document.getElementById('ekincepPhase11Loader'))return;const s=document.createElement('script');s.id='ekincepPhase11Loader';s.src='phase11-app-shell.js';s.async=false;s.onload=armUnifiedBackHandler;s.onerror=()=>{try{toast('Yeni arayüz yüklenemedi. Uygulamayı yeniden aç.')}catch{}};document.head.appendChild(s);}
+function run(){replaceBrandText();decorateStatus();decorateBuild();applyCropAwareCategories();enhanceDebtSource();installDebtCapture();installBackSurfaceFix();armUnifiedBackHandler();}
 run();loadNativeShell();let queued=false;const mo=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});});mo.observe(document.body,{childList:true,subtree:true,characterData:true});
 window.addEventListener('offline',()=>{decorateStatus();try{toast('İnternet yok — kayıtların cihazında çalışmaya devam eder.')}catch{}});
 window.addEventListener('online',()=>{try{toast('İnternet bağlantısı geri geldi.')}catch{}});

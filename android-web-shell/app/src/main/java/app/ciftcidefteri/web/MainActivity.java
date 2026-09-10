@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> pendingFileChooser;
     private String pendingGeolocationOrigin;
     private GeolocationPermissions.Callback pendingGeolocationCallback;
+    private boolean backDispatchInFlight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -192,12 +193,30 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        if (webView == null || backDispatchInFlight) return;
+        backDispatchInFlight = true;
+        webView.evaluateJavascript(
+            "(function(){try{if(typeof window.handleNativeBack==='function'){return window.handleNativeBack()?'handled':'root';}return 'missing';}catch(e){return 'missing';}})();",
+            result -> {
+                backDispatchInFlight = false;
+                if ("\"handled\"".equals(result)) return;
+                if ("\"root\"".equals(result)) {
+                    finishBackAtRoot();
+                    return;
+                }
+                if (webView != null && webView.canGoBack()) webView.goBack();
+                else finishBackAtRoot();
+            }
+        );
+    }
+
+    private void finishBackAtRoot() {
+        super.onBackPressed();
     }
 
     @Override
     protected void onDestroy() {
+        backDispatchInFlight = false;
         if (pendingGeolocationCallback != null) {
             pendingGeolocationCallback.invoke(pendingGeolocationOrigin, false, false);
             pendingGeolocationCallback = null;
