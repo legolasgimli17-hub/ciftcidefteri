@@ -49,14 +49,19 @@ assert.match(ui,/Mazot-gübre desteği/);
 assert.match(ui,/Fark ödemesi desteği/);
 assert.match(ui,/supportExempt:true/);
 assert.match(ui,/Saha planı/);
-assert.match(fieldUi,/SAHA v12\.1/);
+assert.match(fieldUi,/SAHA v13\.1/);
 
-// Android field location stays permission-gated.
+// Android field location stays permission-gated and hardware back delegates to the app navigation engine first.
 assert.match(android,/readAssetText\("phase10-command-center\.js"\)/);
 assert.match(android,/setGeolocationEnabled\(true\)/);
 assert.match(android,/onGeolocationPermissionsShowPrompt/);
 assert.match(android,/origin\.startsWith\("file:\/\/"\)/);
 assert.match(android,/ACCESS_FINE_LOCATION/);
+assert.match(android,/evaluateJavascript/);
+assert.match(android,/window\.handleNativeBack/);
+assert.match(android,/\?\'handled\'\:\'root\'/);
+assert.match(android,/backDispatchInFlight/);
+assert.match(android,/finishBackAtRoot/);
 assert.match(manifest,/android\.permission\.ACCESS_COARSE_LOCATION/);
 assert.match(manifest,/android\.permission\.ACCESS_FINE_LOCATION/);
 
@@ -68,17 +73,20 @@ assert.match(nativeUi,/history\.pushState/);
 assert.match(nativeUi,/handleNativeBack/);
 assert.match(fieldUi,/phase11-app-shell\.js/);
 assert.match(fieldUi,/closeVisibleOverlayOnBack/);
+assert.match(fieldUi,/installUnifiedBackHandler/);
+assert.match(fieldUi,/history\.back\(\)/);
 
-// PWA hard-pins V13, never silently falls back to old UI, and bounds image caches.
-assert.match(pwa,/const BUILD='v13-2b5945b'/);
-assert.match(pwa,/const REF='2b5945b8194214c0b69e100a567225a449172413'/);
-assert.match(pwa,/ekincep-pwa-assets-v13/);
+// PWA hard-pins V13.1, never silently falls back to an old navigation bundle, and bounds image caches.
+assert.match(pwa,/const BUILD='v13\.1-714aa58'/);
+assert.match(pwa,/const REF='714aa58d1f86b036140c8f7c2f478fd5b0eb2729'/);
+assert.match(pwa,/ekincep-pwa-assets-v13-1/);
 assert.match(pwa,/validAsset\(name,text\)/);
 assert.match(pwa,/phase11-app-shell\.js/);
-assert.match(pwa,/closeVisibleOverlayOnBack/);
+assert.match(pwa,/installUnifiedBackHandler/);
 assert.match(pwa,/__EKINCEP_PHASE11_NATIVE_SHELL__/);
+assert.match(pwa,/__EKINCEP_UNIFIED_BACK_PATCH__/);
 assert.doesNotMatch(pwa,/const DB='ekincep-pwa-cache-v1'/);
-assert.match(sw,/ekincep-pwa-v8/);
+assert.match(sw,/ekincep-pwa-v9/);
 assert.match(sw,/api\.open-meteo\.com/);
 assert.match(sw,/server\.arcgisonline\.com/);
 assert.match(sw,/tile\.openstreetmap\.org/);
@@ -89,4 +97,4 @@ assert.match(sw,/MAX_PHOTO_ENTRIES=8/);
 assert.match(sw,/staleWhileRevalidate/);
 assert.match(sw,/networkFirst\(e\.request,RUNTIME\)/);
 
-console.log('Phase 10 EkinCep field operating system assertions passed under EkinCep 13');
+console.log('Phase 10 EkinCep field operating system assertions passed under EkinCep 13.1');
