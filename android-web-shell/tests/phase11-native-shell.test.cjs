@@ -30,6 +30,7 @@ assert.match(ui,/rawShowPage/);
 assert.match(ui,/rawOpenTx/);
 assert.match(ui,/rawOpenField/);
 assert.match(phase9,/installUnifiedBackHandler/);
+assert.match(phase9,/window\.__EKINCEP_INSTALL_UNIFIED_BACK__=installUnifiedBackHandler/);
 assert.match(phase9,/history\.state\?\.ek13/);
 assert.match(phase9,/history\.back\(\)/);
 assert.match(phase9,/active!==\'home\'/);
@@ -45,20 +46,21 @@ assert.match(android,/backDispatchInFlight/);
 assert.match(android,/finishBackAtRoot\(\)/);
 assert.match(android,/webView\.canGoBack\(\)/);
 
-// Android asset mode and PWA load the same Phase 11 shell and a fresh V13.1 navigation bundle.
+// Android asset mode and PWA load the same Phase 11 shell. PWA synchronously installs the unified back handler before its ready gate.
 assert.match(phase9,/phase11-app-shell\.js/);
 assert.match(phase9,/location\.protocol!==\'file:\'/);
 assert.match(pwa,/'phase11-app-shell\.js'/);
-assert.match(pwa,/ekincep-pwa-assets-v13-1/);
-assert.match(pwa,/installUnifiedBackHandler/);
+assert.match(pwa,/ekincep-pwa-assets-v13-2/);
+assert.match(pwa,/__EKINCEP_INSTALL_UNIFIED_BACK__/);
+assert.match(pwa,/w\.__EKINCEP_INSTALL_UNIFIED_BACK__\(\)/);
 assert.match(pwa,/__EKINCEP_UNIFIED_BACK_PATCH__/);
-assert.match(pwa,/EkinCep 13\.1/);
+assert.match(pwa,/EkinCep 13\.2/);
 
 // Offline cache is bounded for satellite tiles and real photography.
-assert.match(sw,/ekincep-pwa-v9/);
+assert.match(sw,/ekincep-pwa-v10/);
 assert.match(sw,/MAX_MAP_ENTRIES=140/);
 assert.match(sw,/MAX_PHOTO_ENTRIES=8/);
 assert.match(sw,/images\.unsplash\.com/);
 assert.match(sw,/staleWhileRevalidate/);
 
-console.log('Phase 11 native shell and unified back assertions passed');
+console.log('Phase 11 native shell, synchronous PWA boot and unified back assertions passed');
