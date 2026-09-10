@@ -49,7 +49,7 @@ assert.match(ui,/Mazot-gübre desteği/);
 assert.match(ui,/Fark ödemesi desteği/);
 assert.match(ui,/supportExempt:true/);
 assert.match(ui,/Saha planı/);
-assert.match(fieldUi,/SAHA v13\.1/);
+assert.match(fieldUi,/SAHA v13\.2/);
 
 // Android field location stays permission-gated and hardware back delegates to the app navigation engine first.
 assert.match(android,/readAssetText\("phase10-command-center\.js"\)/);
@@ -74,22 +74,25 @@ assert.match(nativeUi,/handleNativeBack/);
 assert.match(fieldUi,/phase11-app-shell\.js/);
 assert.match(fieldUi,/closeVisibleOverlayOnBack/);
 assert.match(fieldUi,/installUnifiedBackHandler/);
+assert.match(fieldUi,/__EKINCEP_INSTALL_UNIFIED_BACK__/);
 assert.match(fieldUi,/history\.back\(\)/);
 
-// PWA hard-pins V13.1, including the iOS-safe PIN security layer.
-assert.match(pwa,/const BUILD='v13\.1-791adde'/);
-assert.match(pwa,/const REF='791adde2dfa311c2277e6134c556d843e91d86cb'/);
-assert.match(pwa,/ekincep-pwa-assets-v13-1-791adde/);
+// PWA hard-pins V13.2, including iOS-safe PINs and synchronous navigation bootstrap.
+assert.match(pwa,/const BUILD='v13\.2-a9f639c'/);
+assert.match(pwa,/const REF='a9f639ce18a2949216933bbda4c68cd942135208'/);
+assert.match(pwa,/ekincep-pwa-assets-v13-2-a9f639c/);
 assert.match(pwa,/validAsset\(name,text\)/);
 assert.match(pwa,/phase7-security\.js/);
 assert.match(pwa,/tp-pinInput/);
 assert.match(pwa,/autocomplete=\"one-time-code\"/);
 assert.match(pwa,/phase11-app-shell\.js/);
-assert.match(pwa,/installUnifiedBackHandler/);
+assert.match(pwa,/__EKINCEP_INSTALL_UNIFIED_BACK__/);
+assert.match(pwa,/typeof w\.__EKINCEP_INSTALL_UNIFIED_BACK__===\'function\'/);
+assert.match(pwa,/w\.__EKINCEP_INSTALL_UNIFIED_BACK__\(\)/);
 assert.match(pwa,/__EKINCEP_PHASE11_NATIVE_SHELL__/);
 assert.match(pwa,/__EKINCEP_UNIFIED_BACK_PATCH__/);
 assert.doesNotMatch(pwa,/const DB='ekincep-pwa-cache-v1'/);
-assert.match(sw,/ekincep-pwa-v9/);
+assert.match(sw,/ekincep-pwa-v10/);
 assert.match(sw,/api\.open-meteo\.com/);
 assert.match(sw,/server\.arcgisonline\.com/);
 assert.match(sw,/tile\.openstreetmap\.org/);
@@ -100,4 +103,4 @@ assert.match(sw,/MAX_PHOTO_ENTRIES=8/);
 assert.match(sw,/staleWhileRevalidate/);
 assert.match(sw,/networkFirst\(e\.request,RUNTIME\)/);
 
-console.log('Phase 10 EkinCep field operating system assertions passed under EkinCep 13.1');
+console.log('Phase 10 EkinCep field operating system assertions passed under EkinCep 13.2');
