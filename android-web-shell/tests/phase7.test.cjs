@@ -14,16 +14,16 @@ const security=fs.readFileSync(path.join(__dirname,'../app/src/main/assets/phase
   assert.match(security,/\.tp-pinInput\{-webkit-text-security:disc/);
   assert.match(security,/function bindPinInputs\(/);
   assert.match(security,/webkitTextSecurity/);
-  assert.match(security,/autocomplete=\\"one-time-code\\"/);
-  assert.match(security,/pattern=\\"\[0-9\]\*\\"/);
-  assert.match(security,/id=\\"tpPin1\\" class=\\"tp-pinInput\\"[^\n]*type=\\"text\\"/);
-  assert.match(security,/id=\\"tpPin2\\" class=\\"tp-pinInput\\"[^\n]*type=\\"text\\"/);
-  assert.match(security,/id=\\"tpUnlockPin\\" class=\\"tp-pinInput\\"[^\n]*type=\\"text\\"/);
-  assert.match(security,/id=\\"tpBackupPin\\" class=\\"tp-backupPin tp-pinInput\\"[^\n]*type=\\"text\\"/);
+  assert.match(security,/autocomplete="one-time-code"/);
+  assert.match(security,/pattern="\[0-9\]\*"/);
+  assert.match(security,/id="tpPin1" class="tp-pinInput"[^\n]*type="text"/);
+  assert.match(security,/id="tpPin2" class="tp-pinInput"[^\n]*type="text"/);
+  assert.match(security,/id="tpUnlockPin" class="tp-pinInput"[^\n]*type="text"/);
+  assert.match(security,/id="tpBackupPin" class="tp-backupPin tp-pinInput"[^\n]*type="text"/);
   assert.match(security,/replace\(\/\\D\/g,''\)\.slice\(0,6\)/);
-  assert.doesNotMatch(security,/id=\\"tpPin[12]\\"[^\n]*type=\\"password\\"/);
-  assert.doesNotMatch(security,/id=\\"tpUnlockPin\\"[^\n]*type=\\"password\\"/);
-  assert.doesNotMatch(security,/id=\\"tpBackupPin\\"[^\n]*type=\\"password\\"/);
+  assert.doesNotMatch(security,/id="tpPin[12]"[^\n]*type="password"/);
+  assert.doesNotMatch(security,/id="tpUnlockPin"[^\n]*type="password"/);
+  assert.doesNotMatch(security,/id="tpBackupPin"[^\n]*type="password"/);
 
   const sample={transactions:[{id:'a',category:'Mazot',amount:125000,note:'gizli-not'}],debts:[]};
   const envelope=await Core.encryptWithPin(sample,'4826',{iterations:1500});
