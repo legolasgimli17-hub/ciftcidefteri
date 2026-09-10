@@ -76,11 +76,14 @@ assert.match(fieldUi,/closeVisibleOverlayOnBack/);
 assert.match(fieldUi,/installUnifiedBackHandler/);
 assert.match(fieldUi,/history\.back\(\)/);
 
-// PWA hard-pins V13.1, never silently falls back to an old navigation bundle, and bounds image caches.
-assert.match(pwa,/const BUILD='v13\.1-714aa58'/);
-assert.match(pwa,/const REF='714aa58d1f86b036140c8f7c2f478fd5b0eb2729'/);
-assert.match(pwa,/ekincep-pwa-assets-v13-1/);
+// PWA hard-pins V13.1, including the iOS-safe PIN security layer.
+assert.match(pwa,/const BUILD='v13\.1-791adde'/);
+assert.match(pwa,/const REF='791adde2dfa311c2277e6134c556d843e91d86cb'/);
+assert.match(pwa,/ekincep-pwa-assets-v13-1-791adde/);
 assert.match(pwa,/validAsset\(name,text\)/);
+assert.match(pwa,/phase7-security\.js/);
+assert.match(pwa,/tp-pinInput/);
+assert.match(pwa,/autocomplete=\"one-time-code\"/);
 assert.match(pwa,/phase11-app-shell\.js/);
 assert.match(pwa,/installUnifiedBackHandler/);
 assert.match(pwa,/__EKINCEP_PHASE11_NATIVE_SHELL__/);
