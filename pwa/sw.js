@@ -1,4 +1,4 @@
-const VERSION='ekincep-pwa-v8';
+const VERSION='ekincep-pwa-v9';
 const STATIC=VERSION+'-static',RUNTIME=VERSION+'-runtime',WEATHER=VERSION+'-weather',MAPS=VERSION+'-maps',SATMETA=VERSION+'-satmeta',PHOTOS=VERSION+'-photos';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./og.svg'];
 const MAX_MAP_ENTRIES=140,MAX_PHOTO_ENTRIES=8;
