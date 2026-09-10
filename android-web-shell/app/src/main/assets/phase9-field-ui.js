@@ -3,7 +3,7 @@
 if(window.__EKINCEP_PHASE9__)return;
 window.__EKINCEP_PHASE9__=true;
 const BRAND='EkinCep';
-const BUILD='SAHA v13.1';
+const BUILD='SAHA v13.2';
 const DESCRIPTION='Çiftçiler için tarla gideri, gelir, borç, stok, hava, uydu ve ürün değeri takibini tek yerde sunan güvenli ve çevrimdışı çalışabilen tarla defteri.';
 const CROP_EXPENSES={
   pamuk:['Çırçır / ginleme','Pamuk toplama işçiliği','Beyaz sinek / yaprak biti ilacı'],
@@ -63,6 +63,7 @@ function installUnifiedBackHandler(){
   window.__EKINCEP_UNIFIED_BACK_PATCH__=true;
   return true;
 }
+window.__EKINCEP_INSTALL_UNIFIED_BACK__=installUnifiedBackHandler;
 function armUnifiedBackHandler(){if(installUnifiedBackHandler())return;let tries=0;const timer=setInterval(()=>{tries++;if(installUnifiedBackHandler()||tries>=60)clearInterval(timer)},50);}
 function loadNativeShell(){if(location.protocol!=='file:'||window.__EKINCEP_PHASE11_NATIVE_SHELL__||document.getElementById('ekincepPhase11Loader'))return;const s=document.createElement('script');s.id='ekincepPhase11Loader';s.src='phase11-app-shell.js';s.async=false;s.onload=armUnifiedBackHandler;s.onerror=()=>{try{toast('Yeni arayüz yüklenemedi. Uygulamayı yeniden aç.')}catch{}};document.head.appendChild(s);}
 function run(){replaceBrandText();decorateStatus();decorateBuild();applyCropAwareCategories();enhanceDebtSource();installDebtCapture();installBackSurfaceFix();armUnifiedBackHandler();}
