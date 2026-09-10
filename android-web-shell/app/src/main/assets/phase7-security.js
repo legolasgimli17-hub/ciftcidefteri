@@ -14,6 +14,7 @@ style.textContent=`
 .tp-lockLogo{width:52px;height:52px;border-radius:17px;background:linear-gradient(145deg,#1f7c53,#0f4e33);display:grid;place-items:center;color:#fff;font-size:26px;font-weight:950;margin-bottom:14px}
 .tp-lock h1{font-size:24px;margin:0 0 6px}.tp-lock p{color:#66726a;font-size:13px;line-height:1.5;margin:0 0 14px}.tp-lockWarn{background:#fff7e6;border:1px solid #ecd8aa;color:#76500e;border-radius:13px;padding:11px;font-size:12px;line-height:1.45;margin:12px 0}
 .tp-lock input{width:100%;min-height:54px;border:1.5px solid #cfdad2;border-radius:15px;padding:11px 13px;font-size:20px;letter-spacing:.22em;text-align:center;box-sizing:border-box;background:#fff}.tp-lock input:focus{outline:none;border-color:#74ad8c;box-shadow:0 0 0 4px rgba(23,103,68,.09)}
+.tp-pinInput{-webkit-text-security:disc;text-security:disc;font-variant-numeric:tabular-nums}
 .tp-lockBtn{width:100%;min-height:54px;border:0;border-radius:15px;background:linear-gradient(145deg,#1f7751,#176744);color:#fff;font-weight:900;font-size:16px;margin-top:12px}.tp-lockError{min-height:20px;color:#a43d3d;font-size:13px;font-weight:800;margin-top:9px;text-align:center}
 .tp-modal{position:fixed;inset:0;z-index:9000;background:rgba(12,25,17,.45);display:grid;place-items:center;padding:18px}.tp-modalCard{width:min(410px,100%);background:#fff;border-radius:22px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.22)}.tp-modalCard h3{margin:0 0 7px;font-size:19px}.tp-modalCard p{margin:0;color:#66726a;font-size:13px;line-height:1.5}.tp-modalActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:17px}.tp-modalActions button{min-height:48px;border-radius:14px;font-weight:900}.tp-cancel{border:1px solid #dce5df;background:#fff;color:#142119}.tp-confirm{border:0;background:#a94444;color:#fff}
 .tp-undo{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:8500;width:min(430px,calc(100% - 24px));background:#142119;color:#fff;border-radius:16px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 16px 40px rgba(0,0,0,.23);font-size:13px;font-weight:800}.tp-undo button{border:0;background:#e7f3eb;color:#176744;border-radius:11px;padding:9px 12px;font-weight:950}.tp-delete{border:1px solid #e7caca;color:#a43d3d;background:#fff7f7;border-radius:11px;padding:8px 10px;font-weight:900;margin-left:6px}
@@ -96,11 +97,33 @@ function installSaveOverride(){
   window.save=secureSave;try{save=secureSave;}catch{}
 }
 
+function bindPinInputs(root=document){
+  root.querySelectorAll('.tp-pinInput').forEach(input=>{
+    const canMask='webkitTextSecurity' in input.style;
+    input.type=canMask?'text':'password';
+    if(canMask)input.style.webkitTextSecurity='disc';
+    input.setAttribute('inputmode','numeric');
+    input.setAttribute('pattern','[0-9]*');
+    input.setAttribute('autocomplete','one-time-code');
+    input.setAttribute('autocorrect','off');
+    input.setAttribute('autocapitalize','none');
+    input.setAttribute('spellcheck','false');
+    input.addEventListener('input',()=>{
+      const cleaned=input.value.replace(/\D/g,'').slice(0,6);
+      if(input.value!==cleaned)input.value=cleaned;
+    });
+  });
+}
+
 function showSetup(legacy){
   const body=document.getElementById('tpLockBody');
-  body.innerHTML='<p>İlk kullanım için 4–6 haneli bir PIN belirle.</p><div class="tp-lockWarn"><b>Önemli:</b> Bu PIN’i unutursan verilerine kimse ulaşamaz; biz de sıfırlayamayız.</div><input id="tpPin1" inputmode="numeric" maxlength="6" type="password" placeholder="PIN"><input id="tpPin2" inputmode="numeric" maxlength="6" type="password" placeholder="PIN tekrar" style="margin-top:9px"><button id="tpSetupBtn" class="tp-lockBtn" type="button">PIN’i oluştur</button><div id="tpLockError" class="tp-lockError"></div>';
+  body.innerHTML='<p>İlk kullanım için 4–6 haneli bir PIN belirle.</p><div class="tp-lockWarn"><b>Önemli:</b> Bu PIN’i unutursan verilerine kimse ulaşamaz; biz de sıfırlayamayız.</div><input id="tpPin1" class="tp-pinInput" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" type="text" autocomplete="one-time-code" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="next" placeholder="PIN"><input id="tpPin2" class="tp-pinInput" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" type="text" autocomplete="one-time-code" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" placeholder="PIN tekrar" style="margin-top:9px"><button id="tpSetupBtn" class="tp-lockBtn" type="button">PIN’i oluştur</button><div id="tpLockError" class="tp-lockError"></div>';
+  bindPinInputs(body);
+  const first=document.getElementById('tpPin1'),second=document.getElementById('tpPin2');
+  first.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();second.focus();}});
+  second.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('tpSetupBtn').click();}});
   document.getElementById('tpSetupBtn').onclick=async()=>{
-    const p1=document.getElementById('tpPin1').value,p2=document.getElementById('tpPin2').value,err=document.getElementById('tpLockError');
+    const p1=first.value,p2=second.value,err=document.getElementById('tpLockError');
     if(!Core.validPin(p1)){err.textContent='PIN 4–6 rakam olmalı.';return;}
     if(p1!==p2){err.textContent='PIN’ler aynı değil.';return;}
     err.textContent='Şifreleme hazırlanıyor…';
@@ -115,7 +138,8 @@ function showSetup(legacy){
 
 function showUnlock(envelope){
   const body=document.getElementById('tpLockBody');
-  body.innerHTML='<p>Defterini açmak için PIN’ini gir.</p><input id="tpUnlockPin" inputmode="numeric" maxlength="6" type="password" placeholder="PIN"><button id="tpUnlockBtn" class="tp-lockBtn" type="button">Kilidi aç</button><div id="tpLockError" class="tp-lockError"></div>';
+  body.innerHTML='<p>Defterini açmak için PIN’ini gir.</p><input id="tpUnlockPin" class="tp-pinInput" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" type="text" autocomplete="one-time-code" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" placeholder="PIN"><button id="tpUnlockBtn" class="tp-lockBtn" type="button">Kilidi aç</button><div id="tpLockError" class="tp-lockError"></div>';
+  bindPinInputs(body);
   const submit=async()=>{
     const pin=document.getElementById('tpUnlockPin').value,err=document.getElementById('tpLockError');
     if(!Core.validPin(pin)){err.textContent='PIN 4–6 rakam olmalı.';return;}
@@ -187,8 +211,12 @@ async function secureExportBackup(){
 
 function askBackupPin(){
   return new Promise(resolve=>{
-    const modal=document.createElement('div');modal.className='tp-modal';modal.innerHTML='<div class="tp-modalCard"><h3>Yedek PIN’i</h3><p>Bu yedeği oluştururken kullandığın 4–6 haneli PIN’i gir.</p><input id="tpBackupPin" class="tp-backupPin" inputmode="numeric" maxlength="6" type="password" style="width:100%;min-height:50px;margin-top:12px;border:1.5px solid #cfdad2;border-radius:14px;padding:10px"><div class="tp-modalActions"><button class="tp-cancel" type="button">Vazgeç</button><button class="tp-confirm" type="button" style="background:#176744">Aç</button></div></div>';document.body.appendChild(modal);
-    modal.querySelector('.tp-cancel').onclick=()=>{modal.remove();resolve(null);};modal.querySelector('.tp-confirm').onclick=()=>{const pin=modal.querySelector('#tpBackupPin').value;modal.remove();resolve(pin);};
+    const modal=document.createElement('div');modal.className='tp-modal';modal.innerHTML='<div class="tp-modalCard"><h3>Yedek PIN’i</h3><p>Bu yedeği oluştururken kullandığın 4–6 haneli PIN’i gir.</p><input id="tpBackupPin" class="tp-backupPin tp-pinInput" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" type="text" autocomplete="one-time-code" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" style="width:100%;min-height:50px;margin-top:12px;border:1.5px solid #cfdad2;border-radius:14px;padding:10px"><div class="tp-modalActions"><button class="tp-cancel" type="button">Vazgeç</button><button class="tp-confirm" type="button" style="background:#176744">Aç</button></div></div>';document.body.appendChild(modal);
+    bindPinInputs(modal);
+    const pinInput=modal.querySelector('#tpBackupPin');
+    pinInput.focus();
+    pinInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();modal.querySelector('.tp-confirm').click();}});
+    modal.querySelector('.tp-cancel').onclick=()=>{modal.remove();resolve(null);};modal.querySelector('.tp-confirm').onclick=()=>{const pin=pinInput.value;modal.remove();resolve(pin);};
   });
 }
 
